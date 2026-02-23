@@ -32,11 +32,17 @@ Cursor is 400MB. VS Code is 350MB. Zed doesn't do AI.
 
 No Electron. No telemetry. No subscription. Open source.
 
-## Install
+## Download v1.1.0
 
-**Binary** — grab the `.dmg` from [Releases](https://github.com/DLhugly/Clif/releases)
+<p align="center">
+  <a href="https://github.com/DLhugly/Clif/releases/download/v1.1.0/Clif_1.1.0_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon"></a>
+  &nbsp;
+  <a href="https://github.com/DLhugly/Clif/releases/download/v1.1.0/Clif_1.1.0_x64.dmg"><img src="https://img.shields.io/badge/macOS-Intel%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Intel"></a>
+</p>
 
-**Source** —
+> [All releases & checksums](https://github.com/DLhugly/Clif/releases) &middot; Windows & Linux coming soon
+
+**From source** —
 ```bash
 git clone https://github.com/DLhugly/Clif.git && cd Clif
 npm install && npm run tauri dev

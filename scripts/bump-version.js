@@ -5,6 +5,7 @@
  * - package.json
  * - src-tauri/tauri.conf.json
  * - src-tauri/Cargo.toml
+ * - README.md (download links + version badge)
  *
  * Usage: node scripts/bump-version.js 0.2.0
  */
@@ -47,5 +48,24 @@ cargo = cargo.replace(
 );
 writeFileSync(cargoPath, cargo);
 console.log(`  Updated Cargo.toml -> ${version}`);
+
+// 4. README.md — download links and version heading
+const readmePath = resolve(root, "README.md");
+let readme = readFileSync(readmePath, "utf-8");
+
+// Update "## Download vX.Y.Z" heading
+readme = readme.replace(
+  /^## Download v[\d.]+/m,
+  `## Download v${version}`
+);
+
+// Update all download URLs: /download/vOLD/Clif_OLD_ -> /download/vNEW/Clif_NEW_
+readme = readme.replace(
+  /\/download\/v[\d.]+\/Clif_[\d.]+_/g,
+  `/download/v${version}/Clif_${version}_`
+);
+
+writeFileSync(readmePath, readme);
+console.log(`  Updated README.md -> v${version}`);
 
 console.log("Done.");
