@@ -19,7 +19,7 @@ pub struct ModelInfo {
 /// Get the path to the API keys storage file
 fn get_keys_file_path() -> Result<PathBuf, String> {
     let home = dirs_next().ok_or_else(|| "Could not determine home directory".to_string())?;
-    let config_dir = home.join(".agentbase");
+    let config_dir = home.join(".clif");
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir)
             .map_err(|e| format!("Failed to create config directory: {}", e))?;
@@ -101,8 +101,8 @@ pub async fn ai_chat(
     // Add OpenRouter-specific headers
     if provider == "openrouter" {
         req_builder = req_builder
-            .header("HTTP-Referer", "https://agentbase.app")
-            .header("X-Title", "AgentBase");
+            .header("HTTP-Referer", "https://clif.dev")
+            .header("X-Title", "Clif");
     }
 
     // Spawn the streaming task so we don't block the command
@@ -228,8 +228,8 @@ pub async fn ai_complete(
 
     if provider == "openrouter" {
         req_builder = req_builder
-            .header("HTTP-Referer", "https://agentbase.app")
-            .header("X-Title", "AgentBase");
+            .header("HTTP-Referer", "https://clif.dev")
+            .header("X-Title", "Clif");
     }
 
     let response = req_builder

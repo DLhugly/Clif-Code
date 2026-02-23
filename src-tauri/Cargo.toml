@@ -1,10 +1,10 @@
 [package]
-name = "agentbase"
+name = "clif"
 version = "1.0.0"
 edition = "2021"
 
 [lib]
-name = "agentbase_lib"
+name = "clif_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

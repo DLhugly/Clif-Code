@@ -11,7 +11,7 @@ interface DiffViewProps {
 }
 
 function getMonacoThemeName(t: Theme): string {
-  return `agentbase-${t}`;
+  return `clif-${t}`;
 }
 
 const DiffView: Component<DiffViewProps> = (props) => {
@@ -23,7 +23,7 @@ const DiffView: Component<DiffViewProps> = (props) => {
   onMount(() => {
     // Ensure themes are defined (may already be defined by MonacoEditor)
     for (const [name, themeData] of Object.entries(monacoThemes)) {
-      monaco.editor.defineTheme(`agentbase-${name}`, themeData);
+      monaco.editor.defineTheme(`clif-${name}`, themeData);
     }
 
     diffEditor = monaco.editor.createDiffEditor(containerRef, {

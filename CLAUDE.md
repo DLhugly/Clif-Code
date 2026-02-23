@@ -1,7 +1,7 @@
-# AgentBase — AI-Native Code Editor
+# Clif — AI-Native Code Editor
 
 ## Project Overview
-AgentBase is a blazing-fast, privacy-first, open-source AI-native code editor built with Tauri 2 + SolidJS + Monaco Editor. It competes with Cursor, Zed, and Windsurf.
+Clif is a blazing-fast, privacy-first, open-source AI-native code editor built with Tauri 2 + SolidJS + Monaco Editor. It competes with Cursor, Zed, and Windsurf.
 
 ## Tech Stack
 - **App shell**: Tauri 2 (Rust backend, ~20MB binary)

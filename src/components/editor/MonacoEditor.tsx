@@ -35,7 +35,7 @@ function getOrCreateModel(path: string, content: string, language: string): mona
 }
 
 function getMonacoThemeName(t: Theme): string {
-  return `agentbase-${t}`;
+  return `clif-${t}`;
 }
 
 const MonacoEditor: Component = () => {
@@ -47,7 +47,7 @@ const MonacoEditor: Component = () => {
   onMount(() => {
     // Register all 5 themes
     for (const [name, themeData] of Object.entries(monacoThemes)) {
-      monaco.editor.defineTheme(`agentbase-${name}`, themeData);
+      monaco.editor.defineTheme(`clif-${name}`, themeData);
     }
 
     editorInstance = monaco.editor.create(containerRef, {

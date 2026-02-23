@@ -4,7 +4,7 @@ use std::path::PathBuf;
 /// Get the path to the settings file
 fn get_settings_path() -> Result<PathBuf, String> {
     let home = get_home_dir().ok_or_else(|| "Could not determine home directory".to_string())?;
-    let config_dir = home.join(".agentbase");
+    let config_dir = home.join(".clif");
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir)
             .map_err(|e| format!("Failed to create config directory: {}", e))?;
