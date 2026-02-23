@@ -6,6 +6,7 @@
  * - src-tauri/tauri.conf.json
  * - src-tauri/Cargo.toml
  * - README.md (download links + version badge)
+ * - www/index.html (version badge + download links)
  *
  * Usage: node scripts/bump-version.js 0.2.0
  */
@@ -67,5 +68,21 @@ readme = readme.replace(
 
 writeFileSync(readmePath, readme);
 console.log(`  Updated README.md -> v${version}`);
+
+// 5. www/index.html — version badge and download links
+const wwwPath = resolve(root, "www", "index.html");
+let www = readFileSync(wwwPath, "utf-8");
+
+// Update version badge text: >vX.Y.Z<
+www = www.replace(/>v[\d.]+<\/div>/, `>v${version}</div>`);
+
+// Update download URLs
+www = www.replace(
+  /\/download\/v[\d.]+\/Clif_[\d.]+_/g,
+  `/download/v${version}/Clif_${version}_`
+);
+
+writeFileSync(wwwPath, www);
+console.log(`  Updated www/index.html -> v${version}`);
 
 console.log("Done.");

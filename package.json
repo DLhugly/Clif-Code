@@ -63,6 +63,7 @@
           "assets": [
             "CHANGELOG.md",
             "README.md",
+            "www/index.html",
             "package.json",
             "package-lock.json",
             "src-tauri/tauri.conf.json",
