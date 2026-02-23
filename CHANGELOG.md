@@ -1,3 +1,11 @@
+# [1.3.0](https://github.com/DLhugly/Clif-Code/compare/v1.2.0...v1.3.0) (2026-02-23)
+
+
+### Features
+
+* add landing page website for Vercel deployment ([6beb02b](https://github.com/DLhugly/Clif-Code/commit/6beb02b11a56ec37fcd9dbbc0bd5c58afe4bc46a))
+* add Windows and Linux builds to CI/CD pipeline ([18751ca](https://github.com/DLhugly/Clif-Code/commit/18751ca4f25f84249191ebac2d0dc5b5d9a7bb74))
+
 # [1.2.0](https://github.com/DLhugly/Clif/compare/v1.1.0...v1.2.0) (2026-02-23)
 
 
