@@ -234,6 +234,25 @@ const DevPreviewPanel: Component = () => {
     }
   });
 
+  // Respawn session when project root changes
+  let prevRoot: string | null | undefined = undefined;
+  createEffect(() => {
+    const root = projectRoot();
+    if (prevRoot !== undefined && root && root !== prevRoot) {
+      const sid = sessionId();
+      if (sid && terminalMounted) {
+        ptyKill(sid).catch(() => {});
+        unlistenOutput?.();
+        unlistenExit?.();
+        dataDisposable?.dispose();
+        setSessionId(null);
+        terminal?.clear();
+        spawnSession();
+      }
+    }
+    prevRoot = root;
+  });
+
   // Watch theme changes
   createEffect(() => {
     const t = theme();

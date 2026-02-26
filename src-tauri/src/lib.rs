@@ -4,21 +4,79 @@ mod state;
 
 use commands::pty::PtyState;
 use services::file_watcher::WatcherState;
-use state::AppState;
-use std::sync::Mutex;
+use tauri::Manager;
+
+fn build_menu(app: &tauri::AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
+    use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem, MenuItemBuilder};
+
+    let new_window = MenuItemBuilder::with_id("new_window", "New Window")
+        .accelerator("CmdOrCtrl+Shift+N")
+        .build(app)?;
+
+    let file_menu = SubmenuBuilder::new(app, "File")
+        .item(&new_window)
+        .separator()
+        .item(&PredefinedMenuItem::close_window(app, None)?)
+        .item(&PredefinedMenuItem::quit(app, None)?)
+        .build()?;
+
+    let edit_menu = SubmenuBuilder::new(app, "Edit")
+        .item(&PredefinedMenuItem::undo(app, None)?)
+        .item(&PredefinedMenuItem::redo(app, None)?)
+        .separator()
+        .item(&PredefinedMenuItem::cut(app, None)?)
+        .item(&PredefinedMenuItem::copy(app, None)?)
+        .item(&PredefinedMenuItem::paste(app, None)?)
+        .item(&PredefinedMenuItem::select_all(app, None)?)
+        .build()?;
+
+    let window_menu = SubmenuBuilder::new(app, "Window")
+        .item(&PredefinedMenuItem::minimize(app, None)?)
+        .item(&PredefinedMenuItem::maximize(app, None)?)
+        .build()?;
+
+    MenuBuilder::new(app)
+        .item(&file_menu)
+        .item(&edit_menu)
+        .item(&window_menu)
+        .build()
+}
 
 pub fn run() {
-    let app_state = AppState {
-        project_root: Mutex::new(None),
-        open_files: Mutex::new(std::collections::HashMap::new()),
-    };
-
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(app_state)
         .manage(PtyState::new())
         .manage(WatcherState::new())
+        .setup(|app| {
+            let menu = build_menu(app.handle())?;
+            app.set_menu(menu)?;
+            Ok(())
+        })
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "new_window" {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = commands::window::create_window(app).await;
+                });
+            }
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                let label = window.label().to_string();
+                let app = window.app_handle();
+
+                // Clean up PTY sessions for this window
+                if let Some(pty_state) = app.try_state::<PtyState>() {
+                    pty_state.kill_all_for_window(&label);
+                }
+
+                // Clean up file watchers for this window
+                if let Some(watcher_state) = app.try_state::<WatcherState>() {
+                    services::file_watcher::stop_all_for_window(&watcher_state, &label);
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::fs::read_dir,
             commands::fs::read_file,
@@ -54,6 +112,7 @@ pub fn run() {
             commands::pty::pty_write,
             commands::pty::pty_resize,
             commands::pty::pty_kill,
+            commands::window::create_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

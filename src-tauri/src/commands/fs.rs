@@ -1,7 +1,7 @@
 use crate::services::file_watcher::WatcherState;
-use crate::state::AppState;
 use std::fs;
 use std::path::Path;
+use tauri::Manager;
 
 #[derive(serde::Serialize, Clone)]
 pub struct FileEntry {
@@ -13,7 +13,7 @@ pub struct FileEntry {
 }
 
 #[tauri::command]
-pub fn read_dir(path: String, _state: tauri::State<'_, AppState>) -> Result<Vec<FileEntry>, String> {
+pub fn read_dir(path: String) -> Result<Vec<FileEntry>, String> {
     let dir_path = Path::new(&path);
 
     if !dir_path.exists() {
@@ -170,8 +170,9 @@ pub fn delete_entry(path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn watch_dir(
     path: String,
-    app: tauri::AppHandle,
+    window: tauri::Window,
     watcher_state: tauri::State<'_, WatcherState>,
 ) -> Result<(), String> {
-    crate::services::file_watcher::start_watching(&app, &watcher_state, &path)
+    let app = window.app_handle();
+    crate::services::file_watcher::start_watching(app, &watcher_state, &path, window.label())
 }

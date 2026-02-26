@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use uuid::Uuid;
@@ -37,12 +37,14 @@ struct ClaudeCodeEvent {
 
 #[tauri::command]
 pub async fn claude_code_start(
-    app: tauri::AppHandle,
+    window: tauri::Window,
     task: String,
     working_dir: String,
 ) -> Result<String, String> {
     let session_id = Uuid::new_v4().to_string();
     let sid = session_id.clone();
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
 
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
@@ -53,13 +55,12 @@ pub async fn claude_code_start(
         sessions.insert(session_id.clone(), cancel_tx);
     }
 
-    let app_handle = app.clone();
-
     tokio::spawn(async move {
-        let result = run_claude_process(app_handle.clone(), &sid, &task, &working_dir, cancel_rx).await;
+        let result = run_claude_process(app.clone(), &label, &sid, &task, &working_dir, cancel_rx).await;
 
         if let Err(e) = result {
-            let _ = app_handle.emit(
+            let _ = app.emit_to(
+                &label,
                 "claude-code-output",
                 ClaudeCodeEvent {
                     session_id: sid.clone(),
@@ -69,7 +70,8 @@ pub async fn claude_code_start(
             );
         }
 
-        let _ = app_handle.emit(
+        let _ = app.emit_to(
+            &label,
             "claude-code-output",
             ClaudeCodeEvent {
                 session_id: sid.clone(),
@@ -88,6 +90,7 @@ pub async fn claude_code_start(
 
 async fn run_claude_process(
     app: tauri::AppHandle,
+    label: &str,
     session_id: &str,
     task: &str,
     working_dir: &str,
@@ -95,7 +98,6 @@ async fn run_claude_process(
 ) -> Result<(), String> {
     let claude_bin = resolve_claude_path();
 
-    // Use --verbose and pipe through to get real-time output
     let mut child = Command::new(&claude_bin)
         .arg("-p")
         .arg(task)
@@ -114,18 +116,19 @@ async fn run_claude_process(
 
     let sid = session_id.to_string();
     let app_stdout = app.clone();
+    let label_stdout = label.to_string();
     let sid_stdout = sid.clone();
 
-    // Spawn a task to read stdout in raw chunks
     let stdout_handle = tokio::spawn(async move {
         let mut reader = tokio::io::BufReader::new(stdout);
         let mut buf = [0u8; 4096];
         loop {
             match reader.read(&mut buf).await {
-                Ok(0) => break, // EOF
+                Ok(0) => break,
                 Ok(n) => {
                     let text = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app_stdout.emit(
+                    let _ = app_stdout.emit_to(
+                        &label_stdout,
                         "claude-code-output",
                         ClaudeCodeEvent {
                             session_id: sid_stdout.clone(),
@@ -140,9 +143,9 @@ async fn run_claude_process(
     });
 
     let app_stderr = app.clone();
+    let label_stderr = label.to_string();
     let sid_stderr = sid.clone();
 
-    // Spawn a task to read stderr in raw chunks
     let stderr_handle = tokio::spawn(async move {
         let mut reader = tokio::io::BufReader::new(stderr);
         let mut buf = [0u8; 4096];
@@ -151,7 +154,8 @@ async fn run_claude_process(
                 Ok(0) => break,
                 Ok(n) => {
                     let text = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app_stderr.emit(
+                    let _ = app_stderr.emit_to(
+                        &label_stderr,
                         "claude-code-output",
                         ClaudeCodeEvent {
                             session_id: sid_stderr.clone(),
@@ -165,7 +169,6 @@ async fn run_claude_process(
         }
     });
 
-    // Wait for either cancellation or process completion
     tokio::select! {
         _ = &mut cancel_rx => {
             let _ = child.kill().await;
@@ -173,7 +176,6 @@ async fn run_claude_process(
         _ = child.wait() => {}
     }
 
-    // Wait for readers to finish draining
     let _ = stdout_handle.await;
     let _ = stderr_handle.await;
 

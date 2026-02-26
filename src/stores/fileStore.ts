@@ -98,10 +98,11 @@ async function openProject(path: string) {
         const entries = await loadDirectory(r);
         setFileTree(entries);
       }
-      // Refresh git status too
+      // Refresh git status and branches
       try {
-        const { refreshGitStatus } = await import("./gitStore");
+        const { refreshGitStatus, refreshBranches } = await import("./gitStore");
         refreshGitStatus();
+        refreshBranches();
       } catch {}
     }, 500);
   });
@@ -168,6 +169,41 @@ function closeFile(path: string) {
   }
 }
 
+function closeOtherFiles(path: string) {
+  setOpenFiles(
+    produce((files) => {
+      for (let i = files.length - 1; i >= 0; i--) {
+        if (files[i].path !== path) files.splice(i, 1);
+      }
+    })
+  );
+  setActiveFilePath(path);
+}
+
+function closeAllFiles() {
+  setOpenFiles(
+    produce((files) => {
+      files.splice(0, files.length);
+    })
+  );
+  setActiveFilePath(null);
+}
+
+function closeFilesToRight(path: string) {
+  const idx = openFiles.findIndex((f) => f.path === path);
+  if (idx === -1) return;
+  setOpenFiles(
+    produce((files) => {
+      files.splice(idx + 1);
+    })
+  );
+  // If the active file was to the right, switch to the given file
+  const activePath = activeFilePath();
+  if (activePath && !openFiles.find((f) => f.path === activePath)) {
+    setActiveFilePath(path);
+  }
+}
+
 function updateFileContent(path: string, content: string) {
   const idx = openFiles.findIndex((f) => f.path === path);
   if (idx === -1) return;
@@ -193,6 +229,40 @@ async function saveActiveFile() {
   if (path) await saveFile(path);
 }
 
+async function openPreview(sourcePath: string) {
+  const previewPath = sourcePath + "::preview";
+
+  // If preview already open, switch to it
+  const existing = openFiles.find((f) => f.path === previewPath);
+  if (existing) {
+    setActiveFilePath(previewPath);
+    return;
+  }
+
+  // Get content from already-open source file or read from disk
+  let content: string;
+  const sourceFile = openFiles.find((f) => f.path === sourcePath);
+  if (sourceFile) {
+    content = sourceFile.content;
+  } else {
+    try {
+      content = await readFile(sourcePath);
+    } catch (e) {
+      console.error("Failed to read file for preview:", e);
+      return;
+    }
+  }
+
+  const name = "Preview: " + getFileName(sourcePath);
+
+  setOpenFiles(
+    produce((files) => {
+      files.push({ path: previewPath, name, content, language: "markdown", isDirty: false, isPreview: true });
+    })
+  );
+  setActiveFilePath(previewPath);
+}
+
 export {
   projectRoot,
   setProjectRoot,
@@ -213,4 +283,8 @@ export {
   updateFileContent,
   saveFile,
   saveActiveFile,
+  openPreview,
+  closeOtherFiles,
+  closeAllFiles,
+  closeFilesToRight,
 };

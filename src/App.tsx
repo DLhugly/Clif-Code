@@ -1,4 +1,4 @@
-import { Component, onMount, Show, createSignal, lazy, Suspense } from "solid-js";
+import { Component, onMount, createEffect, Show, createSignal, lazy, Suspense } from "solid-js";
 import TopBar from "./components/layout/TopBar";
 import EditorArea from "./components/layout/EditorArea";
 import StatusBar from "./components/layout/StatusBar";
@@ -84,6 +84,17 @@ const App: Component = () => {
     document.addEventListener("mouseup", onMouseUp);
   }
 
+  createEffect(async () => {
+    const root = projectRoot();
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    if (root) {
+      const folder = root.split("/").pop() || root;
+      getCurrentWindow().setTitle(`${folder} — Clif`);
+    } else {
+      getCurrentWindow().setTitle("Clif");
+    }
+  });
+
   onMount(async () => {
     configureMonaco();
 
@@ -126,7 +137,7 @@ const App: Component = () => {
                 </div>
               }
             >
-              <TerminalPanel ref={(r) => (terminalRef = r)} />
+              <TerminalPanel ref={(r) => (terminalRef = r)} workingDir={projectRoot() || undefined} />
             </Suspense>
           </div>
 

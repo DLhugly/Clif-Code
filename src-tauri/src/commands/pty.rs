@@ -13,12 +13,33 @@ struct PtySession {
     master: Box<dyn MasterPty + Send>,
     child: Box<dyn Child + Send + Sync>,
     kill_flag: Arc<Mutex<bool>>,
+    window_label: String,
 }
 
 impl PtyState {
     pub fn new() -> Self {
         PtyState {
             sessions: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn kill_all_for_window(&self, label: &str) {
+        if let Ok(mut sessions) = self.sessions.lock() {
+            let to_remove: Vec<String> = sessions
+                .iter()
+                .filter(|(_, s)| s.window_label == label)
+                .map(|(id, _)| id.clone())
+                .collect();
+
+            for id in to_remove {
+                if let Some(mut session) = sessions.remove(&id) {
+                    if let Ok(mut flag) = session.kill_flag.lock() {
+                        *flag = true;
+                    }
+                    let _ = session.child.kill();
+                    drop(session);
+                }
+            }
         }
     }
 }
@@ -36,9 +57,11 @@ struct PtyExit {
 
 #[tauri::command]
 pub async fn pty_spawn(
-    app: AppHandle,
+    window: tauri::Window,
     working_dir: Option<String>,
 ) -> Result<String, String> {
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
     let session_id = uuid::Uuid::new_v4().to_string();
     let pty_system = native_pty_system();
 
@@ -94,6 +117,7 @@ pub async fn pty_spawn(
         master: pair.master,
         child,
         kill_flag: kill_flag.clone(),
+        window_label: label.clone(),
     };
 
     let state = app.state::<PtyState>();
@@ -106,6 +130,7 @@ pub async fn pty_spawn(
     // Spawn reader thread to stream output
     let sid = session_id.clone();
     let app_clone = app.clone();
+    let label_clone = label.clone();
     std::thread::spawn(move || {
         let mut buf = [0u8; 32768]; // 32KB buffer for heavy TUI output
         loop {
@@ -118,7 +143,8 @@ pub async fn pty_spawn(
                 Ok(0) => break, // EOF — shell exited
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app_clone.emit(
+                    let _ = app_clone.emit_to(
+                        &label_clone,
                         "pty-output",
                         PtyOutput {
                             session_id: sid.clone(),
@@ -139,7 +165,8 @@ pub async fn pty_spawn(
         }
 
         // Emit exit event so the frontend knows the session died
-        let _ = app_clone.emit(
+        let _ = app_clone.emit_to(
+            &label_clone,
             "pty-exit",
             PtyExit {
                 session_id: sid.clone(),

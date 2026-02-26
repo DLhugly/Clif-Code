@@ -1,7 +1,7 @@
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[derive(serde::Deserialize, Clone)]
 pub struct ChatMessage {
@@ -53,12 +53,14 @@ fn get_provider_url(provider: &str) -> String {
 
 #[tauri::command]
 pub async fn ai_chat(
-    app: tauri::AppHandle,
+    window: tauri::Window,
     messages: Vec<ChatMessage>,
     model: String,
     api_key: Option<String>,
     provider: String,
 ) -> Result<(), String> {
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
     let url = get_provider_url(&provider);
 
     // Build the messages array for the API
@@ -110,7 +112,7 @@ pub async fn ai_chat(
         let response = match req_builder.json(&request_body).send().await {
             Ok(resp) => resp,
             Err(e) => {
-                let _ = app.emit("ai_stream_error", format!("Request failed: {}", e));
+                let _ = app.emit_to(&label, "ai_stream_error", format!("Request failed: {}", e));
                 return;
             }
         };
@@ -118,7 +120,8 @@ pub async fn ai_chat(
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            let _ = app.emit(
+            let _ = app.emit_to(
+                &label,
                 "ai_stream_error",
                 format!("API error {}: {}", status, body),
             );
@@ -150,7 +153,7 @@ pub async fn ai_chat(
                             let data = &line[6..];
 
                             if data == "[DONE]" {
-                                let _ = app.emit("ai_stream", "[DONE]");
+                                let _ = app.emit_to(&label, "ai_stream", "[DONE]");
                                 return;
                             }
 
@@ -165,7 +168,7 @@ pub async fn ai_chat(
                                             if let Some(content) =
                                                 delta.get("content").and_then(|c| c.as_str())
                                             {
-                                                let _ = app.emit("ai_stream", content);
+                                                let _ = app.emit_to(&label, "ai_stream", content);
                                             }
                                         }
                                     }
@@ -175,7 +178,8 @@ pub async fn ai_chat(
                     }
                 }
                 Err(e) => {
-                    let _ = app.emit(
+                    let _ = app.emit_to(
+                        &label,
                         "ai_stream_error",
                         format!("Stream read error: {}", e),
                     );
@@ -185,7 +189,7 @@ pub async fn ai_chat(
         }
 
         // If we get here without a [DONE], still signal completion
-        let _ = app.emit("ai_stream", "[DONE]");
+        let _ = app.emit_to(&label, "ai_stream", "[DONE]");
     });
 
     Ok(())

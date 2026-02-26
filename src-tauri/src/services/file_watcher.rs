@@ -1,6 +1,6 @@
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::mpsc;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 
@@ -11,7 +11,7 @@ pub struct FileChangeEvent {
 }
 
 pub struct WatcherState {
-    watcher: Mutex<Option<WatcherHandle>>,
+    watchers: Mutex<HashMap<String, WatcherHandle>>,
 }
 
 struct WatcherHandle {
@@ -21,7 +21,7 @@ struct WatcherHandle {
 impl WatcherState {
     pub fn new() -> Self {
         WatcherState {
-            watcher: Mutex::new(None),
+            watchers: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -30,11 +30,12 @@ pub fn start_watching(
     app: &AppHandle,
     state: &WatcherState,
     path: &str,
+    window_label: &str,
 ) -> Result<(), String> {
-    // Stop any existing watcher
-    stop_watching(state);
+    // Stop any existing watcher for this window
+    stop_watching(state, window_label);
 
-    let (tx, rx) = mpsc::channel::<notify::Result<Event>>();
+    let (tx, rx) = std::sync::mpsc::channel::<notify::Result<Event>>();
 
     let mut watcher = RecommendedWatcher::new(tx, Config::default())
         .map_err(|e| format!("Failed to create watcher: {}", e))?;
@@ -45,6 +46,7 @@ pub fn start_watching(
 
     let app_clone = app.clone();
     let watch_path = path.to_string();
+    let label = window_label.to_string();
 
     // Spawn thread to process file system events
     std::thread::spawn(move || {
@@ -67,7 +69,8 @@ pub fn start_watching(
 
                     // Only emit for actual files, not directories
                     if path.is_file() || kind_str == "remove" {
-                        let _ = app_clone.emit(
+                        let _ = app_clone.emit_to(
+                            &label,
                             "file-changed",
                             FileChangeEvent {
                                 path: path_str,
@@ -80,17 +83,21 @@ pub fn start_watching(
         }
     });
 
-    let mut guard = state.watcher.lock().map_err(|e| format!("Lock error: {}", e))?;
-    *guard = Some(WatcherHandle { _watcher: watcher });
+    let mut guard = state.watchers.lock().map_err(|e| format!("Lock error: {}", e))?;
+    guard.insert(window_label.to_string(), WatcherHandle { _watcher: watcher });
 
-    log::info!("File watcher started for: {}", watch_path);
+    log::info!("File watcher started for: {} (window: {})", watch_path, window_label);
     Ok(())
 }
 
-pub fn stop_watching(state: &WatcherState) {
-    if let Ok(mut guard) = state.watcher.lock() {
-        *guard = None;
+pub fn stop_watching(state: &WatcherState, window_label: &str) {
+    if let Ok(mut guard) = state.watchers.lock() {
+        guard.remove(window_label);
     }
+}
+
+pub fn stop_all_for_window(state: &WatcherState, window_label: &str) {
+    stop_watching(state, window_label);
 }
 
 fn should_ignore(path: &str) -> bool {

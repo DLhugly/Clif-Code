@@ -124,9 +124,15 @@ async function initializeRepo() {
   await refreshBranches();
 }
 
+let branchPollTimer: ReturnType<typeof setInterval> | undefined;
+
 async function initGit() {
   await refreshGitStatus();
   await refreshBranches();
+
+  // Poll for branch changes from external tools (e.g. CLI git checkout)
+  if (branchPollTimer) clearInterval(branchPollTimer);
+  branchPollTimer = setInterval(refreshBranches, 3000);
 }
 
 export {

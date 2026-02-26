@@ -3,7 +3,7 @@ import { projectRoot, openFile } from "../../stores/fileStore";
 import {
   isGitRepo, currentBranch, changedFiles, diffStat,
   stagedFiles, unstagedFiles, commitLog, fileNumstats,
-  refreshGitStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges, initializeRepo,
+  refreshGitStatus, refreshBranches, stageFile, unstageFile, stageAll, unstageAll, commitChanges, initializeRepo,
 } from "../../stores/gitStore";
 import { devDrawerOpen, devDrawerHeight, setDevDrawerHeight } from "../../stores/uiStore";
 import type { GitLogEntry } from "../../types/git";
@@ -612,7 +612,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLElement).style.background = "transparent";
                   }}
-                  onClick={() => refreshGitStatus()}
+                  onClick={() => { refreshGitStatus(); refreshBranches(); }}
                 >
                   Refresh
                 </button>

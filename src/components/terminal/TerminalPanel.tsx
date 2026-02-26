@@ -247,6 +247,25 @@ const TerminalPanel: Component<{ ref?: (ref: TerminalPanelRef) => void; workingD
     }
   });
 
+  // Respawn session when workingDir changes
+  let prevWorkingDir: string | undefined = undefined;
+  createEffect(() => {
+    const dir = props.workingDir;
+    if (prevWorkingDir !== undefined && dir && dir !== prevWorkingDir) {
+      const sid = sessionId();
+      if (sid && terminal) {
+        ptyKill(sid).catch(() => {});
+        unlistenOutput?.();
+        unlistenExit?.();
+        dataDisposable?.dispose();
+        setSessionId(null);
+        terminal.clear();
+        spawnSession(dir);
+      }
+    }
+    prevWorkingDir = dir;
+  });
+
   onCleanup(async () => {
     alive = false;
     resizeObserver?.disconnect();
