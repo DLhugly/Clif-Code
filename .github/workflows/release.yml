@@ -25,9 +25,10 @@ jobs:
           cache-dependency-path: clif-pad-ide/package-lock.json
       - run: cd clif-pad-ide && npm ci
       - name: Semantic Release
-        working-directory: clif-pad-ide
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
+        with:
+          working_directory: clif-pad-ide
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release Debug Info
