@@ -25,6 +25,10 @@
       --green: #3fb950;
       --red: #ff6b6b;
       --yellow: #d29922;
+      --tui-blue: #00afff;
+      --tui-green: #5fff5f;
+      --tui-cyan: #00d7ff;
+      --tui-dim: #6c7086;
     }
 
     html { scroll-behavior: smooth; }
@@ -79,13 +83,13 @@
       letter-spacing: -2px; line-height: 1.05; margin-bottom: 20px;
     }
     .hero h1 .thin { font-weight: 400; color: var(--muted); }
-    .hero p {
+    .hero p.tagline {
       font-size: 18px; color: var(--muted); max-width: 540px;
       margin: 0 auto 40px; line-height: 1.7;
     }
 
-    /* DOWNLOAD BUTTONS */
-    .downloads { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+    /* DUAL CTAs */
+    .dual-ctas { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
     .dl-btn {
       display: inline-flex; align-items: center; gap: 10px;
       background: var(--text); color: var(--bg); font-weight: 700; font-size: 15px;
@@ -99,6 +103,23 @@
     }
     .dl-btn.secondary:hover { background: rgba(255,255,255,0.12); }
     .dl-btn svg { width: 18px; height: 18px; }
+    .dl-btn .mono { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+
+    /* PLATFORM DOWNLOADS ROW */
+    .platform-downloads {
+      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .platform-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.06); color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-weight: 600; font-size: 13px;
+      padding: 10px 18px; border-radius: 10px; text-decoration: none;
+      transition: background 0.15s;
+    }
+    .platform-btn:hover { background: rgba(255,255,255,0.1); }
+    .platform-btn svg { width: 16px; height: 16px; }
+
     .dl-sub { font-size: 13px; color: var(--muted); margin-bottom: 60px; }
     .dl-sub a { color: var(--accent); text-decoration: none; }
     .dl-sub a:hover { text-decoration: underline; }
@@ -111,13 +132,32 @@
     }
     .screenshot img { width: 100%; display: block; }
 
-    /* SIZE FLEX */
-    .flex-section { padding: 80px 0; text-align: center; }
-    .flex-section h2 {
-      font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px;
+    /* SECTION SHARED */
+    .section { padding: 80px 0; }
+    .section h2 {
+      font-size: 40px; font-weight: 800; letter-spacing: -1px;
+      margin-bottom: 12px; text-align: center;
     }
-    .flex-section .sub { color: var(--muted); font-size: 16px; margin-bottom: 48px; }
+    .section .sub { color: var(--muted); font-size: 16px; margin-bottom: 48px; text-align: center; }
 
+    /* FEATURES GRID (ClifPad) */
+    .feat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; }
+    .feat {
+      padding: 32px; background: var(--bg2); border-radius: 2px;
+    }
+    .feat:first-child { border-radius: 16px 2px 2px 2px; }
+    .feat:nth-child(2) { border-radius: 2px 16px 2px 2px; }
+    .feat:nth-last-child(2) { border-radius: 2px 2px 2px 16px; }
+    .feat:last-child { border-radius: 2px 2px 16px 2px; }
+    .feat h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feat p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .feat .tag {
+      display: inline-block; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--green); background: rgba(63, 185, 80, 0.1);
+      padding: 2px 8px; border-radius: 4px; margin-bottom: 12px;
+    }
+
+    /* SIZE FLEX */
     .size-grid {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
       background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
@@ -136,7 +176,6 @@
     .metrics {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
       background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
-      margin-bottom: 80px;
     }
     .metric {
       padding: 40px 24px; background: var(--bg2); text-align: center;
@@ -147,27 +186,46 @@
     }
     .metric .unit { font-size: 14px; color: var(--muted); margin-top: 8px; }
 
-    /* FEATURES */
-    .features { padding: 40px 0 80px; }
-    .features h2 {
-      font-size: 40px; font-weight: 800; letter-spacing: -1px;
-      margin-bottom: 48px; text-align: center;
+    /* TUI MOCKUP */
+    .tui-mockup {
+      background: #0c0c0c;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 680px;
+      margin: 0 auto 40px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
     }
-    .feat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; }
-    .feat {
-      padding: 32px; background: var(--bg2); border-radius: 2px;
+    .tui-titlebar {
+      background: #1a1a2e;
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
     }
-    .feat:first-child { border-radius: 16px 2px 2px 2px; }
-    .feat:nth-child(2) { border-radius: 2px 16px 2px 2px; }
-    .feat:nth-last-child(2) { border-radius: 2px 2px 2px 16px; }
-    .feat:last-child { border-radius: 2px 2px 16px 2px; }
-    .feat h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .feat p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-    .feat .tag {
-      display: inline-block; font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: var(--green); background: rgba(63, 185, 80, 0.1);
-      padding: 2px 8px; border-radius: 4px; margin-bottom: 12px;
+    .tui-dot {
+      width: 12px; height: 12px; border-radius: 50%;
     }
+    .tui-dot.r { background: #ff5f56; }
+    .tui-dot.y { background: #ffbd2e; }
+    .tui-dot.g { background: #27c93f; }
+    .tui-titlebar span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--muted); margin-left: 8px;
+    }
+    .tui-body {
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #c0c0c0;
+      overflow-x: auto;
+    }
+    .tui-body .tui-blue { color: var(--tui-blue); }
+    .tui-body .tui-green { color: var(--tui-green); }
+    .tui-body .tui-cyan { color: var(--tui-cyan); }
+    .tui-body .tui-dim { color: var(--tui-dim); }
+    .tui-body .tui-white { color: #ffffff; font-weight: 700; }
+    .tui-body .tui-yellow { color: #ffff5f; }
 
     /* CLIFCODE SECTION */
     .clifcode-section {
@@ -177,30 +235,48 @@
     .clifcode-section h2 {
       font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px;
     }
-    .clifcode-section .sub { color: var(--muted); font-size: 16px; margin-bottom: 32px; }
+    .clifcode-section .sub { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
     .clifcode-install {
       display: inline-block; text-align: left; background: var(--bg2);
       border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
-      padding: 20px 28px; font-family: 'JetBrains Mono', monospace; font-size: 15px;
-      line-height: 1.8; margin-bottom: 32px;
+      padding: 16px 24px; font-family: 'JetBrains Mono', monospace; font-size: 15px;
+      line-height: 1.8; margin-bottom: 40px;
     }
     .clifcode-features {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
       background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
-      margin-top: 40px;
+      margin-top: 40px; margin-bottom: 40px;
     }
     .clifcode-feat {
       padding: 28px 20px; background: var(--bg2); text-align: center;
     }
     .clifcode-feat h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
     .clifcode-feat p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .clifcode-feat .tag {
+      display: inline-block; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--tui-blue); background: rgba(0, 175, 255, 0.1);
+      padding: 2px 8px; border-radius: 4px; margin-bottom: 10px;
+    }
 
-    /* SOURCE */
+    /* USAGE CODE BLOCK */
+    .usage-block {
+      display: inline-block; text-align: left; background: var(--bg2);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+      padding: 20px 28px; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      line-height: 1.8; max-width: 620px; width: 100%;
+    }
+
+    /* OPEN SOURCE / SOURCE */
     .source {
       padding: 60px 0 80px; text-align: center;
     }
     .source h2 { font-size: 32px; font-weight: 800; margin-bottom: 16px; }
     .source p { color: var(--muted); margin-bottom: 24px; }
+    .source .note { font-size: 13px; color: var(--muted); margin-top: 20px; }
+    .source .note code {
+      background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    }
     .code-block {
       display: inline-block; text-align: left; background: var(--bg2);
       border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
@@ -209,6 +285,25 @@
     }
     .code-block .dim { color: var(--muted); }
     .code-block .cmd { color: var(--green); }
+
+    /* FAQ */
+    .faq-section { padding: 40px 0 80px; }
+    .faq-section h2 {
+      font-size: 40px; font-weight: 800; letter-spacing: -1px;
+      margin-bottom: 48px; text-align: center;
+    }
+    .faq-grid { display: grid; grid-template-columns: 1fr; gap: 2px; }
+    .faq-item {
+      padding: 32px; background: var(--bg2); border-radius: 2px;
+    }
+    .faq-item:first-child { border-radius: 16px 16px 2px 2px; }
+    .faq-item:last-child { border-radius: 2px 2px 16px 16px; }
+    .faq-item h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .faq-item p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .faq-item code {
+      background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    }
 
     /* FOOTER */
     footer {
@@ -230,8 +325,10 @@
       .feat { border-radius: 2px !important; }
       .feat:first-child { border-radius: 16px 16px 2px 2px !important; }
       .feat:last-child { border-radius: 2px 2px 16px 16px !important; }
-      .downloads { flex-direction: column; align-items: center; }
+      .dual-ctas { flex-direction: column; align-items: center; }
+      .platform-downloads { flex-direction: column; align-items: center; }
       .clifcode-features { grid-template-columns: 1fr; }
+      .tui-body { font-size: 11px; padding: 16px; }
     }
   </style>
 </head>
@@ -242,9 +339,9 @@
     <div class="container">
       <div class="logo">Clif</div>
       <div class="links">
-        <a href="#features">Features</a>
-        <a href="#download">Download</a>
+        <a href="#clifpad">ClifPad</a>
         <a href="#clifcode">ClifCode</a>
+        <a href="#open-source">Open Source</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/DLhugly/Clif-Code" class="gh">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -258,43 +355,91 @@
   <section class="hero" id="download">
     <div class="container">
       <div class="version">v1.4.0</div>
-      <h1>Code editor.<br><span class="thin">Not a browser.</span></h1>
-      <p>~20MB native binary with AI built in. Monaco editing, real terminal, git integration. No Electron. No telemetry. No subscription.</p>
+      <h1>Code editor.<br>AI agent.<br><span class="thin">Both native. Both open source.</span></h1>
+      <p class="tagline">~20MB desktop IDE with Monaco editing, real terminal, and git. Terminal AI agent with tool-calling, streaming, and session persistence. No Electron. No telemetry.</p>
 
-      <div class="downloads">
+      <!-- Dual CTAs -->
+      <div class="dual-ctas">
         <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_aarch64.dmg" class="dl-btn">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
-          Apple Silicon
+          Download ClifPad
         </a>
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_x64.dmg" class="dl-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
-          Intel Mac
-        </a>
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_x64-setup.exe" class="dl-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-          Windows
-        </a>
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_amd64.deb" class="dl-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.311.015-.466.046C9.39.571 7.907 3.04 7.907 5.7c0 .753.156 1.48.44 2.14-.558.123-1.092.31-1.592.558C4.36 9.573 2.673 12.29 2.673 15.386c0 1.606.493 3.077 1.33 4.297-1.018.965-1.665 2.318-1.665 3.817 0 .346.037.684.107 1.01C.628 23.137 0 21.27 0 19.295c0-3.67 1.86-6.9 4.693-8.8.37-.245.772-.46 1.19-.64-.28-.71-.437-1.482-.437-2.286 0-3.57 2.882-6.5 6.46-6.5.133 0 .265.005.396.015-.354-.35-.766-.636-1.22-.836C9.73.248 8.5 0 7.3 0c-1.2 0-2.323.25-3.296.696C1.6 1.845 0 4.38 0 7.347c0 1.505.467 2.898 1.262 4.05.108-.14.225-.275.35-.404-.93-1.23-1.497-2.755-1.497-4.423 0-3.92 3.04-7.108 6.866-7.345.075-.004.15-.006.226-.006.26 0 .515.018.765.053-.19-.13-.395-.243-.61-.336C5.843.338 4.28 0 2.7 0H12.504z"/></svg>
-          Linux .deb
-        </a>
-        <a href="https://github.com/DLhugly/Clif-Code" class="dl-btn secondary">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          Source
+        <a href="#clifcode" class="dl-btn secondary">
+          <span class="mono">cargo install clifcode</span> <span style="font-size:12px; color:var(--muted); font-weight:400; margin-left:4px;">coming soon</span>
         </a>
       </div>
+
+      <!-- Platform downloads -->
+      <div class="platform-downloads">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_x64.dmg" class="platform-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+          Intel Mac
+        </a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_x64-setup.exe" class="platform-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+          Windows
+        </a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_amd64.deb" class="platform-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12.504 0c-.155 0-.311.015-.466.046C9.39.571 7.907 3.04 7.907 5.7c0 .753.156 1.48.44 2.14-.558.123-1.092.31-1.592.558C4.36 9.573 2.673 12.29 2.673 15.386c0 1.606.493 3.077 1.33 4.297-1.018.965-1.665 2.318-1.665 3.817 0 .346.037.684.107 1.01C.628 23.137 0 21.27 0 19.295c0-3.67 1.86-6.9 4.693-8.8.37-.245.772-.46 1.19-.64-.28-.71-.437-1.482-.437-2.286 0-3.57 2.882-6.5 6.46-6.5.133 0 .265.005.396.015-.354-.35-.766-.636-1.22-.836C9.73.248 8.5 0 7.3 0c-1.2 0-2.323.25-3.296.696C1.6 1.845 0 4.38 0 7.347c0 1.505.467 2.898 1.262 4.05.108-.14.225-.275.35-.404-.93-1.23-1.497-2.755-1.497-4.423 0-3.92 3.04-7.108 6.866-7.345.075-.004.15-.006.226-.006.26 0 .515.018.765.053-.19-.13-.395-.243-.61-.336C5.843.338 4.28 0 2.7 0H12.504z"/></svg>
+          Linux .deb
+        </a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_amd64.AppImage" class="platform-btn">
+          AppImage
+        </a>
+      </div>
+
       <p class="dl-sub">
         <a href="https://github.com/DLhugly/Clif-Code/releases">All releases & checksums</a>
       </p>
 
       <div class="screenshot">
-        <img src="https://raw.githubusercontent.com/DLhugly/Clif-Code/main/SplashScreen.png" alt="Clif editor demo">
+        <img src="https://raw.githubusercontent.com/DLhugly/Clif-Code/main/SplashScreen.png" alt="ClifPad editor screenshot">
       </div>
     </div>
   </section>
 
-  <!-- SIZE FLEX -->
-  <section class="flex-section">
+  <!-- CLIFPAD FEATURES -->
+  <section class="section" id="clifpad">
+    <div class="container">
+      <h2>Everything you need.</h2>
+      <p class="sub">A full IDE in ~20MB. Monaco editing, real terminal, git, AI — all native.</p>
+      <div class="feat-grid">
+        <div class="feat">
+          <div class="tag">Monaco</div>
+          <h3>VS Code-quality editing</h3>
+          <p>70+ languages, IntelliSense, multi-cursor, minimap, bracket matching, code folding. Same engine, fraction of the size.</p>
+        </div>
+        <div class="feat">
+          <div class="tag">PTY</div>
+          <h3>Real terminal</h3>
+          <p>Native PTY sessions via Rust. Your actual shell with 256-color, resize, 10K scrollback. Not a web simulation.</p>
+        </div>
+        <div class="feat">
+          <div class="tag">Rust</div>
+          <h3>Git built in</h3>
+          <p>Branch, stage, commit, per-file diff stats, visual commit graph. Powered by Rust, not shell commands from the frontend.</p>
+        </div>
+        <div class="feat">
+          <div class="tag">iframe</div>
+          <h3>Dev preview</h3>
+          <p>One-click dev server, auto-detects localhost URLs, live browser preview. Run and see your app without leaving the editor.</p>
+        </div>
+        <div class="feat">
+          <div class="tag">opt-in</div>
+          <h3>AI your way</h3>
+          <p>OpenRouter for 100+ cloud models, Ollama for fully local inference, Claude Code CLI. All optional. Works offline.</p>
+        </div>
+        <div class="feat">
+          <div class="tag">0 tracking</div>
+          <h3>Privacy first</h3>
+          <p>No telemetry. No cloud sync. No account. No subscription. Your code stays on your machine. Period.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIZE COMPARISON -->
+  <section class="section">
     <div class="container">
       <h2>Size matters.</h2>
       <p class="sub">Smaller binary. Smaller runtime. Smaller footprint. Faster everything.</p>
@@ -339,109 +484,108 @@
     </div>
   </section>
 
-  <!-- FEATURES -->
-  <section class="features" id="features">
-    <div class="container">
-      <h2>Everything you need.</h2>
-      <div class="feat-grid">
-        <div class="feat">
-          <div class="tag">Monaco</div>
-          <h3>VS Code-quality editing</h3>
-          <p>70+ languages, IntelliSense, multi-cursor, minimap, bracket matching, code folding. Same engine, fraction of the size.</p>
-        </div>
-        <div class="feat">
-          <div class="tag">PTY</div>
-          <h3>Real terminal</h3>
-          <p>Native PTY sessions via Rust. Your actual shell with 256-color, resize, 10K scrollback. Not a web simulation.</p>
-        </div>
-        <div class="feat">
-          <div class="tag">Rust</div>
-          <h3>Git built in</h3>
-          <p>Branch, stage, commit, per-file diff stats, visual commit graph. Powered by Rust, not shell commands from the frontend.</p>
-        </div>
-        <div class="feat">
-          <div class="tag">iframe</div>
-          <h3>Dev preview</h3>
-          <p>One-click dev server, auto-detects localhost URLs, live browser preview. Run and see your app without leaving the editor.</p>
-        </div>
-        <div class="feat">
-          <div class="tag">opt-in</div>
-          <h3>AI your way</h3>
-          <p>OpenRouter for 100+ cloud models, Ollama for fully local inference, Claude Code CLI. All optional. Works offline.</p>
-        </div>
-        <div class="feat">
-          <div class="tag">0 tracking</div>
-          <h3>Privacy first</h3>
-          <p>No telemetry. No cloud sync. No account. No subscription. Your code stays on your machine. Period.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- CLIFCODE TUI -->
   <section class="clifcode-section" id="clifcode">
     <div class="container">
       <h2>ClifCode</h2>
       <p class="sub">AI coding agent for your terminal. Tool-calling loop, streaming markdown, session persistence. Works with any API.</p>
 
-      <div class="clifcode-install">
-        <span class="dim">$</span> <span class="cmd">npm i -g clifcode</span>
+      <!-- Terminal Mockup -->
+      <div class="tui-mockup">
+        <div class="tui-titlebar">
+          <div class="tui-dot r"></div>
+          <div class="tui-dot y"></div>
+          <div class="tui-dot g"></div>
+          <span>clifcode</span>
+        </div>
+        <div class="tui-body">
+          <span class="tui-blue">  ◆ Model</span>  <span class="tui-white">anthropic/claude-sonnet-4</span>    <span class="tui-blue">◆ Mode</span>  <span class="tui-white">auto-edit</span><br>
+          <span class="tui-blue">  ◆ Path</span>   <span class="tui-dim">~/projects/my-app</span><br>
+          <br>
+          <span class="tui-dim">  ─────────────────────────────────────────────</span><br>
+          <br>
+          <span class="tui-white">  ❯ refactor the auth module to use JWT tokens</span><br>
+          <br>
+          <span class="tui-dim">  [1/7] ••• thinking</span><br>
+          <span class="tui-cyan">    ▶ read</span>  <span class="tui-dim">src/auth/mod.rs</span><br>
+          <span class="tui-cyan">    ▶ read</span>  <span class="tui-dim">src/auth/session.rs</span><br>
+          <span class="tui-yellow">    ◇ find</span>  <span class="tui-dim">config.toml</span><br>
+          <span class="tui-green">    ✎ edit</span>  <span class="tui-dim">src/auth/mod.rs</span>  <span class="tui-green">+42 -18</span><br>
+          <span class="tui-green">    ✎ edit</span>  <span class="tui-dim">src/auth/session.rs</span>  <span class="tui-green">+15 -8</span><br>
+          <span class="tui-blue">    ▸ run</span>   <span class="tui-dim">cargo test</span><br>
+          <span class="tui-green">    ✓ All 23 tests passed</span><br>
+          <br>
+          <span class="tui-blue">  ✦ ClifCode</span>  Refactored auth module to use JWT tokens.<br>
+          <span class="tui-dim">              Replaced session-based auth with stateless JWT</span><br>
+          <span class="tui-dim">              verification. Added token expiry and refresh logic.</span><br>
+          <br>
+          <span class="tui-dim">  ∙ 2.1k tokens  ∙ ~$0.0312</span>
+        </div>
       </div>
 
+      <div class="clifcode-install">
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">cargo install --git https://github.com/DLhugly/Clif-Code.git --path clif-code-tui</span>
+      </div>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 24px;">
+        <code style="background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">npm i -g clifcode</code> — coming soon &nbsp;&middot;&nbsp;
+        <code style="background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">cargo install clifcode</code> — coming soon
+      </p>
+
+      <!-- 6 Feature Cards -->
       <div class="clifcode-features">
         <div class="clifcode-feat">
-          <h4>Agent loop</h4>
-          <p>Read/write files, run commands, search code, git ops — all via tool calls</p>
+          <div class="tag">agent</div>
+          <h4>Agentic loop</h4>
+          <p>Up to 7 tool calls per turn — reads, writes, runs, searches, and commits automatically</p>
         </div>
         <div class="clifcode-feat">
+          <div class="tag">api</div>
           <h4>Any provider</h4>
-          <p>OpenRouter, OpenAI, Anthropic, Ollama, or any OpenAI-compatible API</p>
+          <p>OpenRouter, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint</p>
         </div>
         <div class="clifcode-feat">
+          <div class="tag">threads</div>
+          <h4>Parallel tools</h4>
+          <p>Read-only calls execute concurrently on threads for faster turnaround</p>
+        </div>
+        <div class="clifcode-feat">
+          <div class="tag">modes</div>
+          <h4>3 autonomy modes</h4>
+          <p>suggest — confirm writes. auto-edit — apply with diffs. full-auto — hands-off</p>
+        </div>
+        <div class="clifcode-feat">
+          <div class="tag">persist</div>
           <h4>Sessions</h4>
-          <p>Auto-saves context, resume previous sessions, per-turn cost tracking</p>
+          <p>Auto-saves every conversation. Resume any session. Per-turn cost tracking</p>
         </div>
+        <div class="clifcode-feat">
+          <div class="tag">$$$</div>
+          <h4>Cost tracking</h4>
+          <p>Per-turn and session-wide token usage with estimated cost. Stay in budget</p>
+        </div>
+      </div>
+
+      <!-- Usage Examples -->
+      <div class="usage-block">
+        <span style="color: var(--muted);"># Interactive mode</span><br>
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode</span><br>
+        <br>
+        <span style="color: var(--muted);"># Non-interactive</span><br>
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode -p "explain this codebase"</span><br>
+        <br>
+        <span style="color: var(--muted);"># Local models via Ollama</span><br>
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode --backend ollama</span><br>
+        <br>
+        <span style="color: var(--muted);"># Resume last session</span><br>
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode --resume</span>
       </div>
     </div>
   </section>
 
-  <!-- MACOS INSTALL -->
-  <section class="source" id="macos-install">
+  <!-- OPEN SOURCE -->
+  <section class="source" id="open-source">
     <div class="container">
-      <h2>macOS — "App can't be opened"?</h2>
-      <p>Clif is open source but not yet notarized with Apple. macOS blocks unsigned apps by default.<br>This is normal for open source software. One command fixes it:</p>
-      <div class="code-block">
-        <span class="dim">$</span> <span class="cmd">xattr -cr /Applications/ClifPad.app</span>
-      </div>
-      <p style="margin-top: 16px; font-size: 14px; color: var(--muted);">This removes the quarantine flag macOS sets on downloads. Then open ClifPad normally.</p>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section class="features" id="faq">
-    <div class="container">
-      <h2>FAQ</h2>
-      <div class="feat-grid" style="grid-template-columns: 1fr;">
-        <div class="feat">
-          <h3>Is Clif safe?</h3>
-          <p>100% open source. Read every line on <a href="https://github.com/DLhugly/Clif-Code" style="color: var(--accent);">GitHub</a>. No telemetry, no network calls unless you enable AI. The <code style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">xattr</code> command just removes Apple's download flag — it doesn't disable any security.</p>
-        </div>
-        <div class="feat">
-          <h3>Why isn't it signed?</h3>
-          <p>Apple charges $99/year for a Developer certificate. Clif is free and open source — proper code signing + notarization is on the roadmap.</p>
-        </div>
-        <div class="feat">
-          <h3>Does it work offline?</h3>
-          <p>Yes. AI features are opt-in. Without API keys, Clif is a fully offline editor with terminal and git. Zero network calls.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- BUILD FROM SOURCE -->
-  <section class="source">
-    <div class="container">
-      <h2>Or build it yourself.</h2>
+      <h2>Build it yourself.</h2>
       <p>Clone the monorepo and pick your product.</p>
       <div class="code-block">
         <span class="dim"># Clone</span><br>
@@ -452,6 +596,32 @@
         <br>
         <span class="dim"># ClifCode (terminal agent)</span><br>
         <span class="dim">$</span> <span class="cmd">cd clif-code-tui && cargo run --release</span>
+      </div>
+      <p class="note">macOS: If ClifPad shows "App can't be opened", run <code>xattr -cr /Applications/ClifPad.app</code> — this removes the quarantine flag on unsigned apps.</p>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <h2>FAQ</h2>
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h3>Why does macOS say "App can't be opened"?</h3>
+          <p>macOS Gatekeeper blocks apps that aren't signed with a $99/year Apple Developer certificate. ClifPad is open source and safe. Run <code>xattr -cr /Applications/ClifPad.app</code> in Terminal to remove the quarantine flag, then open normally.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Is Clif safe?</h3>
+          <p>100% open source. Read every line on <a href="https://github.com/DLhugly/Clif-Code" style="color: var(--accent);">GitHub</a>. No telemetry, no network calls unless you enable AI. The <code>xattr</code> command just removes Apple's download flag — it doesn't disable any security.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Why isn't it signed?</h3>
+          <p>Apple charges $99/year for a Developer certificate. Clif is free and open source — proper code signing + notarization is on the roadmap.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Does it work offline?</h3>
+          <p>ClifPad: Yes — AI features are opt-in. Without API keys, it's a fully offline editor with terminal and git. ClifCode: Needs an API provider (but Ollama runs fully local with no internet).</p>
+        </div>
       </div>
     </div>
   </section>

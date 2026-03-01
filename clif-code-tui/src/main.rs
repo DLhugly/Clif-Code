@@ -195,8 +195,26 @@ fn run_turn(
         ui::print_turn_indicator(turn, tools::MAX_TURNS);
         ui::print_thinking();
 
+        // Compact before sending to avoid context overflow
+        session::compact_messages(&mut conv.messages, 100_000);
+
         // Use streaming for API backend — tokens print live
-        let response = bk.chat_stream(&conv.messages, Some(&tool_defs))?;
+        let response = match bk.chat_stream(&conv.messages, Some(&tool_defs)) {
+            Ok(r) => r,
+            Err(e) => {
+                let msg = format!("{e}");
+                if msg.contains("status code 400") {
+                    // Likely context overflow — compact aggressively and retry once
+                    ui::clear_thinking();
+                    ui::print_dim("  (context too large — compacting and retrying)");
+                    session::compact_messages(&mut conv.messages, 30_000);
+                    ui::print_thinking();
+                    bk.chat_stream(&conv.messages, Some(&tool_defs))?
+                } else {
+                    return Err(e);
+                }
+            }
+        };
         ui::clear_thinking();
 
         // Accumulate token usage
@@ -377,8 +395,8 @@ fn run_turn(
             }
         }
 
-        // Context compaction
-        session::compact_messages(&mut conv.messages, 8000);
+        // Context compaction — 100k token budget (~400k chars)
+        session::compact_messages(&mut conv.messages, 100_000);
     }
 
     ui::print_dim("  (reached turn limit)");

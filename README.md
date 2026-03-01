@@ -21,11 +21,12 @@
 </p>
 
 <p align="center">
-  <a href="https://clifcode.io">🌐 Website</a> &nbsp;·&nbsp;
-  <a href="#-clifpad--download">🖥️ ClifPad</a> &nbsp;·&nbsp;
-  <a href="#-clifcode--install">⚡ ClifCode</a> &nbsp;·&nbsp;
-  <a href="#-development">🛠️ Development</a> &nbsp;·&nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases">📦 Releases</a>
+  <a href="https://clifcode.io">Website</a> &nbsp;&middot;&nbsp;
+  <a href="#-get-it">Get It</a> &nbsp;&middot;&nbsp;
+  <a href="#-clifpad">ClifPad</a> &nbsp;&middot;&nbsp;
+  <a href="#-clifcode">ClifCode</a> &nbsp;&middot;&nbsp;
+  <a href="#-build--contribute">Development</a> &nbsp;&middot;&nbsp;
+  <a href="https://github.com/DLhugly/Clif-Code/releases">Releases</a>
 </p>
 
 ---
@@ -40,61 +41,71 @@ No Electron. No telemetry. No subscription. Open source.
   <img src="SplashScreen.png" alt="ClifPad Screenshot" width="800" />
 </p>
 
-```
-Clif-Code/
-├── clif-pad-ide/    🖥️  Desktop IDE — Tauri 2 + SolidJS + Monaco
-├── clif-code-tui/   ⚡  Terminal AI agent — pure Rust, any API
-└── .github/         🔄  CI/CD (auto-release, npm publish)
-```
-
 ---
 
-## 🖥️ ClifPad — Download
+## 📦 Get It
 
-<p align="center">
-  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon"></a>
-  &nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_x64.dmg"><img src="https://img.shields.io/badge/macOS-Intel%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Intel"></a>
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### ClifPad — Desktop IDE
+
+<p>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_x64.dmg"><img src="https://img.shields.io/badge/macOS-Intel%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Intel"></a>
+</p>
+<p>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_x64-setup.exe"><img src="https://img.shields.io/badge/Windows-x64%20(.exe)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_amd64.deb"><img src="https://img.shields.io/badge/Linux-.deb-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux deb"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.4.0/ClifPad_1.4.0_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux AppImage"></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_x64-setup.exe"><img src="https://img.shields.io/badge/Windows-x64%20(.exe)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"></a>
-  &nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_amd64.deb"><img src="https://img.shields.io/badge/Linux-x64%20(.deb)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux deb"></a>
-  &nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux AppImage"></a>
-</p>
+> **macOS "App can't be opened"?** — Run `xattr -cr /Applications/ClifPad.app` then open normally. [Why?](#-faq)
+
+</td>
+<td width="50%" valign="top">
+
+### ClifCode — Terminal Agent
+
+```bash
+cargo install --git https://github.com/DLhugly/Clif-Code.git --path clif-code-tui
+```
+
+Run `clifcode` in any project directory.
+
+> `npm i -g clifcode` — coming soon &nbsp;|&nbsp; `cargo install clifcode` — coming soon
+
+<details>
+<summary>Other install methods</summary>
+
+```bash
+# Or clone and build locally
+git clone https://github.com/DLhugly/Clif-Code.git
+cd Clif-Code/clif-code-tui && cargo install --path .
+```
+
+</details>
+
+</td>
+</tr>
+</table>
 
 > [All releases & checksums](https://github.com/DLhugly/Clif-Code/releases)
 
-### macOS — "App can't be opened"
+---
 
-Clif is open source but not yet notarized with Apple ($99/year). macOS blocks unsigned apps by default. This is normal for open source software — run one command to fix it:
+## 🖥️ ClifPad
 
-```bash
-xattr -cr /Applications/ClifPad.app
-```
+**📝 Monaco Editor** — 70+ languages, IntelliSense, multi-cursor, minimap, code folding. Same engine as VS Code.
 
-Then open ClifPad normally. This removes the quarantine flag that macOS sets on downloads. [Why does this happen?](#-faq)
+**🖥️ Real Terminal** — Native PTY via Rust. Your actual shell with 256-color, resize, 10K scrollback.
 
-**From source:**
+**🔍 Dev Preview** — One-click `npm run dev`, auto-detects `localhost`, live iframe preview.
 
-```bash
-git clone https://github.com/DLhugly/Clif-Code.git && cd Clif-Code
-cd clif-pad-ide && npm install && npm run tauri dev
-```
+**🌿 Git** — Branch, status, stage, commit, per-file `+/-` diff stats, visual commit graph. All Rust.
 
-### ✨ Features
-
-**📝 Monaco Editor** — 70+ languages, IntelliSense, multi-cursor, minimap, code folding. The same engine as VS Code.
-
-**🖥️ Real Terminal** — Native PTY via Rust. Your actual shell with 256-color, resize, 10K scrollback. Not a simulation.
-
-**🔍 Dev Preview** — One-click `npm run dev`, auto-detects `localhost` URLs, live iframe preview. Run and see your app without switching windows.
-
-**🌿 Git** — Branch, status, stage, commit, per-file `+/-` diff stats, visual commit graph. All Rust, no shelling out.
-
-**🤖 AI** — OpenRouter (Claude, GPT-4, Gemini, 100+ models), Ollama (fully local), Claude Code CLI. Ghost text completions. All opt-in. Works fine offline with zero keys.
+**🤖 AI** — OpenRouter (100+ models), Ollama (fully local), Claude Code CLI. Ghost text completions. All opt-in.
 
 **🎨 5 Themes** — Midnight, Graphite, Dawn, Arctic, Dusk. Editor, terminal, and UI stay in sync.
 
@@ -104,67 +115,18 @@ cd clif-pad-ide && npm install && npm run tauri dev
 
 | | Binary | Runtime | RAM idle |
 |---|--------|---------|----------|
-| **ClifPad** | **~20MB** 🟢 | **7KB** 🟢 | **~80MB** 🟢 |
-| Cursor | ~400MB 🔴 | ~50MB 🔴 | ~500MB+ 🔴 |
-| VS Code | ~350MB 🔴 | ~40MB 🔴 | ~400MB+ 🔴 |
-| Zed | ~100MB 🟡 | native | ~200MB 🟡 |
+| **ClifPad** | **~20MB** | **7KB** | **~80MB** |
+| Cursor | ~400MB | ~50MB | ~500MB+ |
+| VS Code | ~350MB | ~40MB | ~400MB+ |
+| Zed | ~100MB | native | ~200MB |
 
-Tauri 2 compiles to a single native binary. SolidJS has no virtual DOM overhead. Rust handles all heavy lifting — file I/O, git, PTY, AI streaming — with zero garbage collection.
-
-### 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────┐
-│             Tauri 2 (Rust)              │
-│  File I/O · Git · PTY · AI · Search    │
-│                  │                      │
-│            IPC (invoke/events)          │
-│                  │                      │
-│           SolidJS + TypeScript          │
-│       Monaco Editor · xterm.js          │
-│           Tailwind CSS 4                │
-└─────────────────────────────────────────┘
-```
-
-| Layer | Tech | Size |
-|-------|------|------|
-| Backend | Tauri 2 + Rust | ~20MB compiled |
-| UI | SolidJS | 7KB runtime |
-| Editor | Monaco | tree-shaken |
-| Terminal | xterm.js + portable-pty | real PTY |
-| Styles | Tailwind CSS 4 | zero runtime |
-| Build | Vite 6 | <5s HMR |
-| CI/CD | Semantic Release | auto-versioned |
+Tauri 2 compiles to a single native binary. SolidJS has no virtual DOM overhead. Rust handles file I/O, git, PTY, AI streaming — zero garbage collection.
 
 ---
 
-## ⚡ ClifCode — Install
+## ⚡ ClifCode
 
 > **Open-source AI coding agent for your terminal. Like Claude Code — but you own it.**
-
-```bash
-npm i -g clifcode
-```
-
-That's it. Run `clifcode` in any project directory.
-
-<details>
-<summary><strong>Other install methods</strong></summary>
-
-```bash
-# Build from source
-git clone https://github.com/DLhugly/Clif-Code.git && cd Clif-Code
-cd clif-code-tui && cargo install --path .
-
-# Or just run it directly
-cd clif-code-tui && cargo run --release
-```
-
-</details>
-
-### 🎬 How it looks
-
-ClifCode is a tool-calling AI agent that reads your codebase, writes code, runs commands, searches files, and auto-commits — all from a beautiful TUI.
 
 ```
    _____ _ _  __ _____          _
@@ -200,47 +162,23 @@ ClifCode is a tool-calling AI agent that reads your codebase, writes code, runs 
   ∙ 2.1k tokens  ∙ ~$0.0312
 ```
 
-### 🛠️ Features
+**What it does:** Tool-calling AI agent that reads your codebase, writes code, runs commands, searches files, and auto-commits — all from a TUI.
 
-| | Feature | Details |
-|---|---------|---------|
-| 🔄 | **Agentic loop** | Up to 7 tool calls per turn — reads, writes, runs, searches, commits automatically |
-| 🌐 | **Any provider** | OpenRouter, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint |
-| ⚡ | **Parallel tools** | Read-only calls (file reads, searches) execute concurrently on threads |
-| 📡 | **Streaming** | Responses render live with markdown formatting, code blocks, and syntax hints |
-| 🎛️ | **3 autonomy modes** | `suggest` — confirm writes · `auto-edit` — apply with diffs · `full-auto` — hands-off |
-| 💾 | **Sessions** | Auto-saves every conversation. Resume any session with `/resume` |
-| 🔀 | **Auto-commit** | Commits changes with descriptive messages. One-command `/undo` |
-| 💰 | **Cost tracking** | Per-turn and session-wide token usage with estimated cost |
-| 🧠 | **Workspace intel** | Auto-scans project structure, reads README/Cargo.toml/package.json for context |
-| 🔧 | **Non-interactive** | `clifcode -p "fix the bug"` for scripts and CI |
-
-### 🔧 9 Built-in Tools
-
-```
-  ▶ read_file         Read files (with offset for large files)
-  ✎ write_file        Create new files
-  ✎ edit_file         Surgical find-and-replace with diff preview
-  ◇ find_file         Locate files by name across the workspace
-  ☰ list_files        Directory listing with structure
-  ⌕ search            Regex search across your codebase
-  ▸ run_command        Execute shell commands
-  → change_directory   Switch workspace context
-  ✓ submit            Signal task completion + auto-commit
-```
-
-### 💻 Usage
+| | | |
+|---|---|---|
+| **Agentic loop** — up to 7 tool calls per turn | **Any provider** — OpenRouter, OpenAI, Anthropic, Ollama | **Parallel tools** — concurrent read-only calls |
+| **3 autonomy modes** — suggest, auto-edit, full-auto | **Sessions** — auto-save, resume, cost tracking | **9 built-in tools** — read, write, edit, find, search, run, list, cd, submit |
 
 ```bash
-clifcode                                        # interactive, auto-detect backend
-clifcode -p "explain this codebase"             # non-interactive single prompt
-clifcode --backend api --api-model gpt-4o       # specific model
-clifcode --backend ollama                       # local Ollama
+clifcode                                        # interactive mode
+clifcode -p "explain this codebase"             # non-interactive
+clifcode --backend ollama                       # local models
 clifcode --autonomy suggest                     # confirm every write
 clifcode --resume                               # resume last session
 ```
 
-### ⌨️ Commands
+<details>
+<summary><strong>Commands & providers</strong></summary>
 
 ```
   ◆ Session     /new  /sessions  /resume  /cost  /clear  /quit
@@ -249,19 +187,19 @@ clifcode --resume                               # resume last session
   ◆ Git         /status  /undo
 ```
 
-### 🔌 Supported Providers
-
 | Provider | Config |
 |----------|--------|
 | **OpenRouter** (default) | `CLIFCODE_API_KEY` — access to 100+ models |
 | **OpenAI** | `--api-url https://api.openai.com/v1` |
 | **Anthropic** | Via OpenRouter or compatible proxy |
-| **Ollama** | `--backend ollama` — fully local, no API key needed |
+| **Ollama** | `--backend ollama` — fully local, no API key |
 | **Any OpenAI-compatible** | `--api-url <your-endpoint>` |
+
+</details>
 
 ---
 
-## 🛠️ Development
+## 🛠️ Build & Contribute
 
 ```bash
 # ClifPad — desktop IDE
@@ -275,7 +213,39 @@ cargo run --release                     # run directly
 cargo install --path .                  # install to PATH
 ```
 
+### Architecture
+
+```
+┌─────────────────────────────────────────┐
+│             Tauri 2 (Rust)              │
+│  File I/O · Git · PTY · AI · Search    │
+│                  │                      │
+│            IPC (invoke/events)          │
+│                  │                      │
+│           SolidJS + TypeScript          │
+│       Monaco Editor · xterm.js          │
+│           Tailwind CSS 4                │
+└─────────────────────────────────────────┘
+```
+
+| Layer | Tech | Size |
+|-------|------|------|
+| Backend | Tauri 2 + Rust | ~20MB compiled |
+| UI | SolidJS | 7KB runtime |
+| Editor | Monaco | tree-shaken |
+| Terminal | xterm.js + portable-pty | real PTY |
+| Styles | Tailwind CSS 4 | zero runtime |
+| Build | Vite 6 | <5s HMR |
+| CI/CD | Semantic Release | auto-versioned |
+
 ### Project Structure
+
+```
+Clif-Code/
+├── clif-pad-ide/    🖥️  Desktop IDE — Tauri 2 + SolidJS + Monaco
+├── clif-code-tui/   ⚡  Terminal AI agent — pure Rust, any API
+└── .github/         🔄  CI/CD (auto-release, npm publish)
+```
 
 ```
 clif-pad-ide/
@@ -340,5 +310,5 @@ Any OpenAI-compatible API. Default is `anthropic/claude-sonnet-4` via OpenRouter
 </p>
 
 <p align="center">
-  <sub>Built with 🦀 Rust and ❤️ by <a href="https://github.com/DLhugly">DLhugly</a></sub>
+  <sub>Built with Rust and care by <a href="https://github.com/DLhugly">DLhugly</a></sub>
 </p>
