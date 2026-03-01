@@ -60,16 +60,26 @@ readme = readme.replace(
   `## Download v${version}`
 );
 
-// Update all download URLs: /download/vOLD/Clif_OLD_ -> /download/vNEW/Clif_NEW_
+// Update all download URLs: /download/vOLD/ClifPad_OLD_ -> /download/vNEW/ClifPad_NEW_
 readme = readme.replace(
-  /\/download\/v[\d.]+\/Clif_[\d.]+_/g,
-  `/download/v${version}/Clif_${version}_`
+  /\/download\/v[\d.]+\/ClifPad_[\d.]+_/g,
+  `/download/v${version}/ClifPad_${version}_`
 );
 
 writeFileSync(readmePath, readme);
 console.log(`  Updated README.md -> v${version}`);
 
-// 5. www/index.html — version badge and download links
+// 5. Monorepo root README.md — download links
+const rootReadmePath = resolve(root, "..", "README.md");
+let rootReadme = readFileSync(rootReadmePath, "utf-8");
+rootReadme = rootReadme.replace(
+  /\/download\/v[\d.]+\/ClifPad_[\d.]+_/g,
+  `/download/v${version}/ClifPad_${version}_`
+);
+writeFileSync(rootReadmePath, rootReadme);
+console.log(`  Updated root README.md -> v${version}`);
+
+// 6. www/index.html — version badge and download links
 const wwwPath = resolve(root, "www", "index.html");
 let www = readFileSync(wwwPath, "utf-8");
 
@@ -78,8 +88,8 @@ www = www.replace(/>v[\d.]+<\/div>/, `>v${version}</div>`);
 
 // Update download URLs
 www = www.replace(
-  /\/download\/v[\d.]+\/Clif_[\d.]+_/g,
-  `/download/v${version}/Clif_${version}_`
+  /\/download\/v[\d.]+\/ClifPad_[\d.]+_/g,
+  `/download/v${version}/ClifPad_${version}_`
 );
 
 writeFileSync(wwwPath, www);

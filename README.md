@@ -52,17 +52,17 @@ Clif-Code/
 ## 🖥️ ClifPad — Download
 
 <p align="center">
-  <a href="https://github.com/DLhugly/Clif-Code/releases/latest"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon"></a>
   &nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases/latest"><img src="https://img.shields.io/badge/macOS-Intel%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Intel"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_x64.dmg"><img src="https://img.shields.io/badge/macOS-Intel%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Intel"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/DLhugly/Clif-Code/releases/latest"><img src="https://img.shields.io/badge/Windows-x64%20(.exe)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_x64-setup.exe"><img src="https://img.shields.io/badge/Windows-x64%20(.exe)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"></a>
   &nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases/latest"><img src="https://img.shields.io/badge/Linux-x64%20(.deb)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux deb"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_amd64.deb"><img src="https://img.shields.io/badge/Linux-x64%20(.deb)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux deb"></a>
   &nbsp;
-  <a href="https://github.com/DLhugly/Clif-Code/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux AppImage"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/ClifPad_1.3.0_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux AppImage"></a>
 </p>
 
 > [All releases & checksums](https://github.com/DLhugly/Clif-Code/releases)

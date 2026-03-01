@@ -23,9 +23,9 @@ jobs:
         with:
           node-version: 22
           cache-dependency-path: clif-pad-ide/package-lock.json
-      - run: cd clifpad && npm ci
+      - run: cd clif-pad-ide && npm ci
       - name: Semantic Release
-        working-directory: clifpad
+        working-directory: clif-pad-ide
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
         env:
@@ -67,7 +67,7 @@ jobs:
           echo "Syncing version: $VERSION"
           git pull origin main || true
           sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" clif-pad-ide/src-tauri/tauri.conf.json
-          cd clifpad && node scripts/bump-version.js "$VERSION"
+          cd clif-pad-ide && node scripts/bump-version.js "$VERSION"
           echo "Version synchronized"
 
       - uses: actions/setup-node@v4
@@ -89,13 +89,13 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd clifpad && npm ci
+          cd clif-pad-ide && npm ci
           echo "Node: $(node --version)"
           echo "Rust: $(rustc --version)"
 
       - name: Build Frontend
         run: |
-          cd clifpad && npm run build
+          cd clif-pad-ide && npm run build
           echo "Frontend built: $(du -sh dist/)"
 
       - name: Build Tauri App
@@ -108,7 +108,7 @@ jobs:
           releaseBody: "See the assets to download and install ClifPad."
           releaseDraft: false
           prerelease: false
-          projectPath: clifpad
+          projectPath: clif-pad-ide
           args: --target ${{ matrix.target }}
 
       - name: Generate Checksums
@@ -149,7 +149,7 @@ jobs:
           $VERSION = "${{ needs.semantic-release.outputs.new-release-version }}"
           echo "Syncing version: $VERSION"
           git pull origin main
-          cd clifpad && node scripts/bump-version.js "$VERSION"
+          cd clif-pad-ide && node scripts/bump-version.js "$VERSION"
           echo "Version synchronized"
 
       - uses: actions/setup-node@v4
@@ -168,10 +168,10 @@ jobs:
           cache-on-failure: true
 
       - name: Install Dependencies
-        run: cd clifpad && npm ci
+        run: cd clif-pad-ide && npm ci
 
       - name: Build Frontend
-        run: cd clifpad && npm run build
+        run: cd clif-pad-ide && npm run build
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -183,7 +183,7 @@ jobs:
           releaseBody: "See the assets to download and install ClifPad."
           releaseDraft: false
           prerelease: false
-          projectPath: clifpad
+          projectPath: clif-pad-ide
 
       - name: Generate Checksums
         shell: bash
@@ -236,7 +236,7 @@ jobs:
           VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
           echo "Syncing version: $VERSION"
           git pull origin main || true
-          cd clifpad && node scripts/bump-version.js "$VERSION"
+          cd clif-pad-ide && node scripts/bump-version.js "$VERSION"
           echo "Version synchronized"
 
       - uses: actions/setup-node@v4
@@ -255,10 +255,10 @@ jobs:
           cache-on-failure: true
 
       - name: Install Dependencies
-        run: cd clifpad && npm ci
+        run: cd clif-pad-ide && npm ci
 
       - name: Build Frontend
-        run: cd clifpad && npm run build
+        run: cd clif-pad-ide && npm run build
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -270,7 +270,7 @@ jobs:
           releaseBody: "See the assets to download and install ClifPad."
           releaseDraft: false
           prerelease: false
-          projectPath: clifpad
+          projectPath: clif-pad-ide
 
       - name: Generate Checksums
         run: |
