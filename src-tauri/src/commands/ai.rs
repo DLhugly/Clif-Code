@@ -209,11 +209,11 @@ pub async fn ai_complete(
         "messages": [
             {
                 "role": "system",
-                "content": "You are a code completion assistant. Given the code context, provide only the completion text. Do not include explanations, markdown formatting, or code fences. Output only the raw code that should be inserted."
+                "content": "You are a code completion assistant. The user provides code with <|fim_prefix|> before the cursor and <|fim_suffix|> after. Output ONLY the code to insert at the cursor. No explanations, no markdown, no fences."
             },
             {
                 "role": "user",
-                "content": format!("Complete the following code:\n\n{}", context)
+                "content": context
             }
         ],
         "max_tokens": 256,

@@ -29,8 +29,16 @@ function getProjectName(): string {
   return parts[parts.length - 1] || "";
 }
 
+const ClifCodeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </svg>
+);
+
 const TopBar: Component<{
   onLaunchClaude: () => void;
+  onLaunchClifCode: () => void;
   onOpenFolder: () => void;
 }> = (props) => {
   const hasProject = () => !!projectRoot();
@@ -262,6 +270,40 @@ const TopBar: Component<{
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
+
+        {/* Launch ClifCode button */}
+        <button
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150"
+          style={{
+            background: hasProject()
+              ? "var(--bg-hover)"
+              : "var(--bg-hover)",
+            color: hasProject() ? "var(--text-primary)" : "var(--text-muted)",
+            border: hasProject() ? "1px solid var(--border-default)" : "none",
+            cursor: hasProject() ? "pointer" : "not-allowed",
+            opacity: hasProject() ? "1" : "0.6",
+          }}
+          onMouseEnter={(e) => {
+            if (hasProject()) {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
+              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (hasProject()) {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+            }
+          }}
+          onClick={() => {
+            if (hasProject()) props.onLaunchClifCode();
+          }}
+          disabled={!hasProject()}
+          title={hasProject() ? "Launch ClifCode (offline AI) in terminal" : "Open a folder first"}
+        >
+          <ClifCodeIcon />
+          ClifCode
+        </button>
 
         {/* Launch Claude button */}
         <button

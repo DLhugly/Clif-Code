@@ -3,6 +3,7 @@ import * as monaco from "monaco-editor";
 import { activeFile, updateFileContent, saveActiveFile } from "../../stores/fileStore";
 import { theme, fontSize } from "../../stores/uiStore";
 import { monacoThemes } from "../../lib/themes";
+import { registerGhostTextProvider } from "./GhostText";
 import type { Theme } from "../../stores/uiStore";
 
 // Model + viewstate cache
@@ -41,6 +42,7 @@ function getMonacoThemeName(t: Theme): string {
 const MonacoEditor: Component = () => {
   let containerRef!: HTMLDivElement;
   let editorInstance: monaco.editor.IStandaloneCodeEditor | undefined;
+  let ghostTextDisposable: monaco.IDisposable | undefined;
   let currentPath: string | null = null;
   let onChangeDisposable: monaco.IDisposable | undefined;
 
@@ -69,6 +71,9 @@ const MonacoEditor: Component = () => {
       automaticLayout: true,
       theme: getMonacoThemeName(theme()),
     });
+
+    // Register FIM ghost text completions
+    ghostTextDisposable = registerGhostTextProvider(editorInstance);
 
     // Register Cmd+S / Ctrl+S to save
     editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -138,6 +143,10 @@ const MonacoEditor: Component = () => {
       if (state) {
         viewStateCache.set(currentPath, state);
       }
+    }
+
+    if (ghostTextDisposable) {
+      ghostTextDisposable.dispose();
     }
 
     if (onChangeDisposable) {

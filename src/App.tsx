@@ -24,6 +24,12 @@ const App: Component = () => {
     }
   }
 
+  function handleLaunchClifCode() {
+    if (terminalRef && projectRoot()) {
+      terminalRef.sendCommand("clifcode\n");
+    }
+  }
+
   async function handleOpenFolder() {
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
@@ -117,7 +123,7 @@ const App: Component = () => {
       style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
     >
       {/* Top Bar */}
-      <TopBar onLaunchClaude={handleLaunchClaude} onOpenFolder={handleOpenFolder} />
+      <TopBar onLaunchClaude={handleLaunchClaude} onLaunchClifCode={handleLaunchClifCode} onOpenFolder={handleOpenFolder} />
 
       {/* Main content: Terminal (left) + Editor (center) + Sidebar (right) */}
       <div class="flex flex-1 min-h-0">
