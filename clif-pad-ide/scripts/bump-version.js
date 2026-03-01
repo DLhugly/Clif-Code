@@ -5,7 +5,7 @@
  * - package.json
  * - src-tauri/tauri.conf.json
  * - src-tauri/Cargo.toml
- * - README.md (download links + version badge)
+ * - ../README.md (monorepo root — download links)
  * - www/index.html (version badge + download links)
  *
  * Usage: node scripts/bump-version.js 0.2.0
@@ -50,26 +50,7 @@ cargo = cargo.replace(
 writeFileSync(cargoPath, cargo);
 console.log(`  Updated Cargo.toml -> ${version}`);
 
-// 4. README.md — download links and version heading
-const readmePath = resolve(root, "README.md");
-let readme = readFileSync(readmePath, "utf-8");
-
-// Update "## Download vX.Y.Z" heading
-readme = readme.replace(
-  /^## Download v[\d.]+/m,
-  `## Download v${version}`
-);
-
-// Update all download URLs: /download/vOLD/ClifPad_OLD_ -> /download/vNEW/ClifPad_NEW_
-readme = readme.replace(
-  /\/download\/v[\d.]+\/ClifPad_[\d.]+_/g,
-  `/download/v${version}/ClifPad_${version}_`
-);
-
-writeFileSync(readmePath, readme);
-console.log(`  Updated README.md -> v${version}`);
-
-// 5. Monorepo root README.md — download links
+// 4. Monorepo root README.md — download links
 const rootReadmePath = resolve(root, "..", "README.md");
 let rootReadme = readFileSync(rootReadmePath, "utf-8");
 rootReadme = rootReadme.replace(
@@ -79,7 +60,7 @@ rootReadme = rootReadme.replace(
 writeFileSync(rootReadmePath, rootReadme);
 console.log(`  Updated root README.md -> v${version}`);
 
-// 6. www/index.html — version badge and download links
+// 5. www/index.html — version badge and download links
 const wwwPath = resolve(root, "www", "index.html");
 let www = readFileSync(wwwPath, "utf-8");
 
