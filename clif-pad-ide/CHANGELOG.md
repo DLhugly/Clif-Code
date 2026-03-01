@@ -1,3 +1,18 @@
+# [1.4.0](https://github.com/DLhugly/Clif-Code/compare/v1.3.0...v1.4.0) (2026-03-01)
+
+
+### Bug Fixes
+
+* remove missing clif-pad-ide/README.md from bump-version script ([b1fb279](https://github.com/DLhugly/Clif-Code/commit/b1fb279854215ab978146f2ef11612aa0a1ce927))
+* update download URLs to ClifPad_ prefix and fix remaining clifpad path refs ([c2c4015](https://github.com/DLhugly/Clif-Code/commit/c2c40154dee12520b0ddc367d925e6425fc14779))
+* use working_directory input for semantic-release action ([9de5500](https://github.com/DLhugly/Clif-Code/commit/9de55003534cc5325311a3158a86819939b9cbf9))
+
+
+### Features
+
+* implement FIM ghost text completions and add ClifCode launch button ([7c420a0](https://github.com/DLhugly/Clif-Code/commit/7c420a0f1c429e7b212b2c55338c3625ba46c6b9))
+* monorepo restructure with npm distribution for ClifCode ([946099d](https://github.com/DLhugly/Clif-Code/commit/946099d42b6b9e27880e0e0ff615382cde71f872))
+
 # [1.3.0](https://github.com/DLhugly/Clif-Code/compare/v1.2.0...v1.3.0) (2026-02-23)
 
 
