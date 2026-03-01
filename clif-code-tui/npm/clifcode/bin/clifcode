@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+
+const { spawnSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+
+const PLATFORM_MAP = {
+  "darwin-arm64": "@clifcode/cli-darwin-arm64",
+  "darwin-x64": "@clifcode/cli-darwin-x64",
+  "linux-arm64": "@clifcode/cli-linux-arm64",
+  "linux-x64": "@clifcode/cli-linux-x64",
+  "win32-arm64": "@clifcode/cli-win32-arm64",
+  "win32-x64": "@clifcode/cli-win32-x64",
+};
+
+function getBinaryPath() {
+  const key = `${process.platform}-${process.arch}`;
+  const pkg = PLATFORM_MAP[key];
+
+  if (!pkg) {
+    console.error(`Unsupported platform: ${key}`);
+    console.error(`Supported: ${Object.keys(PLATFORM_MAP).join(", ")}`);
+    process.exit(1);
+  }
+
+  // Try resolving the platform package
+  try {
+    const pkgDir = path.dirname(require.resolve(`${pkg}/package.json`));
+    const ext = process.platform === "win32" ? ".exe" : "";
+    const bin = path.join(pkgDir, "bin", `clifcode${ext}`);
+    if (fs.existsSync(bin)) return bin;
+  } catch {}
+
+  // Fallback: check if postinstall downloaded the binary
+  const ext = process.platform === "win32" ? ".exe" : "";
+  const fallback = path.join(__dirname, `clifcode${ext}`);
+  if (fs.existsSync(fallback)) return fallback;
+
+  console.error(`ClifCode binary not found for ${key}.`);
+  console.error(`Try reinstalling: npm i -g clifcode`);
+  process.exit(1);
+}
+
+const bin = getBinaryPath();
+const result = spawnSync(bin, process.argv.slice(2), {
+  stdio: "inherit",
+  env: process.env,
+});
+
+if (result.error) {
+  if (result.error.code === "ENOENT") {
+    console.error(`Binary not found: ${bin}`);
+  } else {
+    console.error(result.error.message);
+  }
+  process.exit(1);
+}
+
+process.exit(result.status ?? 1);

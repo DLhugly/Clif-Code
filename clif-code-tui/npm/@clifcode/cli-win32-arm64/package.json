@@ -1,0 +1,13 @@
+{
+  "name": "@clifcode/cli-win32-arm64",
+  "version": "0.1.0",
+  "description": "ClifCode binary for Windows ARM64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DLhugly/Clif-Code"
+  },
+  "os": ["win32"],
+  "cpu": ["arm64"],
+  "files": ["bin/clifcode.exe"]
+}

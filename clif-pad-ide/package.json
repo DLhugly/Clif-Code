@@ -1,5 +1,5 @@
 {
-  "name": "clif",
+  "name": "clifpad",
   "version": "1.3.0",
   "private": true,
   "type": "module",
@@ -62,7 +62,6 @@
         {
           "assets": [
             "CHANGELOG.md",
-            "README.md",
             "www/index.html",
             "package.json",
             "package-lock.json",

@@ -246,6 +246,15 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
+  /* ─── Git graph row hover ─── */
+  .git-graph-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .git-graph-row:hover .git-graph-tooltip {
+    max-height: 80px !important;
+  }
+
   /* ─── Monaco editor overrides ─── */
   .monaco-editor .overflow-guard {
     border-radius: 0 !important;

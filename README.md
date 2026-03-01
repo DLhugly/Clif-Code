@@ -1,161 +1,114 @@
 <p align="center">
-  <img src="SplashScreen.png" alt="Clif" width="800" />
+  <img src="SplashScreen.png" alt="Clif-Code" width="800" />
 </p>
 
-<h1 align="center">Clif</h1>
+<h1 align="center">Clif-Code</h1>
 
 <p align="center">
-  <strong>~20MB. Native. AI-native. Your code never leaves your machine.</strong>
+  <strong>ClifPad: ~20MB desktop IDE. ClifCode: terminal AI agent.</strong>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
-  <a href="https://github.com/DLhugly/Clif/releases"><img src="https://img.shields.io/github/v/release/DLhugly/Clif?label=release&color=blue" alt="Release"></a>
-  <img src="https://img.shields.io/badge/binary-~20MB-ff6b6b" alt="~20MB">
-  <img src="https://img.shields.io/badge/runtime-7KB-51cf66" alt="7KB runtime">
-  <img src="https://img.shields.io/badge/tauri-2.0-orange" alt="Tauri 2">
+  <a href="https://github.com/DLhugly/Clif-Code/releases"><img src="https://img.shields.io/github/v/release/DLhugly/Clif-Code?label=release&color=blue" alt="Release"></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="Platform">
 </p>
 
 <p align="center">
-  <a href="#install">Install</a> &middot;
-  <a href="#features">Features</a> &middot;
-  <a href="#architecture">Architecture</a> &middot;
+  <a href="https://clifcode.io">Website</a> &middot;
+  <a href="#clifpad">ClifPad</a> &middot;
+  <a href="#clifcode">ClifCode</a> &middot;
   <a href="#development">Development</a>
 </p>
 
 ---
 
-Cursor is 400MB. VS Code is 350MB. Zed doesn't do AI.
+## Monorepo
 
-**Clif is ~20MB.** A native Rust binary with a 7KB SolidJS frontend. VS Code-quality editing via Monaco. Real terminal via PTY. Git built into the backend. AI when you want it, silence when you don't.
-
-No Electron. No telemetry. No subscription. Open source.
-
-## Download v1.3.0
-
-<p align="center">
-  <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_aarch64.dmg"><img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Apple Silicon"></a>
-  &nbsp;
-  <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_x64.dmg"><img src="https://img.shields.io/badge/macOS-Intel%20(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Intel"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_x64-setup.exe"><img src="https://img.shields.io/badge/Windows-x64%20(.exe)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"></a>
-  &nbsp;
-  <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_amd64.deb"><img src="https://img.shields.io/badge/Linux-x64%20(.deb)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux deb"></a>
-  &nbsp;
-  <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_amd64.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux AppImage"></a>
-</p>
-
-> [All releases & checksums](https://github.com/DLhugly/Clif/releases)
-
-### macOS — "App can't be opened"
-
-Clif is open source but not yet notarized with Apple ($99/year). macOS blocks unsigned apps by default. This is normal for open source software — run one command to fix it:
-
-```bash
-xattr -cr /Applications/Clif.app
+```
+Clif-Code/
+├── clif-pad-ide/     # Desktop IDE (Tauri 2 + SolidJS + Monaco)
+├── clif-code-tui/    # TUI terminal agent (Rust, API-only)
+└── .github/          # CI/CD
 ```
 
-Then open Clif normally. This removes the quarantine flag that macOS sets on downloads. [Why does this happen?](#faq)
+---
 
-**From source** —
+## ClifPad
+
+A blazing-fast, privacy-first, open-source AI-native code editor. ~20MB native binary, 7KB SolidJS frontend.
+
+**Tech**: Tauri 2 (Rust) + SolidJS + Monaco Editor + Tailwind CSS 4
+
+### Features
+
+- **Monaco Editor** — 70+ languages, IntelliSense, multi-cursor, minimap, code folding
+- **Real Terminal** — Native PTY via Rust, 256-color, resize, 10K scrollback
+- **Dev Preview** — One-click dev server with live iframe preview
+- **Git** — Branch, status, stage, commit, diff stats, visual commit graph
+- **AI** — OpenRouter, Ollama (local), Claude Code CLI — all opt-in
+- **5 Themes** — Midnight, Graphite, Dawn, Arctic, Dusk
+
+### Install
+
+Download from [Releases](https://github.com/DLhugly/Clif-Code/releases) or build from source:
+
 ```bash
-git clone https://github.com/DLhugly/Clif.git && cd Clif
+cd clif-pad-ide
 npm install && npm run tauri dev
 ```
 
-## Features
+> **macOS "App can't be opened"** — Run `xattr -cr /Applications/ClifPad.app` to remove the quarantine flag.
 
-**Monaco Editor** — 70+ languages, IntelliSense, multi-cursor, minimap, code folding. The same engine as VS Code.
+---
 
-**Real Terminal** — Native PTY via Rust. Your actual shell with 256-color, resize, 10K scrollback. Not a simulation.
+## ClifCode
 
-**Dev Preview** — One-click `npm run dev`, auto-detects `localhost` URLs, live iframe preview. Run and see your app without switching windows.
+AI coding assistant TUI that runs in any terminal. Supports OpenRouter, OpenAI, Anthropic, Ollama, and any OpenAI-compatible API.
 
-**Git** — Branch, status, stage, commit, per-file `+/-` diff stats, visual commit graph. All Rust, no shelling out.
+### Features
 
-**AI** — OpenRouter (Claude, GPT-4, Gemini, 100+ models), Ollama (fully local), Claude Code CLI. All opt-in. Works fine offline with zero keys.
+- **Tool-calling agent loop** — read/write files, run commands, search, git ops
+- **Streaming markdown** — line-buffered rendering with syntax highlighting
+- **Parallel tools** — read-only calls execute concurrently
+- **Session persistence** — auto-saves, resume previous sessions
+- **Cost tracking** — per-turn and session token usage
 
-**5 Themes** — Midnight, Graphite, Dawn, Arctic, Dusk. Editor, terminal, and UI stay in sync.
+### Install
 
-**Keys** — `Ctrl+`` ` terminal, `Ctrl+B` sidebar, `Ctrl+S` save, `Ctrl+Shift+P` palette.
-
-## The Size Flex
-
-| | Binary | Runtime | RAM idle |
-|---|--------|---------|----------|
-| **Clif** | **~20MB** | **7KB** | **~80MB** |
-| Cursor | ~400MB | ~50MB | ~500MB+ |
-| VS Code | ~350MB | ~40MB | ~400MB+ |
-| Zed | ~100MB | native | ~200MB |
-
-Tauri 2 compiles to a single native binary. SolidJS has no virtual DOM overhead. Rust handles all heavy lifting — file I/O, git, PTY, AI streaming — with zero garbage collection.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│             Tauri 2 (Rust)              │
-│  File I/O · Git · PTY · AI · Search    │
-│                  │                      │
-│            IPC (invoke/events)          │
-│                  │                      │
-│           SolidJS + TypeScript          │
-│       Monaco Editor · xterm.js          │
-│           Tailwind CSS 4                │
-└─────────────────────────────────────────┘
+```bash
+npm i -g clifcode
 ```
 
-| Layer | Tech | Size |
-|-------|------|------|
-| Backend | Tauri 2 + Rust | ~20MB compiled |
-| UI | SolidJS | 7KB runtime |
-| Editor | Monaco | tree-shaken |
-| Terminal | xterm.js + portable-pty | real PTY |
-| Styles | Tailwind CSS 4 | zero runtime |
-| Build | Vite 6 | <5s HMR |
-| CI/CD | Semantic Release | auto-versioned |
+Or build from source:
+
+```bash
+cd clif-code-tui
+cargo install --path .
+```
+
+### Usage
+
+```bash
+clifcode                                    # auto-detect backend
+clifcode --backend api --api-model gpt-4o   # specific API model
+clifcode --backend ollama                   # local Ollama server
+```
+
+---
 
 ## Development
 
 ```bash
-npm install              # deps
-npm run tauri dev        # dev mode + hot reload
-npm run tauri build      # production binary
-cd src-tauri && cargo check  # check rust
+# ClifPad
+cd clif-pad-ide && npm install && npm run tauri dev
+
+# ClifCode
+cd clif-code-tui && cargo run --release
 ```
 
-```
-src/                     # SolidJS frontend
-├── components/          # editor, terminal, layout, explorer
-├── stores/              # reactive state (signals + stores)
-├── lib/                 # IPC wrappers, keybindings, themes
-└── types/               # TypeScript interfaces
-
-src-tauri/src/           # Rust backend
-├── commands/            # fs, git, pty, ai, search, settings
-└── services/            # file watcher, ai providers
-```
-
-[Conventional commits](https://www.conventionalcommits.org/) — `feat:` bumps minor, `fix:` bumps patch, `feat!:` bumps major. Semantic release handles the rest.
-
-## FAQ
-
-**Why does macOS say "App can't be opened"?**
-macOS Gatekeeper blocks apps that aren't signed with a $99/year Apple Developer certificate. Clif is open source and safe — run `xattr -cr /Applications/Clif.app` in Terminal to remove the quarantine flag, then open normally.
-
-**Is Clif safe?**
-100% open source. Read every line: [github.com/DLhugly/Clif](https://github.com/DLhugly/Clif). No telemetry, no network calls unless you enable AI. The `xattr` command just removes Apple's download flag — it doesn't disable any security.
-
-**Why not just pay for code signing?**
-We will. For now, the $99/year Apple Developer fee goes toward more important things. Proper signing + notarization is on the roadmap.
+[Conventional commits](https://www.conventionalcommits.org/) — `feat:` bumps minor, `fix:` bumps patch, `feat!:` bumps major.
 
 ## License
 
 [MIT](LICENSE)
-
----
-
-<p align="center"><strong>20MB. Native. Private. Fast.</strong></p>

@@ -1,0 +1,13 @@
+{
+  "name": "@clifcode/cli-linux-arm64",
+  "version": "0.1.0",
+  "description": "ClifCode binary for Linux ARM64 (aarch64)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DLhugly/Clif-Code"
+  },
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": ["bin/clifcode"]
+}

@@ -1,5 +1,5 @@
 import { Component, Show, For, createSignal, createMemo, lazy, Suspense } from "solid-js";
-import { projectRoot, openFile } from "../../stores/fileStore";
+import { projectRoot, openFile, refreshFileTree } from "../../stores/fileStore";
 import {
   isGitRepo, currentBranch, changedFiles, diffStat,
   stagedFiles, unstagedFiles, commitLog, fileNumstats,
@@ -162,8 +162,6 @@ const GitGraphRow: Component<{
   isLast: boolean;
   isMerge: boolean;
 }> = (props) => {
-  const [hovered, setHovered] = createSignal(false);
-
   const refLabels = createMemo(() => {
     return props.entry.refs.filter((r) => r !== "").map((r) => {
       const isHead = r.includes("HEAD");
@@ -173,103 +171,130 @@ const GitGraphRow: Component<{
   });
 
   return (
-    <div
-      class="flex items-start gap-2 px-2 py-1 text-xs cursor-default"
-      style={{
-        background: hovered() ? "var(--bg-hover)" : "transparent",
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Graph column */}
-      <div
-        class="shrink-0 flex flex-col items-center"
-        style={{ width: "16px", "min-height": "28px" }}
-      >
-        {/* Line above dot */}
+    <div class="git-graph-row px-2 py-1 text-xs cursor-default">
+      <div class="flex items-start gap-2">
+        {/* Graph column */}
         <div
-          style={{
-            width: "2px",
-            height: "6px",
-            background: "var(--border-default)",
-          }}
-        />
-        {/* Commit dot */}
-        <div
-          style={{
-            width: props.entry.is_head ? "10px" : props.isMerge ? "8px" : "8px",
-            height: props.entry.is_head ? "10px" : props.isMerge ? "8px" : "8px",
-            "border-radius": "50%",
-            background: props.entry.is_head
-              ? "var(--accent-blue)"
-              : props.isMerge
-              ? "var(--accent-yellow)"
-              : "var(--text-muted)",
-            border: props.entry.is_head ? "2px solid var(--accent-blue)" : "none",
-            "box-shadow": props.entry.is_head ? "0 0 6px rgba(59,130,246,0.5)" : "none",
-            "flex-shrink": "0",
-          }}
-        />
-        {/* Line below dot */}
-        <Show when={!props.isLast}>
+          class="shrink-0 flex flex-col items-center"
+          style={{ width: "16px", "min-height": "28px" }}
+        >
+          {/* Line above dot */}
           <div
             style={{
               width: "2px",
-              "flex-grow": "1",
-              "min-height": "6px",
+              height: "6px",
               background: "var(--border-default)",
             }}
           />
-        </Show>
+          {/* Commit dot */}
+          <div
+            style={{
+              width: props.entry.is_head ? "10px" : props.isMerge ? "8px" : "8px",
+              height: props.entry.is_head ? "10px" : props.isMerge ? "8px" : "8px",
+              "border-radius": "50%",
+              background: props.entry.is_head
+                ? "var(--accent-blue)"
+                : props.isMerge
+                ? "var(--accent-yellow)"
+                : "var(--text-muted)",
+              border: props.entry.is_head ? "2px solid var(--accent-blue)" : "none",
+              "box-shadow": props.entry.is_head ? "0 0 6px rgba(59,130,246,0.5)" : "none",
+              "flex-shrink": "0",
+            }}
+          />
+          {/* Line below dot */}
+          <Show when={!props.isLast}>
+            <div
+              style={{
+                width: "2px",
+                "flex-grow": "1",
+                "min-height": "6px",
+                background: "var(--border-default)",
+              }}
+            />
+          </Show>
+        </div>
+
+        {/* Commit info */}
+        <div class="flex-1 min-w-0 py-0.5">
+          {/* Ref labels */}
+          <Show when={refLabels().length > 0}>
+            <div class="flex flex-wrap gap-1 mb-0.5">
+              <For each={refLabels()}>
+                {(ref, i) => (
+                  <span
+                    class="px-1 rounded font-mono"
+                    style={{
+                      "font-size": "9px",
+                      "line-height": "16px",
+                      background: ref.isHead
+                        ? "var(--accent-blue)"
+                        : BRANCH_COLORS[i() % BRANCH_COLORS.length],
+                      color: "#fff",
+                      opacity: ref.isHead ? "1" : "0.85",
+                    }}
+                  >
+                    {ref.label}
+                  </span>
+                )}
+              </For>
+            </div>
+          </Show>
+          {/* Message */}
+          <div
+            class="truncate"
+            style={{
+              color: "var(--text-primary)",
+              "font-size": "11px",
+              "line-height": "16px",
+            }}
+          >
+            {props.entry.message}
+          </div>
+          {/* Hash + author + date */}
+          <div
+            class="flex items-center gap-2 mt-0.5"
+            style={{ color: "var(--text-muted)", "font-size": "10px" }}
+          >
+            <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>
+              {props.entry.short_hash}
+            </span>
+            <span class="truncate">{props.entry.author}</span>
+            <span class="shrink-0 ml-auto">{props.entry.date}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Commit info */}
-      <div class="flex-1 min-w-0 py-0.5">
-        {/* Ref labels */}
-        <Show when={refLabels().length > 0}>
-          <div class="flex flex-wrap gap-1 mb-0.5">
-            <For each={refLabels()}>
-              {(ref, i) => (
-                <span
-                  class="px-1 rounded font-mono"
-                  style={{
-                    "font-size": "9px",
-                    "line-height": "16px",
-                    background: ref.isHead
-                      ? "var(--accent-blue)"
-                      : BRANCH_COLORS[i() % BRANCH_COLORS.length],
-                    color: "#fff",
-                    opacity: ref.isHead ? "1" : "0.85",
-                  }}
-                >
-                  {ref.label}
-                </span>
-              )}
-            </For>
-          </div>
-        </Show>
-        {/* Message */}
+      {/* Expanded detail — shown on hover via CSS */}
+      <div
+        class="git-graph-tooltip"
+        style={{
+          overflow: "hidden",
+          "max-height": "0",
+          "padding-left": "24px",
+          "font-size": "10px",
+          transition: "max-height 0.15s ease",
+        }}
+      >
         <div
-          class="truncate"
           style={{
-            color: "var(--text-primary)",
-            "font-size": "11px",
-            "line-height": "16px",
+            padding: "4px 0 2px",
+            "border-top": "1px solid var(--border-muted)",
+            "margin-top": "2px",
           }}
-          title={props.entry.message}
         >
-          {props.entry.message}
-        </div>
-        {/* Hash + author + date */}
-        <div
-          class="flex items-center gap-2 mt-0.5"
-          style={{ color: "var(--text-muted)", "font-size": "10px" }}
-        >
-          <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>
-            {props.entry.short_hash}
-          </span>
-          <span class="truncate">{props.entry.author}</span>
-          <span class="shrink-0 ml-auto">{props.entry.date}</span>
+          <div class="flex gap-2 mb-1">
+            <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Commit</span>
+            <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>{props.entry.hash.slice(0, 16)}</span>
+          </div>
+          <div class="flex gap-2 mb-1">
+            <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Author</span>
+            <span style={{ color: "var(--text-primary)" }}>{props.entry.author}</span>
+          </div>
+          <div class="flex gap-2">
+            <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Date</span>
+            <span style={{ color: "var(--text-primary)" }}>{props.entry.date}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -395,6 +420,28 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
         }}
       >
         <Show when={activeTab() === "files"}>
+          <Show when={projectRoot()}>
+            <div
+              class="flex items-center justify-end shrink-0 px-2 py-1"
+              style={{ "border-bottom": "1px solid var(--border-muted)" }}
+            >
+              <button
+                class="flex items-center justify-center rounded p-1 transition-colors"
+                style={{ color: "var(--text-muted)", cursor: "pointer" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                onClick={() => { refreshFileTree(); refreshGitStatus(); }}
+                title="Refresh file tree"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                </svg>
+              </button>
+            </div>
+          </Show>
           <Suspense>
             <FileTree onOpenFolder={props.onOpenFolder} />
           </Suspense>

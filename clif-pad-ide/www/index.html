@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clif — AI-native code editor</title>
-  <meta name="description" content="~20MB native code editor with AI built in. No Electron. No telemetry. Open source.">
-  <meta property="og:title" content="Clif — AI-native code editor">
-  <meta property="og:description" content="~20MB native binary. VS Code-quality editing. Real terminal. Git built in. AI when you want it.">
+  <title>Clif — AI-native code editor & terminal agent</title>
+  <meta name="description" content="ClifPad: ~20MB native code editor. ClifCode: AI terminal agent. No Electron. No telemetry. Open source.">
+  <meta property="og:title" content="Clif — AI-native code editor & terminal agent">
+  <meta property="og:description" content="ClifPad: ~20MB native IDE with Monaco, terminal, git. ClifCode: AI coding agent for your terminal. Both open source.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#0d1117">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -169,6 +169,32 @@
       padding: 2px 8px; border-radius: 4px; margin-bottom: 12px;
     }
 
+    /* CLIFCODE SECTION */
+    .clifcode-section {
+      padding: 80px 0; text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .clifcode-section h2 {
+      font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px;
+    }
+    .clifcode-section .sub { color: var(--muted); font-size: 16px; margin-bottom: 32px; }
+    .clifcode-install {
+      display: inline-block; text-align: left; background: var(--bg2);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+      padding: 20px 28px; font-family: 'JetBrains Mono', monospace; font-size: 15px;
+      line-height: 1.8; margin-bottom: 32px;
+    }
+    .clifcode-features {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+      background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
+      margin-top: 40px;
+    }
+    .clifcode-feat {
+      padding: 28px 20px; background: var(--bg2); text-align: center;
+    }
+    .clifcode-feat h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .clifcode-feat p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
     /* SOURCE */
     .source {
       padding: 60px 0 80px; text-align: center;
@@ -205,6 +231,7 @@
       .feat:first-child { border-radius: 16px 16px 2px 2px !important; }
       .feat:last-child { border-radius: 2px 2px 16px 16px !important; }
       .downloads { flex-direction: column; align-items: center; }
+      .clifcode-features { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -217,8 +244,9 @@
       <div class="links">
         <a href="#features">Features</a>
         <a href="#download">Download</a>
+        <a href="#clifcode">ClifCode</a>
         <a href="#faq">FAQ</a>
-        <a href="https://github.com/DLhugly/Clif" class="gh">
+        <a href="https://github.com/DLhugly/Clif-Code" class="gh">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           GitHub
         </a>
@@ -234,33 +262,33 @@
       <p>~20MB native binary with AI built in. Monaco editing, real terminal, git integration. No Electron. No telemetry. No subscription.</p>
 
       <div class="downloads">
-        <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_aarch64.dmg" class="dl-btn">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/Clif_1.3.0_aarch64.dmg" class="dl-btn">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
           Apple Silicon
         </a>
-        <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_x64.dmg" class="dl-btn">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/Clif_1.3.0_x64.dmg" class="dl-btn">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
           Intel Mac
         </a>
-        <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_x64-setup.exe" class="dl-btn">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/Clif_1.3.0_x64-setup.exe" class="dl-btn">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
           Windows
         </a>
-        <a href="https://github.com/DLhugly/Clif/releases/download/v1.3.0/Clif_1.3.0_amd64.deb" class="dl-btn">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.3.0/Clif_1.3.0_amd64.deb" class="dl-btn">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.311.015-.466.046C9.39.571 7.907 3.04 7.907 5.7c0 .753.156 1.48.44 2.14-.558.123-1.092.31-1.592.558C4.36 9.573 2.673 12.29 2.673 15.386c0 1.606.493 3.077 1.33 4.297-1.018.965-1.665 2.318-1.665 3.817 0 .346.037.684.107 1.01C.628 23.137 0 21.27 0 19.295c0-3.67 1.86-6.9 4.693-8.8.37-.245.772-.46 1.19-.64-.28-.71-.437-1.482-.437-2.286 0-3.57 2.882-6.5 6.46-6.5.133 0 .265.005.396.015-.354-.35-.766-.636-1.22-.836C9.73.248 8.5 0 7.3 0c-1.2 0-2.323.25-3.296.696C1.6 1.845 0 4.38 0 7.347c0 1.505.467 2.898 1.262 4.05.108-.14.225-.275.35-.404-.93-1.23-1.497-2.755-1.497-4.423 0-3.92 3.04-7.108 6.866-7.345.075-.004.15-.006.226-.006.26 0 .515.018.765.053-.19-.13-.395-.243-.61-.336C5.843.338 4.28 0 2.7 0H12.504z"/></svg>
           Linux .deb
         </a>
-        <a href="https://github.com/DLhugly/Clif" class="dl-btn secondary">
+        <a href="https://github.com/DLhugly/Clif-Code" class="dl-btn secondary">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           Source
         </a>
       </div>
       <p class="dl-sub">
-        <a href="https://github.com/DLhugly/Clif/releases">All releases & checksums</a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases">All releases & checksums</a>
       </p>
 
       <div class="screenshot">
-        <img src="https://raw.githubusercontent.com/DLhugly/Clif/main/SplashScreen.png" alt="Clif editor demo">
+        <img src="https://raw.githubusercontent.com/DLhugly/Clif-Code/main/SplashScreen.png" alt="Clif editor demo">
       </div>
     </div>
   </section>
@@ -350,6 +378,33 @@
     </div>
   </section>
 
+  <!-- CLIFCODE TUI -->
+  <section class="clifcode-section" id="clifcode">
+    <div class="container">
+      <h2>ClifCode</h2>
+      <p class="sub">AI coding agent for your terminal. Tool-calling loop, streaming markdown, session persistence. Works with any API.</p>
+
+      <div class="clifcode-install">
+        <span class="dim">$</span> <span class="cmd">npm i -g clifcode</span>
+      </div>
+
+      <div class="clifcode-features">
+        <div class="clifcode-feat">
+          <h4>Agent loop</h4>
+          <p>Read/write files, run commands, search code, git ops — all via tool calls</p>
+        </div>
+        <div class="clifcode-feat">
+          <h4>Any provider</h4>
+          <p>OpenRouter, OpenAI, Anthropic, Ollama, or any OpenAI-compatible API</p>
+        </div>
+        <div class="clifcode-feat">
+          <h4>Sessions</h4>
+          <p>Auto-saves context, resume previous sessions, per-turn cost tracking</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- MACOS INSTALL -->
   <section class="source" id="macos-install">
     <div class="container">
@@ -369,7 +424,7 @@
       <div class="feat-grid" style="grid-template-columns: 1fr;">
         <div class="feat">
           <h3>Is Clif safe?</h3>
-          <p>100% open source. Read every line on <a href="https://github.com/DLhugly/Clif" style="color: var(--accent);">GitHub</a>. No telemetry, no network calls unless you enable AI. The <code style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">xattr</code> command just removes Apple's download flag — it doesn't disable any security.</p>
+          <p>100% open source. Read every line on <a href="https://github.com/DLhugly/Clif-Code" style="color: var(--accent);">GitHub</a>. No telemetry, no network calls unless you enable AI. The <code style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">xattr</code> command just removes Apple's download flag — it doesn't disable any security.</p>
         </div>
         <div class="feat">
           <h3>Why isn't it signed?</h3>
@@ -387,11 +442,16 @@
   <section class="source">
     <div class="container">
       <h2>Or build it yourself.</h2>
-      <p>Three commands. Under a minute.</p>
+      <p>Clone the monorepo and pick your product.</p>
       <div class="code-block">
-        <span class="dim">$</span> <span class="cmd">git clone https://github.com/DLhugly/Clif.git && cd Clif</span><br>
-        <span class="dim">$</span> <span class="cmd">npm install</span><br>
-        <span class="dim">$</span> <span class="cmd">npm run tauri dev</span>
+        <span class="dim"># Clone</span><br>
+        <span class="dim">$</span> <span class="cmd">git clone https://github.com/DLhugly/Clif-Code.git && cd Clif-Code</span><br>
+        <br>
+        <span class="dim"># ClifPad (desktop IDE)</span><br>
+        <span class="dim">$</span> <span class="cmd">cd clif-pad-ide && npm install && npm run tauri dev</span><br>
+        <br>
+        <span class="dim"># ClifCode (terminal agent)</span><br>
+        <span class="dim">$</span> <span class="cmd">cd clif-code-tui && cargo run --release</span>
       </div>
     </div>
   </section>
@@ -400,7 +460,7 @@
   <footer>
     <div class="container">
       <p class="tagline">20MB. Native. Private. Fast.</p>
-      <p><a href="https://github.com/DLhugly/Clif">GitHub</a> &middot; <a href="https://github.com/DLhugly/Clif/releases">Releases</a> &middot; MIT License</p>
+      <p><a href="https://github.com/DLhugly/Clif-Code">GitHub</a> &middot; <a href="https://github.com/DLhugly/Clif-Code/releases">Releases</a> &middot; MIT License</p>
     </div>
   </footer>
 

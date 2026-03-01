@@ -1,0 +1,13 @@
+{
+  "name": "@clifcode/cli-linux-x64",
+  "version": "0.1.0",
+  "description": "ClifCode binary for Linux x86_64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DLhugly/Clif-Code"
+  },
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": ["bin/clifcode"]
+}
