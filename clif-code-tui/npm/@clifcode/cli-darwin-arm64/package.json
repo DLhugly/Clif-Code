@@ -1,0 +1,13 @@
+{
+  "name": "@clifcode/cli-darwin-arm64",
+  "version": "0.1.0",
+  "description": "ClifCode binary for macOS Apple Silicon (aarch64)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DLhugly/Clif-Code"
+  },
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["bin/clifcode"]
+}

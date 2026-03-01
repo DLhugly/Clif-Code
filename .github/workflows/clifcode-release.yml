@@ -1,0 +1,257 @@
+name: ClifCode Release & Publish
+
+on:
+  push:
+    tags:
+      - "clifcode-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # --------------------------------------------------
+  # Build native binaries on each platform
+  # --------------------------------------------------
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-14
+            name: cli-darwin-arm64
+          - target: x86_64-apple-darwin
+            os: macos-14
+            name: cli-darwin-x64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: cli-linux-arm64
+            cross: true
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: cli-linux-x64
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            name: cli-win32-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: cli-win32-x64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF#refs/tags/clifcode-v}"
+            echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version
+        shell: bash
+        working-directory: clif-code-tui
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          rm -f Cargo.toml.bak
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: clif-code-tui -> target
+          cache-on-failure: true
+
+      - name: Install cross (Linux ARM64)
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build
+        working-directory: clif-code-tui
+        shell: bash
+        run: |
+          if [[ "${{ matrix.cross }}" == "true" ]]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Strip binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          strip clif-code-tui/target/${{ matrix.target }}/release/clifcode || true
+
+      - name: Prepare artifact (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp clif-code-tui/target/${{ matrix.target }}/release/clifcode dist/clifcode-${{ matrix.target }}
+
+      - name: Prepare artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp clif-code-tui/target/${{ matrix.target }}/release/clifcode.exe dist/clifcode-${{ matrix.target }}.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # --------------------------------------------------
+  # Publish platform-specific npm packages
+  # --------------------------------------------------
+  publish-platform:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: cli-darwin-arm64
+            package: cli-darwin-arm64
+            binary: clifcode-aarch64-apple-darwin
+          - artifact: cli-darwin-x64
+            package: cli-darwin-x64
+            binary: clifcode-x86_64-apple-darwin
+          - artifact: cli-linux-arm64
+            package: cli-linux-arm64
+            binary: clifcode-aarch64-unknown-linux-gnu
+          - artifact: cli-linux-x64
+            package: cli-linux-x64
+            binary: clifcode-x86_64-unknown-linux-gnu
+          - artifact: cli-win32-arm64
+            package: cli-win32-arm64
+            binary: clifcode-aarch64-pc-windows-msvc.exe
+          - artifact: cli-win32-x64
+            package: cli-win32-x64
+            binary: clifcode-x86_64-pc-windows-msvc.exe
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF#refs/tags/clifcode-v}"
+            echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifact/
+
+      - name: Prepare package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="clif-code-tui/npm/@clifcode/${{ matrix.package }}"
+
+          # Patch version
+          cd "$PKG_DIR"
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '$VERSION';
+            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          # Copy binary
+          mkdir -p bin
+          IS_WIN=$([[ "${{ matrix.binary }}" == *.exe ]] && echo true || echo false)
+          if [[ "$IS_WIN" == "true" ]]; then
+            cp "$GITHUB_WORKSPACE/artifact/${{ matrix.binary }}" bin/clifcode.exe
+          else
+            cp "$GITHUB_WORKSPACE/artifact/${{ matrix.binary }}" bin/clifcode
+            chmod +x bin/clifcode
+          fi
+
+      - name: Publish
+        working-directory: clif-code-tui/npm/@clifcode/${{ matrix.package }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # --------------------------------------------------
+  # Publish main wrapper package
+  # --------------------------------------------------
+  publish-main:
+    needs: publish-platform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF#refs/tags/clifcode-v}"
+            echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Patch version
+        working-directory: clif-code-tui/npm/clifcode
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '$VERSION';
+            if (pkg.optionalDependencies) {
+              for (const dep of Object.keys(pkg.optionalDependencies)) {
+                pkg.optionalDependencies[dep] = '$VERSION';
+              }
+            }
+            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - name: Publish
+        working-directory: clif-code-tui/npm/clifcode
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

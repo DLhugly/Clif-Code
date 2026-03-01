@@ -5,7 +5,16 @@ node_modules/
 
 # Build output
 dist/
-src-tauri/target/
+
+# ClifPad (Tauri desktop app)
+clif-pad-ide/src-tauri/target/
+clif-pad-ide/src-tauri/gen/
+clif-pad-ide/dist/
+clif-pad-ide/node_modules/
+
+# ClifCode (Rust TUI agent)
+clif-code-tui/target/
+clif-code-tui/npm/@clifcode/*/bin/
 
 # Environment
 .env
@@ -29,10 +38,6 @@ src-tauri/target/
 Thumbs.db
 Desktop.ini
 WixTools/
-
-# Tauri
-src-tauri/target/
-src-tauri/gen/
 
 # Logs
 *.log

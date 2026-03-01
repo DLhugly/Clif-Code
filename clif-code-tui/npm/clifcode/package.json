@@ -1,0 +1,26 @@
+{
+  "name": "clifcode",
+  "version": "0.1.0",
+  "description": "ClifCode — AI coding assistant TUI for your terminal",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DLhugly/Clif-Code"
+  },
+  "homepage": "https://clifcode.io",
+  "keywords": ["ai", "coding", "assistant", "tui", "terminal", "cli", "agent"],
+  "bin": {
+    "clifcode": "bin/clifcode"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "optionalDependencies": {
+    "@clifcode/cli-darwin-arm64": "0.1.0",
+    "@clifcode/cli-darwin-x64": "0.1.0",
+    "@clifcode/cli-linux-arm64": "0.1.0",
+    "@clifcode/cli-linux-x64": "0.1.0",
+    "@clifcode/cli-win32-arm64": "0.1.0",
+    "@clifcode/cli-win32-x64": "0.1.0"
+  }
+}

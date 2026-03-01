@@ -1,4 +1,4 @@
-name: Release & Build
+name: ClifPad Release & Build
 
 on:
   push:
@@ -22,8 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
+          cache-dependency-path: clif-pad-ide/package-lock.json
+      - run: cd clif-pad-ide && npm ci
       - name: Semantic Release
+        working-directory: clif-pad-ide
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
         env:
@@ -64,14 +66,15 @@ jobs:
           VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
           echo "Syncing version: $VERSION"
           git pull origin main || true
-          sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          node scripts/bump-version.js "$VERSION"
+          sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" clif-pad-ide/src-tauri/tauri.conf.json
+          cd clif-pad-ide && node scripts/bump-version.js "$VERSION"
           echo "Version synchronized"
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: clif-pad-ide/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,18 +84,18 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: clif-pad-ide/src-tauri -> target
           cache-on-failure: true
 
       - name: Install Dependencies
         run: |
-          npm ci
+          cd clif-pad-ide && npm ci
           echo "Node: $(node --version)"
           echo "Rust: $(rustc --version)"
 
       - name: Build Frontend
         run: |
-          npm run build
+          cd clif-pad-ide && npm run build
           echo "Frontend built: $(du -sh dist/)"
 
       - name: Build Tauri App
@@ -101,15 +104,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v${{ needs.semantic-release.outputs.new-release-version }}
-          releaseName: Clif v${{ needs.semantic-release.outputs.new-release-version }}
-          releaseBody: "See the assets to download and install Clif."
+          releaseName: ClifPad v${{ needs.semantic-release.outputs.new-release-version }}
+          releaseBody: "See the assets to download and install ClifPad."
           releaseDraft: false
           prerelease: false
+          projectPath: clif-pad-ide
           args: --target ${{ matrix.target }}
 
       - name: Generate Checksums
         run: |
-          cd src-tauri/target/${{ matrix.target }}/release/bundle
+          cd clif-pad-ide/src-tauri/target/${{ matrix.target }}/release/bundle
           find . -name "*.dmg" -o -name "*.tar.gz" -o -name "*.zip" | while read f; do
             shasum -a 256 "$f" > "$f.sha256"
             echo "Checksum: $(cat "$f.sha256")"
@@ -119,7 +123,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.semantic-release.outputs.new-release-version }}
-          files: src-tauri/target/${{ matrix.target }}/release/bundle/**/*.sha256
+          files: clif-pad-ide/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -145,13 +149,14 @@ jobs:
           $VERSION = "${{ needs.semantic-release.outputs.new-release-version }}"
           echo "Syncing version: $VERSION"
           git pull origin main
-          node scripts/bump-version.js "$VERSION"
+          cd clif-pad-ide && node scripts/bump-version.js "$VERSION"
           echo "Version synchronized"
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: clif-pad-ide/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -159,14 +164,14 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: clif-pad-ide/src-tauri -> target
           cache-on-failure: true
 
       - name: Install Dependencies
-        run: npm ci
+        run: cd clif-pad-ide && npm ci
 
       - name: Build Frontend
-        run: npm run build
+        run: cd clif-pad-ide && npm run build
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -174,15 +179,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v${{ needs.semantic-release.outputs.new-release-version }}
-          releaseName: Clif v${{ needs.semantic-release.outputs.new-release-version }}
-          releaseBody: "See the assets to download and install Clif."
+          releaseName: ClifPad v${{ needs.semantic-release.outputs.new-release-version }}
+          releaseBody: "See the assets to download and install ClifPad."
           releaseDraft: false
           prerelease: false
+          projectPath: clif-pad-ide
 
       - name: Generate Checksums
         shell: bash
         run: |
-          cd src-tauri/target/release/bundle
+          cd clif-pad-ide/src-tauri/target/release/bundle
           find . -name "*.msi" -o -name "*.exe" -o -name "*.zip" | while read f; do
             sha256sum "$f" > "$f.sha256"
             echo "Checksum: $(cat "$f.sha256")"
@@ -192,7 +198,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.semantic-release.outputs.new-release-version }}
-          files: src-tauri/target/release/bundle/**/*.sha256
+          files: clif-pad-ide/src-tauri/target/release/bundle/**/*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -230,13 +236,14 @@ jobs:
           VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
           echo "Syncing version: $VERSION"
           git pull origin main || true
-          node scripts/bump-version.js "$VERSION"
+          cd clif-pad-ide && node scripts/bump-version.js "$VERSION"
           echo "Version synchronized"
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: clif-pad-ide/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -244,14 +251,14 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: clif-pad-ide/src-tauri -> target
           cache-on-failure: true
 
       - name: Install Dependencies
-        run: npm ci
+        run: cd clif-pad-ide && npm ci
 
       - name: Build Frontend
-        run: npm run build
+        run: cd clif-pad-ide && npm run build
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -259,14 +266,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v${{ needs.semantic-release.outputs.new-release-version }}
-          releaseName: Clif v${{ needs.semantic-release.outputs.new-release-version }}
-          releaseBody: "See the assets to download and install Clif."
+          releaseName: ClifPad v${{ needs.semantic-release.outputs.new-release-version }}
+          releaseBody: "See the assets to download and install ClifPad."
           releaseDraft: false
           prerelease: false
+          projectPath: clif-pad-ide
 
       - name: Generate Checksums
         run: |
-          cd src-tauri/target/release/bundle
+          cd clif-pad-ide/src-tauri/target/release/bundle
           find . -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.tar.gz" | while read f; do
             sha256sum "$f" > "$f.sha256"
             echo "Checksum: $(cat "$f.sha256")"
@@ -276,6 +284,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.semantic-release.outputs.new-release-version }}
-          files: src-tauri/target/release/bundle/**/*.sha256
+          files: clif-pad-ide/src-tauri/target/release/bundle/**/*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
