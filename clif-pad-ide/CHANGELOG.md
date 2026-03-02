@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/DLhugly/Clif-Code/compare/v1.5.0...v1.6.0) (2026-03-02)
+
+
+### Features
+
+* publish ClifCode to crates.io on every release ([a023bef](https://github.com/DLhugly/Clif-Code/commit/a023bef47aabf812d229b5e0fb4b987b2d3bdab7))
+
 # [1.5.0](https://github.com/DLhugly/Clif-Code/compare/v1.4.1...v1.5.0) (2026-03-02)
 
 
