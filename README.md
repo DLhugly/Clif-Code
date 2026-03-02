@@ -69,12 +69,12 @@ No Electron. No telemetry. No subscription. Open source.
 ### ClifCode — Terminal Agent
 
 ```bash
-cargo install --git https://github.com/DLhugly/Clif-Code.git --path clif-code-tui
+cargo install clifcode
 ```
 
-Run `clifcode` in any project directory.
+Run `clifcode` in any project directory. That's it.
 
-> `npm i -g clifcode` — coming soon &nbsp;|&nbsp; `cargo install clifcode` — coming soon
+> `npm i -g clifcode` — coming soon
 
 <details>
 <summary>Other install methods</summary>
