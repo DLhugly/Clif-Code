@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/DLhugly/Clif-Code/compare/v1.6.0...v1.6.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* point Cargo.toml readme to monorepo root README ([19aa3cf](https://github.com/DLhugly/Clif-Code/commit/19aa3cfce2ca5cc35c823987386e4c9c95292b3e))
+
 # [1.6.0](https://github.com/DLhugly/Clif-Code/compare/v1.5.0...v1.6.0) (2026-03-02)
 
 
