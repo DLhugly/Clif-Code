@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/DLhugly/Clif-Code/compare/v1.6.1...v1.7.0) (2026-03-02)
+
+
+### Features
+
+* update install to cargo install clifcode (now live on crates.io) ([87a4b72](https://github.com/DLhugly/Clif-Code/commit/87a4b7262f16fa2eb611c36976f558210e49e44a))
+
 ## [1.6.1](https://github.com/DLhugly/Clif-Code/compare/v1.6.0...v1.6.1) (2026-03-02)
 
 
