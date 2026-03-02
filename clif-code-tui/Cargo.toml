@@ -2,7 +2,13 @@
 name = "clifcode"
 version = "0.1.0"
 edition = "2021"
-description = "ClifCode: AI coding assistant TUI"
+description = "Open-source AI coding agent for your terminal — tool-calling loop, streaming, sessions, any provider"
+license = "MIT"
+repository = "https://github.com/DLhugly/Clif-Code"
+homepage = "https://clifcode.io"
+readme = "README.md"
+keywords = ["ai", "coding", "agent", "tui", "cli"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "clifcode"
