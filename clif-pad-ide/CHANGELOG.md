@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/DLhugly/Clif-Code/compare/v1.4.1...v1.5.0) (2026-03-02)
+
+
+### Features
+
+* add crates.io publishing to ClifCode CI ([edf6ae4](https://github.com/DLhugly/Clif-Code/commit/edf6ae4a35947c9836fc771858c7ce0b3ce194e5))
+
 ## [1.4.1](https://github.com/DLhugly/Clif-Code/compare/v1.4.0...v1.4.1) (2026-03-01)
 
 
