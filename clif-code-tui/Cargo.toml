@@ -6,7 +6,7 @@ description = "Open-source AI coding agent for your terminal — tool-calling lo
 license = "MIT"
 repository = "https://github.com/DLhugly/Clif-Code"
 homepage = "https://clifcode.io"
-readme = "README.md"
+readme = "../README.md"
 keywords = ["ai", "coding", "agent", "tui", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 
