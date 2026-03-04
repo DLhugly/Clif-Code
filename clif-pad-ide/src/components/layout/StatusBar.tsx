@@ -78,7 +78,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
       case "error":
         return "Update failed";
       default:
-        return `Clif v${appVersion()}`;
+        return `ClifPad v${appVersion()}`;
     }
   };
 

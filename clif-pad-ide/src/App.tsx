@@ -98,9 +98,9 @@ const App: Component = () => {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     if (root) {
       const folder = root.split("/").pop() || root;
-      getCurrentWindow().setTitle(`${folder} — Clif`);
+      getCurrentWindow().setTitle(`${folder} — ClifPad`);
     } else {
-      getCurrentWindow().setTitle("Clif");
+      getCurrentWindow().setTitle("ClifPad");
     }
   });
 

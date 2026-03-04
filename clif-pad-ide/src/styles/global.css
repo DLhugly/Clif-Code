@@ -404,4 +404,24 @@
   .monaco-editor .overflow-guard {
     border-radius: 0 !important;
   }
+
+  /* ─── Diff editor highlighting (fallback if theme colors don't apply) ─── */
+  .monaco-editor .line-insert, .monaco-diff-editor .line-insert {
+    background-color: rgba(46, 160, 67, 0.25) !important;
+  }
+  .monaco-editor .line-delete, .monaco-diff-editor .line-delete {
+    background-color: rgba(248, 81, 73, 0.25) !important;
+  }
+  .monaco-editor .char-insert, .monaco-diff-editor .char-insert {
+    background-color: rgba(46, 160, 67, 0.45) !important;
+  }
+  .monaco-editor .char-delete, .monaco-diff-editor .char-delete {
+    background-color: rgba(248, 81, 73, 0.45) !important;
+  }
+  .monaco-editor .gutter-insert, .monaco-diff-editor .gutter-insert {
+    background-color: rgba(46, 160, 67, 0.30) !important;
+  }
+  .monaco-editor .gutter-delete, .monaco-diff-editor .gutter-delete {
+    background-color: rgba(248, 81, 73, 0.30) !important;
+  }
 }

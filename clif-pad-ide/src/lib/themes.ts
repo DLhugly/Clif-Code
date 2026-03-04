@@ -1,6 +1,26 @@
 import type * as monaco from "monaco-editor";
 import type { Theme } from "../stores/uiStore";
 
+const darkDiffColors = {
+  "diffEditor.insertedTextBackground": "#2ea04366",
+  "diffEditor.removedTextBackground": "#f8514966",
+  "diffEditor.insertedLineBackground": "#2ea04340",
+  "diffEditor.removedLineBackground": "#f8514940",
+  "diffEditorGutter.insertedLineBackground": "#2ea04350",
+  "diffEditorGutter.removedLineBackground": "#f8514950",
+  "diffEditor.diagonalFill": "#2d333b55",
+};
+
+const lightDiffColors = {
+  "diffEditor.insertedTextBackground": "#2ea04355",
+  "diffEditor.removedTextBackground": "#f8514955",
+  "diffEditor.insertedLineBackground": "#2ea04330",
+  "diffEditor.removedLineBackground": "#f8514930",
+  "diffEditorGutter.insertedLineBackground": "#2ea04340",
+  "diffEditorGutter.removedLineBackground": "#f8514940",
+  "diffEditor.diagonalFill": "#d0d7de55",
+};
+
 export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
   midnight: {
     base: "vs-dark",
@@ -43,6 +63,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#161b22",
       "editorHoverWidget.border": "#30363d",
       "minimap.background": "#0d1117",
+      ...darkDiffColors,
     },
   },
 
@@ -87,6 +108,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#2c2c2e",
       "editorHoverWidget.border": "#3a3a3c",
       "minimap.background": "#1c1c1e",
+      ...darkDiffColors,
     },
   },
 
@@ -131,6 +153,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#ffffff",
       "editorHoverWidget.border": "#d0d7de",
       "minimap.background": "#ffffff",
+      ...lightDiffColors,
     },
   },
 
@@ -175,6 +198,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#f8fafc",
       "editorHoverWidget.border": "#cbd5e1",
       "minimap.background": "#f0f4f8",
+      ...lightDiffColors,
     },
   },
 
@@ -219,6 +243,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#231e30",
       "editorHoverWidget.border": "#2d263c",
       "minimap.background": "#1a1625",
+      ...darkDiffColors,
     },
   },
 
@@ -263,6 +288,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#150025",
       "editorHoverWidget.border": "#2a0050",
       "minimap.background": "#0d0015",
+      ...darkDiffColors,
     },
   },
 
@@ -307,6 +333,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#241a16",
       "editorHoverWidget.border": "#3a2c24",
       "minimap.background": "#1a1210",
+      ...darkDiffColors,
     },
   },
 
@@ -351,6 +378,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#162416",
       "editorHoverWidget.border": "#283a28",
       "minimap.background": "#0f1a0f",
+      ...darkDiffColors,
     },
   },
 
@@ -395,6 +423,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#073642",
       "editorHoverWidget.border": "#0a4050",
       "minimap.background": "#002b36",
+      ...darkDiffColors,
     },
   },
 
@@ -439,6 +468,7 @@ export const monacoThemes: Record<Theme, monaco.editor.IStandaloneThemeData> = {
       "editorHoverWidget.background": "#2f302a",
       "editorHoverWidget.border": "#49483e",
       "minimap.background": "#272822",
+      ...darkDiffColors,
     },
   },
 };

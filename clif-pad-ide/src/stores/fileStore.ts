@@ -69,6 +69,30 @@ async function openProject(path: string) {
           if (openFiles[existingIdx].content !== content) {
             setOpenFiles(existingIdx, "content", content);
             setOpenFiles(existingIdx, "isDirty", false);
+
+            // If it's a regular file (not already a diff) and has a committed version, upgrade to diff view
+            const root = projectRoot();
+            if (root && !openFiles[existingIdx].isDiff && !openFiles[existingIdx].isPreview && !openFiles[existingIdx].isBrowser) {
+              try {
+                const relativePath = event.path.startsWith(root)
+                  ? event.path.slice(root.length + 1)
+                  : event.path;
+                const original = await gitShow(root, relativePath);
+                if (original !== undefined && original !== null) {
+                  setOpenFiles(existingIdx, "isDiff", true);
+                  setOpenFiles(existingIdx, "originalContent", original);
+                  setOpenFiles(existingIdx, "name", getFileName(event.path) + " (diff)");
+                  // Update the path to use diff path convention
+                  const diffPath = event.path + "::diff";
+                  setOpenFiles(existingIdx, "path", diffPath);
+                  if (activeFilePath() === event.path) {
+                    setActiveFilePath(diffPath);
+                  }
+                }
+              } catch {
+                // Not tracked in git, keep as regular file
+              }
+            }
           }
         } catch {
           // File might be temporarily locked during write
@@ -81,8 +105,23 @@ async function openProject(path: string) {
           // File might not be fully written yet
         }
       } else if (event.kind === "modify") {
-        // Auto-open modified files that we're not already viewing
+        // Auto-open modified files — use diff mode if tracked in git
         try {
+          const root = projectRoot();
+          if (root) {
+            try {
+              const relativePath = event.path.startsWith(root)
+                ? event.path.slice(root.length + 1)
+                : event.path;
+              const original = await gitShow(root, relativePath);
+              if (original !== undefined && original !== null) {
+                await openDiff(event.path, root);
+                return;
+              }
+            } catch {
+              // Not tracked, fall through to regular open
+            }
+          }
           await openFile(event.path);
         } catch {
           // File might not be readable yet

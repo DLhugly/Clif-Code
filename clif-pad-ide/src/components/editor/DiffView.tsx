@@ -33,6 +33,8 @@ const DiffView: Component<DiffViewProps> = (props) => {
       fontLigatures: true,
       readOnly: true,
       renderSideBySide: true,
+      renderIndicators: true,
+      ignoreTrimWhitespace: false,
       scrollBeyondLastLine: false,
       minimap: { enabled: false },
       padding: { top: 8 },
@@ -91,14 +93,14 @@ const DiffView: Component<DiffViewProps> = (props) => {
   });
 
   onCleanup(() => {
+    if (diffEditor) {
+      diffEditor.dispose();
+    }
     if (originalModel && !originalModel.isDisposed()) {
       originalModel.dispose();
     }
     if (modifiedModel && !modifiedModel.isDisposed()) {
       modifiedModel.dispose();
-    }
-    if (diffEditor) {
-      diffEditor.dispose();
     }
   });
 

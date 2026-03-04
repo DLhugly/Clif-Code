@@ -33,7 +33,7 @@
 
 ---
 
-Cursor is 400MB. VS Code is 350MB. Zed doesn't do AI.
+Cursor is 400MB. VS Code is 350MB. Zed is 100MB and climbing.
 
 **ClifPad is ~20MB.** A native Rust IDE with a 7KB SolidJS frontend. VS Code-quality editing via Monaco. Real terminal via PTY. Git built into the backend. AI via [ClifCode](#-clifcode) and [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) — both integrated, both optional.
 
