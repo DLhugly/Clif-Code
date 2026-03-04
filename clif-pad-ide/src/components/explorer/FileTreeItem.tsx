@@ -1,7 +1,7 @@
 import { Component, Show, For, createSignal, createEffect } from "solid-js";
 import type { FileEntry } from "../../types/files";
 import { openFile, toggleDir, isDirExpanded, loadDirectory, refreshFileTree } from "../../stores/fileStore";
-import { renameEntry, deleteEntry, createFile, createDir } from "../../lib/tauri";
+import { renameEntry, deleteEntry, createFile, createDir, revealPath } from "../../lib/tauri";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 
 function getExtensionColor(ext: string | null): string {
@@ -271,10 +271,14 @@ const FileTreeItem: Component<FileTreeItemProps> = (props) => {
     }
 
     items.push({
+      label: "Reveal in Finder",
+      action: () => revealPath(props.entry.path),
+      separator: props.entry.is_dir,
+    });
+    items.push({
       label: "Rename",
       icon: RenameIcon,
       action: startRename,
-      separator: props.entry.is_dir, // line above when after folder items
     });
     items.push({
       label: "Delete",

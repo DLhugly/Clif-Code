@@ -168,6 +168,33 @@ pub fn delete_entry(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn reveal_path(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to reveal in Finder: {}", e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(format!("/select,{}", &path))
+            .spawn()
+            .map_err(|e| format!("Failed to reveal in Explorer: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(Path::new(&path).parent().unwrap_or(Path::new(&path)).to_string_lossy().to_string())
+            .spawn()
+            .map_err(|e| format!("Failed to reveal in file manager: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn watch_dir(
     path: String,
     window: tauri::Window,

@@ -1,7 +1,7 @@
 import { createSignal, createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { FileEntry, OpenFile } from "../types/files";
-import { readDir, readFile, writeFile, watchDir, onFileChanged } from "../lib/tauri";
+import { readDir, readFile, writeFile, watchDir, onFileChanged, gitShow } from "../lib/tauri";
 import { getLanguageFromExtension, getFileName, getFileExtension } from "../lib/utils";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
@@ -284,6 +284,51 @@ async function openPreview(sourcePath: string) {
   setActiveFilePath(previewPath);
 }
 
+async function openDiff(filePath: string, repoRoot: string) {
+  const diffPath = filePath + "::diff";
+
+  // If already open, switch to it
+  const existing = openFiles.find((f) => f.path === diffPath);
+  if (existing) {
+    setActiveFilePath(diffPath);
+    return;
+  }
+
+  try {
+    // Get the relative path for git show
+    const relativePath = filePath.startsWith(repoRoot)
+      ? filePath.slice(repoRoot.length + 1)
+      : filePath;
+
+    // Fetch current content and HEAD version in parallel
+    const [currentContent, originalContent] = await Promise.all([
+      readFile(filePath).catch(() => ""),
+      gitShow(repoRoot, relativePath).catch(() => ""),
+    ]);
+
+    const name = getFileName(filePath);
+    const ext = getFileExtension(name);
+    const language = getLanguageFromExtension(ext);
+
+    setOpenFiles(
+      produce((files) => {
+        files.push({
+          path: diffPath,
+          name: `${name} (diff)`,
+          content: currentContent,
+          language,
+          isDirty: false,
+          isDiff: true,
+          originalContent,
+        });
+      })
+    );
+    setActiveFilePath(diffPath);
+  } catch (e) {
+    console.error("Failed to open diff:", e);
+  }
+}
+
 export {
   projectRoot,
   setProjectRoot,
@@ -309,4 +354,5 @@ export {
   closeOtherFiles,
   closeAllFiles,
   closeFilesToRight,
+  openDiff,
 };

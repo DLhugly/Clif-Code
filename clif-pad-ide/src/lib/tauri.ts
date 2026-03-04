@@ -37,6 +37,10 @@ export async function watchDir(path: string): Promise<void> {
   return invoke("watch_dir", { path });
 }
 
+export async function revealPath(path: string): Promise<void> {
+  return invoke("reveal_path", { path });
+}
+
 // AI commands
 export async function aiChat(
   messages: { role: string; content: string }[],
@@ -78,6 +82,10 @@ export async function gitStatus(path: string): Promise<GitFileStatus[]> {
 
 export async function gitDiff(path: string, file?: string): Promise<string> {
   return invoke("git_diff", { path, file: file ?? null });
+}
+
+export async function gitShow(path: string, file: string, revision?: string): Promise<string> {
+  return invoke("git_show", { path, file, revision: revision ?? null });
 }
 
 export async function gitCommit(path: string, message: string): Promise<string> {

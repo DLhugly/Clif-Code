@@ -1,5 +1,5 @@
 import { Component, Show, For, createSignal, createMemo, lazy, Suspense } from "solid-js";
-import { projectRoot, openFile, refreshFileTree } from "../../stores/fileStore";
+import { projectRoot, openFile, openDiff, refreshFileTree } from "../../stores/fileStore";
 import {
   isGitRepo, currentBranch, changedFiles, diffStat,
   stagedFiles, unstagedFiles, commitLog, fileNumstats,
@@ -87,7 +87,7 @@ const FileRow: Component<{
       onClick={() => {
         const root = projectRoot();
         if (root && props.file.status !== "deleted") {
-          openFile(root + "/" + props.file.path);
+          openDiff(root + "/" + props.file.path, root);
         }
       }}
     >
@@ -327,6 +327,30 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
   const [branchDropdownOpen, setBranchDropdownOpen] = createSignal(false);
   const [creatingBranch, setCreatingBranch] = createSignal(false);
   const [newBranchName, setNewBranchName] = createSignal("");
+  const [changesHeightPct, setChangesHeightPct] = createSignal(40);
+  const [isDraggingGitSplitter, setIsDraggingGitSplitter] = createSignal(false);
+  let gitSplitContainerRef: HTMLDivElement | undefined;
+
+  function handleGitSplitterMouseDown(e: MouseEvent) {
+    e.preventDefault();
+    setIsDraggingGitSplitter(true);
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!gitSplitContainerRef) return;
+      const rect = gitSplitContainerRef.getBoundingClientRect();
+      const pct = ((ev.clientY - rect.top) / rect.height) * 100;
+      setChangesHeightPct(Math.max(10, Math.min(90, pct)));
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingGitSplitter(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
 
   async function handleCommit() {
     const msg = commitMsg().trim();
@@ -408,7 +432,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
       </div>
 
       {/* Panel content */}
-      <div class="overflow-y-auto min-h-0 flex-1">
+      <div class={`min-h-0 flex-1 ${activeTab() === "git" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
         <Show when={activeTab() === "files"}>
           <Show when={projectRoot()}>
             <div
@@ -473,7 +497,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
         </Show>
 
         <Show when={activeTab() === "git"}>
-          <div class="flex flex-col h-full">
+          <div class="flex flex-col flex-1 min-h-0">
             <Show when={isGitRepo()} fallback={
               <div class="flex flex-col items-center justify-center h-full gap-3 p-4">
                 <GitBranchIcon />
@@ -768,116 +792,146 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                 </button>
               </div>
 
-              {/* Staged changes */}
-              <Show when={stagedFiles().length > 0}>
-                <div class="shrink-0">
-                  <div
-                    class="flex items-center justify-between px-2 py-1.5"
-                    style={{ "border-bottom": "1px solid var(--border-muted)" }}
-                  >
-                    <span class="font-medium" style={{ color: "var(--accent-green)" }}>
-                      Staged ({stagedFiles().length})
-                    </span>
-                    <button
-                      class="px-1.5 py-0.5 rounded transition-colors"
-                      style={{ color: "var(--text-muted)", background: "transparent" }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "transparent";
-                      }}
-                      onClick={() => unstageAll()}
-                      title="Unstage all"
-                    >
-                      Unstage All
-                    </button>
-                  </div>
-                  <For each={stagedFiles()}>
-                    {(file) => (
-                      <FileRow
-                        file={file}
-                        onAction={() => unstageFile(file.path)}
-                        actionIcon="unstage"
-                      />
-                    )}
-                  </For>
-                </div>
-              </Show>
-
-              {/* Unstaged changes */}
-              <Show when={unstagedFiles().length > 0}>
-                <div class="shrink-0">
-                  <div
-                    class="flex items-center justify-between px-2 py-1.5"
-                    style={{ "border-bottom": "1px solid var(--border-muted)" }}
-                  >
-                    <span class="font-medium" style={{ color: "var(--accent-yellow)" }}>
-                      Changes ({unstagedFiles().length})
-                    </span>
-                    <button
-                      class="px-1.5 py-0.5 rounded transition-colors"
-                      style={{ color: "var(--text-muted)", background: "transparent" }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "transparent";
-                      }}
-                      onClick={() => stageAll()}
-                      title="Stage all"
-                    >
-                      Stage All
-                    </button>
-                  </div>
-                  <For each={unstagedFiles()}>
-                    {(file) => (
-                      <FileRow
-                        file={file}
-                        onAction={() => stageFile(file.path)}
-                        actionIcon="stage"
-                      />
-                    )}
-                  </For>
-                </div>
-              </Show>
-
-              {/* No changes state */}
-              <Show when={changedFiles.length === 0}>
-                <div class="flex items-center justify-center py-4">
-                  <p class="text-xs" style={{ color: "var(--text-muted)" }}>
-                    No changes
-                  </p>
-                </div>
-              </Show>
-
-              {/* Git Graph */}
-              <Show when={commitLog().length > 0}>
+              {/* Resizable changes + commits split */}
+              <div
+                ref={gitSplitContainerRef}
+                class="flex flex-col flex-1 min-h-0"
+              >
+                {/* Changes section (staged + unstaged) */}
                 <div
-                  class="shrink-0"
-                  style={{ "border-top": "1px solid var(--border-muted)" }}
+                  class="flex flex-col overflow-y-auto shrink-0"
+                  style={{ height: `${changesHeightPct()}%` }}
                 >
-                  <div
-                    class="flex items-center justify-between px-2 py-1.5"
-                    style={{ "border-bottom": "1px solid var(--border-muted)" }}
-                  >
-                    <span class="font-medium" style={{ color: "var(--text-secondary)" }}>
-                      Commits ({commitLog().length})
-                    </span>
-                  </div>
-                  <div class="overflow-y-auto" style={{ "max-height": "300px" }}>
-                    <For each={commitLog()}>
-                      {(entry, idx) => (
-                        <GitGraphRow
-                          entry={entry}
-                          isLast={idx() === commitLog().length - 1}
-                          isMerge={entry.parents.length > 1}
-                        />
-                      )}
-                    </For>
-                  </div>
+                  {/* Staged changes */}
+                  <Show when={stagedFiles().length > 0}>
+                    <div>
+                      <div
+                        class="flex items-center justify-between px-2 py-1.5"
+                        style={{ "border-bottom": "1px solid var(--border-muted)" }}
+                      >
+                        <span class="font-medium" style={{ color: "var(--accent-green)" }}>
+                          Staged ({stagedFiles().length})
+                        </span>
+                        <button
+                          class="px-1.5 py-0.5 rounded transition-colors"
+                          style={{ color: "var(--text-muted)", background: "transparent" }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.background = "transparent";
+                          }}
+                          onClick={() => unstageAll()}
+                          title="Unstage all"
+                        >
+                          Unstage All
+                        </button>
+                      </div>
+                      <For each={stagedFiles()}>
+                        {(file) => (
+                          <FileRow
+                            file={file}
+                            onAction={() => unstageFile(file.path)}
+                            actionIcon="unstage"
+                          />
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+
+                  {/* Unstaged changes */}
+                  <Show when={unstagedFiles().length > 0}>
+                    <div>
+                      <div
+                        class="flex items-center justify-between px-2 py-1.5"
+                        style={{ "border-bottom": "1px solid var(--border-muted)" }}
+                      >
+                        <span class="font-medium" style={{ color: "var(--accent-yellow)" }}>
+                          Changes ({unstagedFiles().length})
+                        </span>
+                        <button
+                          class="px-1.5 py-0.5 rounded transition-colors"
+                          style={{ color: "var(--text-muted)", background: "transparent" }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.background = "transparent";
+                          }}
+                          onClick={() => stageAll()}
+                          title="Stage all"
+                        >
+                          Stage All
+                        </button>
+                      </div>
+                      <For each={unstagedFiles()}>
+                        {(file) => (
+                          <FileRow
+                            file={file}
+                            onAction={() => stageFile(file.path)}
+                            actionIcon="stage"
+                          />
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+
+                  {/* No changes state */}
+                  <Show when={changedFiles.length === 0}>
+                    <div class="flex items-center justify-center py-4">
+                      <p class="text-xs" style={{ color: "var(--text-muted)" }}>
+                        No changes
+                      </p>
+                    </div>
+                  </Show>
                 </div>
-              </Show>
+
+                {/* Resize handle */}
+                <div
+                  class="shrink-0 cursor-row-resize"
+                  style={{
+                    height: "5px",
+                    background: isDraggingGitSplitter() ? "var(--accent-primary)" : "var(--border-default)",
+                    transition: isDraggingGitSplitter() ? "none" : "background 0.15s",
+                  }}
+                  onMouseDown={handleGitSplitterMouseDown}
+                  onMouseEnter={(e) => {
+                    if (!isDraggingGitSplitter()) {
+                      (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isDraggingGitSplitter()) {
+                      (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
+                    }
+                  }}
+                />
+
+                {/* Commits section */}
+                <div class="flex flex-col min-h-0 flex-1">
+                  <Show when={commitLog().length > 0}>
+                    <div
+                      class="flex items-center justify-between px-2 py-1.5 shrink-0"
+                      style={{ "border-bottom": "1px solid var(--border-muted)" }}
+                    >
+                      <span class="font-medium" style={{ color: "var(--text-secondary)" }}>
+                        Commits ({commitLog().length})
+                      </span>
+                    </div>
+                    <div class="overflow-y-auto min-h-0 flex-1">
+                      <For each={commitLog()}>
+                        {(entry, idx) => (
+                          <GitGraphRow
+                            entry={entry}
+                            isLast={idx() === commitLog().length - 1}
+                            isMerge={entry.parents.length > 1}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                </div>
+              </div>
 
               {/* Refresh button */}
               <div class="p-2 shrink-0">

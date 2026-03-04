@@ -485,6 +485,25 @@ fn parse_numstat_line(line: &str) -> Option<GitFileNumstat> {
 }
 
 #[tauri::command]
+pub fn git_show(path: String, file: String, revision: Option<String>) -> Result<String, String> {
+    let rev = revision.unwrap_or_else(|| "HEAD".to_string());
+    let spec = format!("{}:{}", rev, file);
+    let output = Command::new("git")
+        .args(["show", &spec])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git show: {}", e))?;
+
+    if !output.status.success() {
+        // File might not exist in HEAD (new/untracked file)
+        return Ok(String::new());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(stdout)
+}
+
+#[tauri::command]
 pub fn git_init(path: String) -> Result<String, String> {
     let output = Command::new("git")
         .args(["init"])

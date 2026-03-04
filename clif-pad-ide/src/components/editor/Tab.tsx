@@ -83,30 +83,51 @@ const Tab: Component<TabProps> = (props) => {
           }
         }}
       >
-        {/* Icon: globe for browser, eye for preview, color dot for regular */}
+        {/* Icon: globe for browser, diff for diff, eye for preview, color dot for regular */}
         <Show
           when={props.file.isBrowser}
           fallback={
             <Show
-              when={props.file.isPreview}
+              when={props.file.isDiff}
               fallback={
-                <span
-                  class="w-2 h-2 rounded-full shrink-0"
-                  style={{ "background-color": getExtensionColor(props.file.name) }}
-                />
+                <Show
+                  when={props.file.isPreview}
+                  fallback={
+                    <span
+                      class="w-2 h-2 rounded-full shrink-0"
+                      style={{ "background-color": getExtensionColor(props.file.name) }}
+                    />
+                  }
+                >
+                  <svg
+                    class="w-3.5 h-3.5 shrink-0"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+                    <circle cx="8" cy="8" r="2" />
+                  </svg>
+                </Show>
               }
             >
+              {/* Diff icon */}
               <svg
                 class="w-3.5 h-3.5 shrink-0"
-                viewBox="0 0 16 16"
+                viewBox="0 0 24 24"
                 fill="none"
-                stroke="currentColor"
-                stroke-width="1.3"
+                stroke="var(--accent-yellow)"
+                stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                <circle cx="8" cy="8" r="2" />
+                <path d="M12 3v18" />
+                <path d="M6 9h6" />
+                <path d="M6 15h6" />
+                <path d="M15 9h6" />
               </svg>
             </Show>
           }
