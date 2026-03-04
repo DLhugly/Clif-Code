@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 
-export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk";
+export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai";
 
 export interface ThemeMeta {
   label: string;
@@ -10,11 +10,16 @@ export interface ThemeMeta {
 }
 
 export const THEMES: Record<Theme, ThemeMeta> = {
-  midnight: { label: "Midnight", accent: "#3b82f6", bg: "#0d1117", isDark: true },
-  graphite: { label: "Graphite", accent: "#f0883e", bg: "#1c1c1e", isDark: true },
-  dawn:     { label: "Dawn",     accent: "#0066cc", bg: "#ffffff", isDark: false },
-  arctic:   { label: "Arctic",   accent: "#0284c7", bg: "#f0f4f8", isDark: false },
-  dusk:     { label: "Dusk",     accent: "#a855f7", bg: "#1a1625", isDark: true },
+  midnight:          { label: "Midnight",        accent: "#3b82f6", bg: "#0d1117", isDark: true },
+  graphite:          { label: "Graphite",         accent: "#f0883e", bg: "#1c1c1e", isDark: true },
+  dawn:              { label: "Dawn",             accent: "#0066cc", bg: "#ffffff", isDark: false },
+  arctic:            { label: "Arctic",           accent: "#0284c7", bg: "#f0f4f8", isDark: false },
+  dusk:              { label: "Dusk",             accent: "#a855f7", bg: "#1a1625", isDark: true },
+  cyberpunk:         { label: "Cyberpunk",        accent: "#ff0090", bg: "#0d0015", isDark: true },
+  ember:             { label: "Ember",            accent: "#f97316", bg: "#1a1210", isDark: true },
+  forest:            { label: "Forest",           accent: "#22c55e", bg: "#0f1a0f", isDark: true },
+  "solarized-dark":  { label: "Solarized Dark",   accent: "#268bd2", bg: "#002b36", isDark: true },
+  monokai:           { label: "Monokai",          accent: "#a6e22e", bg: "#272822", isDark: true },
 };
 
 const [terminalWidth, setTerminalWidth] = createSignal(50);

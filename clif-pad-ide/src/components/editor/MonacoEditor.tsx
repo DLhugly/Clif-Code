@@ -2,6 +2,7 @@ import { Component, onMount, onCleanup, createEffect } from "solid-js";
 import * as monaco from "monaco-editor";
 import { activeFile, updateFileContent, saveActiveFile } from "../../stores/fileStore";
 import { theme, fontSize } from "../../stores/uiStore";
+import { settings } from "../../stores/settingsStore";
 import { monacoThemes } from "../../lib/themes";
 import { registerGhostTextProvider } from "./GhostText";
 import type { Theme } from "../../stores/uiStore";
@@ -134,6 +135,14 @@ const MonacoEditor: Component = () => {
     const size = fontSize();
     if (editorInstance) {
       editorInstance.updateOptions({ fontSize: size });
+    }
+  });
+
+  // Watch editor font changes
+  createEffect(() => {
+    const font = settings().editorFont;
+    if (editorInstance) {
+      editorInstance.updateOptions({ fontFamily: `${font}, Menlo, Monaco, 'Courier New', monospace` });
     }
   });
 

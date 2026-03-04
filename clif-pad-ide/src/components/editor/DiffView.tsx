@@ -1,6 +1,7 @@
 import { Component, onMount, onCleanup, createEffect } from "solid-js";
 import * as monaco from "monaco-editor";
 import { theme, fontSize } from "../../stores/uiStore";
+import { settings } from "../../stores/settingsStore";
 import { monacoThemes } from "../../lib/themes";
 import type { Theme } from "../../stores/uiStore";
 
@@ -78,6 +79,14 @@ const DiffView: Component<DiffViewProps> = (props) => {
     const size = fontSize();
     if (diffEditor) {
       diffEditor.updateOptions({ fontSize: size });
+    }
+  });
+
+  // Watch editor font changes
+  createEffect(() => {
+    const font = settings().editorFont;
+    if (diffEditor) {
+      diffEditor.updateOptions({ fontFamily: `${font}, Menlo, Monaco, 'Courier New', monospace` });
     }
   });
 

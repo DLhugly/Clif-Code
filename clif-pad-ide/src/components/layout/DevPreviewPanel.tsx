@@ -3,68 +3,11 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { ptySpawn, ptyWrite, ptyResize, ptyKill, onPtyOutput, onPtyExit } from "../../lib/tauri";
 import { theme, fontSize, devDrawerOpen, setDevDrawerOpen } from "../../stores/uiStore";
+import { settings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
-import type { Theme } from "../../stores/uiStore";
+import { terminalThemes } from "../../lib/terminalThemes";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
-
-const terminalThemes: Record<Theme, Record<string, string>> = {
-  midnight: {
-    background: "#0d1117",
-    foreground: "#e6edf3",
-    cursor: "#3b82f6",
-    cursorAccent: "#0d1117",
-    selectionBackground: "rgba(59, 130, 246, 0.3)",
-    black: "#484f58", red: "#ff7b72", green: "#3fb950", yellow: "#d29922",
-    blue: "#58a6ff", magenta: "#bc8cff", cyan: "#39c5cf", white: "#b1bac4",
-    brightBlack: "#6e7681", brightRed: "#ffa198", brightGreen: "#56d364", brightYellow: "#e3b341",
-    brightBlue: "#79c0ff", brightMagenta: "#d2a8ff", brightCyan: "#56d4dd", brightWhite: "#f0f6fc",
-  },
-  graphite: {
-    background: "#1c1c1e",
-    foreground: "#f5f5f7",
-    cursor: "#f0883e",
-    cursorAccent: "#1c1c1e",
-    selectionBackground: "rgba(240, 136, 62, 0.3)",
-    black: "#48484a", red: "#ff453a", green: "#30d158", yellow: "#ffd60a",
-    blue: "#64d2ff", magenta: "#bf5af2", cyan: "#5ac8fa", white: "#d1d1d6",
-    brightBlack: "#8e8e93", brightRed: "#ff6961", brightGreen: "#4cd964", brightYellow: "#ffe066",
-    brightBlue: "#70d7ff", brightMagenta: "#da8fff", brightCyan: "#70d7ff", brightWhite: "#f5f5f7",
-  },
-  dawn: {
-    background: "#ffffff",
-    foreground: "#1f2328",
-    cursor: "#0066cc",
-    cursorAccent: "#ffffff",
-    selectionBackground: "rgba(0, 102, 204, 0.2)",
-    black: "#24292f", red: "#cf222e", green: "#1a7f37", yellow: "#9a6700",
-    blue: "#0969da", magenta: "#8250df", cyan: "#1b7c83", white: "#6e7781",
-    brightBlack: "#57606a", brightRed: "#a40e26", brightGreen: "#2da44e", brightYellow: "#bf8700",
-    brightBlue: "#218bff", brightMagenta: "#a475f9", brightCyan: "#3192aa", brightWhite: "#8c959f",
-  },
-  arctic: {
-    background: "#f0f4f8",
-    foreground: "#0f172a",
-    cursor: "#0284c7",
-    cursorAccent: "#f0f4f8",
-    selectionBackground: "rgba(2, 132, 199, 0.2)",
-    black: "#334155", red: "#dc2626", green: "#059669", yellow: "#d97706",
-    blue: "#0284c7", magenta: "#7c3aed", cyan: "#0891b2", white: "#64748b",
-    brightBlack: "#475569", brightRed: "#ef4444", brightGreen: "#10b981", brightYellow: "#f59e0b",
-    brightBlue: "#0ea5e9", brightMagenta: "#8b5cf6", brightCyan: "#06b6d4", brightWhite: "#94a3b8",
-  },
-  dusk: {
-    background: "#1a1625",
-    foreground: "#ede9fe",
-    cursor: "#a855f7",
-    cursorAccent: "#1a1625",
-    selectionBackground: "rgba(168, 85, 247, 0.3)",
-    black: "#372f48", red: "#fb7185", green: "#34d399", yellow: "#fbbf24",
-    blue: "#818cf8", magenta: "#c084fc", cyan: "#67e8f9", white: "#a78bfa",
-    brightBlack: "#7c6ba0", brightRed: "#fda4af", brightGreen: "#6ee7b7", brightYellow: "#fde68a",
-    brightBlue: "#a5b4fc", brightMagenta: "#d8b4fe", brightCyan: "#a5f3fc", brightWhite: "#ede9fe",
-  },
-};
 
 const PRESET_COMMANDS = [
   { label: "npm run dev", cmd: "npm run dev" },
@@ -186,9 +129,10 @@ const DevPreviewPanel: Component = () => {
     terminalMounted = true;
 
     const t = theme();
+    const font = settings().terminalFont;
     terminal = new Terminal({
       fontSize: Math.max(11, fontSize() - 1),
-      fontFamily: "JetBrains Mono, Menlo, Monaco, Courier New, monospace",
+      fontFamily: `${font}, Menlo, Monaco, Courier New, monospace`,
       cursorBlink: true,
       cursorStyle: "bar",
       allowProposedApi: true,
@@ -266,6 +210,15 @@ const DevPreviewPanel: Component = () => {
     const size = fontSize();
     if (terminal) {
       terminal.options.fontSize = Math.max(11, size - 1);
+      fitAddon?.fit();
+    }
+  });
+
+  // Watch terminal font changes
+  createEffect(() => {
+    const font = settings().terminalFont;
+    if (terminal) {
+      terminal.options.fontFamily = `${font}, Menlo, Monaco, Courier New, monospace`;
       fitAddon?.fit();
     }
   });

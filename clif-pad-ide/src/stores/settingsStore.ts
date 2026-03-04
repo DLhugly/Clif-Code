@@ -5,7 +5,9 @@ import type { Theme } from "./uiStore";
 interface Settings {
   theme: Theme;
   fontSize: number;
-  fontFamily: string;
+  editorFont: string;
+  terminalFont: string;
+  uiFont: string;
   tabSize: number;
   wordWrap: "on" | "off";
   minimap: boolean;
@@ -17,7 +19,9 @@ interface Settings {
 const defaultSettings: Settings = {
   theme: "midnight",
   fontSize: 14,
-  fontFamily: "JetBrains Mono",
+  editorFont: "JetBrains Mono",
+  terminalFont: "JetBrains Mono",
+  uiFont: "Inter",
   tabSize: 2,
   wordWrap: "off",
   minimap: true,
@@ -31,7 +35,14 @@ const [settings, setSettingsLocal] = createSignal<Settings>(defaultSettings);
 async function loadSettings() {
   try {
     const s = await getSettings();
-    setSettingsLocal({ ...defaultSettings, ...(s as any) });
+    const raw = s as any;
+    // Migrate old fontFamily field to new fields
+    if (raw.fontFamily && !raw.editorFont) {
+      raw.editorFont = raw.fontFamily;
+      raw.terminalFont = raw.fontFamily;
+      delete raw.fontFamily;
+    }
+    setSettingsLocal({ ...defaultSettings, ...raw });
   } catch {
     // Use defaults
   }

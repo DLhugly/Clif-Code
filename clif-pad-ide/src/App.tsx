@@ -9,6 +9,7 @@ import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject } from "./stores/fileStore";
 import { initGit } from "./stores/gitStore";
 import { configureMonaco } from "./lib/monaco-setup";
+import { loadGoogleFont, applyUiFont } from "./lib/fonts";
 import type { TerminalPanelRef } from "./components/terminal/TerminalPanel";
 
 const TerminalPanel = lazy(() => import("./components/terminal/TerminalPanel"));
@@ -108,6 +109,12 @@ const App: Component = () => {
     const s = settings();
     applyTheme(s.theme);
     setUiFontSize(s.fontSize);
+
+    // Load and apply saved fonts
+    loadGoogleFont(s.editorFont);
+    loadGoogleFont(s.terminalFont);
+    loadGoogleFont(s.uiFont);
+    applyUiFont(s.uiFont);
 
     registerKeybinding("s", ["ctrl"], saveActiveFile, "Save file");
     registerKeybinding("`", ["ctrl"], toggleTerminal, "Toggle terminal");

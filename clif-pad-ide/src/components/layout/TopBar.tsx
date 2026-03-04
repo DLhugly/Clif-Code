@@ -1,8 +1,9 @@
 import { Component, Show, For, createSignal, onCleanup } from "solid-js";
 import { theme, applyTheme, fontSize, setUiFontSize, THEMES } from "../../stores/uiStore";
 import type { Theme } from "../../stores/uiStore";
-import { updateSettings } from "../../stores/settingsStore";
+import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
+import { MONO_FONTS, SANS_FONTS, loadGoogleFont, applyUiFont } from "../../lib/fonts";
 
 const FolderIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -35,6 +36,121 @@ const ClifCodeIcon = () => (
     <polyline points="8 6 2 12 8 18" />
   </svg>
 );
+
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+interface FontDropdownProps {
+  label: string;
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (value: string) => void;
+}
+
+const FontDropdown: Component<FontDropdownProps> = (props) => {
+  const [open, setOpen] = createSignal(false);
+  let ref: HTMLDivElement | undefined;
+
+  const handleClickOutside = (e: MouseEvent) => {
+    if (ref && !ref.contains(e.target as Node)) {
+      setOpen(false);
+    }
+  };
+
+  const toggle = () => {
+    const next = !open();
+    setOpen(next);
+    if (next) {
+      setTimeout(() => document.addEventListener("click", handleClickOutside), 0);
+    } else {
+      document.removeEventListener("click", handleClickOutside);
+    }
+  };
+
+  onCleanup(() => {
+    document.removeEventListener("click", handleClickOutside);
+  });
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-all duration-150"
+        style={{
+          color: "var(--text-secondary)",
+          background: open() ? "var(--bg-hover)" : "transparent",
+          border: "none",
+          cursor: "pointer",
+          "white-space": "nowrap",
+        }}
+        onMouseEnter={(e) => {
+          if (!open()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+        }}
+        onMouseLeave={(e) => {
+          if (!open()) (e.currentTarget as HTMLElement).style.background = "transparent";
+        }}
+        onClick={toggle}
+        title={props.label}
+      >
+        <span style={{ color: "var(--text-muted)", "font-size": "10px" }}>{props.label}</span>
+        <span style={{ "max-width": "90px", overflow: "hidden", "text-overflow": "ellipsis" }}>{props.value}</span>
+        <ChevronIcon />
+      </button>
+
+      <Show when={open()}>
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: "0",
+            background: "var(--bg-overlay)",
+            border: "1px solid var(--border-default)",
+            "border-radius": "var(--radius-lg)",
+            "box-shadow": "var(--shadow-lg)",
+            padding: "4px",
+            "min-width": "170px",
+            "z-index": "200",
+            "backdrop-filter": "blur(20px)",
+            "-webkit-backdrop-filter": "blur(20px)",
+          }}
+        >
+          <For each={props.options}>
+            {(opt) => (
+              <button
+                class="flex items-center gap-3 w-full rounded-md px-3 py-2 text-xs transition-colors duration-100"
+                style={{
+                  color: props.value === opt.value ? "var(--text-primary)" : "var(--text-secondary)",
+                  background: props.value === opt.value ? "var(--bg-active)" : "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  "text-align": "left",
+                }}
+                onMouseEnter={(e) => {
+                  if (props.value !== opt.value) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  if (props.value !== opt.value) (e.currentTarget as HTMLElement).style.background = "transparent";
+                }}
+                onClick={() => {
+                  props.onChange(opt.value);
+                  setOpen(false);
+                  document.removeEventListener("click", handleClickOutside);
+                }}
+              >
+                <span class="flex-1">{opt.label}</span>
+                <Show when={props.value === opt.value}>
+                  <CheckIcon />
+                </Show>
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+};
 
 const TopBar: Component<{
   onLaunchClaude: () => void;
@@ -77,6 +193,22 @@ const TopBar: Component<{
   const handleFontChange = (size: number) => {
     setUiFontSize(size);
     updateSettings({ fontSize: size });
+  };
+
+  const handleEditorFontChange = (font: string) => {
+    loadGoogleFont(font);
+    updateSettings({ editorFont: font });
+  };
+
+  const handleTerminalFontChange = (font: string) => {
+    loadGoogleFont(font);
+    updateSettings({ terminalFont: font });
+  };
+
+  const handleUiFontChange = (font: string) => {
+    loadGoogleFont(font);
+    applyUiFont(font);
+    updateSettings({ uiFont: font });
   };
 
   const themeKeys = Object.keys(THEMES) as Theme[];
@@ -164,6 +296,29 @@ const TopBar: Component<{
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
 
+        {/* Font dropdowns */}
+        <FontDropdown
+          label="Editor"
+          value={settings().editorFont}
+          options={MONO_FONTS}
+          onChange={handleEditorFontChange}
+        />
+        <FontDropdown
+          label="Terminal"
+          value={settings().terminalFont}
+          options={MONO_FONTS}
+          onChange={handleTerminalFontChange}
+        />
+        <FontDropdown
+          label="UI"
+          value={settings().uiFont}
+          options={SANS_FONTS}
+          onChange={handleUiFontChange}
+        />
+
+        {/* Divider */}
+        <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
+
         {/* Theme dropdown */}
         <div ref={dropdownRef} style={{ position: "relative" }}>
           <button
@@ -212,7 +367,9 @@ const TopBar: Component<{
                 "border-radius": "var(--radius-lg)",
                 "box-shadow": "var(--shadow-lg)",
                 padding: "4px",
-                "min-width": "160px",
+                "min-width": "170px",
+                "max-height": "320px",
+                "overflow-y": "auto",
                 "z-index": "200",
                 "backdrop-filter": "blur(20px)",
                 "-webkit-backdrop-filter": "blur(20px)",
@@ -257,9 +414,7 @@ const TopBar: Component<{
                     <span class="flex-1">{THEMES[t].label}</span>
                     {/* Checkmark for active */}
                     <Show when={theme() === t}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                      <CheckIcon />
                     </Show>
                   </button>
                 )}
