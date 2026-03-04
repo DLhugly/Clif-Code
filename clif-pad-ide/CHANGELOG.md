@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/DLhugly/Clif-Code/compare/v1.10.0...v1.11.0) (2026-03-04)
+
+
+### Features
+
+* add file explorer actions, context menu, drag-drop, and update button fix ([bee4169](https://github.com/DLhugly/Clif-Code/commit/bee4169833c13f7b4ebde9d28fc9555914bdd88e))
+
 # [1.10.0](https://github.com/DLhugly/Clif-Code/compare/v1.9.0...v1.10.0) (2026-03-04)
 
 
