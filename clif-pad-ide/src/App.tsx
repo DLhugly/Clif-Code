@@ -3,6 +3,7 @@ import TopBar from "./components/layout/TopBar";
 import EditorArea from "./components/layout/EditorArea";
 import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
+import AboutModal from "./components/layout/AboutModal";
 import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
@@ -18,6 +19,7 @@ const App: Component = () => {
   let terminalRef: TerminalPanelRef | undefined;
   const [isDraggingTerminal, setIsDraggingTerminal] = createSignal(false);
   const [isDraggingSidebar, setIsDraggingSidebar] = createSignal(false);
+  const [showAbout, setShowAbout] = createSignal(false);
 
   function handleLaunchClaude() {
     if (terminalRef && projectRoot()) {
@@ -122,6 +124,10 @@ const App: Component = () => {
     registerKeybinding("p", ["ctrl", "shift"], () => setShowCommandPalette(true), "Command palette");
 
     initKeybindings();
+
+    // Listen for "About ClifPad" from the system menu
+    const { listen } = await import("@tauri-apps/api/event");
+    listen("show-about", () => setShowAbout(true));
   });
 
   return (
@@ -214,7 +220,10 @@ const App: Component = () => {
       </div>
 
       {/* Status Bar */}
-      <StatusBar />
+      <StatusBar onShowAbout={() => setShowAbout(true)} />
+
+      {/* About Modal */}
+      <AboutModal open={showAbout()} onClose={() => setShowAbout(false)} />
     </div>
   );
 };

@@ -4,20 +4,33 @@ mod state;
 
 use commands::pty::PtyState;
 use services::file_watcher::WatcherState;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 fn build_menu(app: &tauri::AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
     use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem, MenuItemBuilder};
+
+    let about_item = MenuItemBuilder::with_id("about_clif", "About ClifPad")
+        .build(app)?;
 
     let new_window = MenuItemBuilder::with_id("new_window", "New Window")
         .accelerator("CmdOrCtrl+Shift+N")
         .build(app)?;
 
+    // On macOS the first submenu becomes the app menu (bold "ClifPad" in the menu bar)
+    let app_menu = SubmenuBuilder::new(app, "ClifPad")
+        .item(&about_item)
+        .separator()
+        .item(&PredefinedMenuItem::hide(app, None)?)
+        .item(&PredefinedMenuItem::hide_others(app, None)?)
+        .item(&PredefinedMenuItem::show_all(app, None)?)
+        .separator()
+        .item(&PredefinedMenuItem::quit(app, None)?)
+        .build()?;
+
     let file_menu = SubmenuBuilder::new(app, "File")
         .item(&new_window)
         .separator()
         .item(&PredefinedMenuItem::close_window(app, None)?)
-        .item(&PredefinedMenuItem::quit(app, None)?)
         .build()?;
 
     let edit_menu = SubmenuBuilder::new(app, "Edit")
@@ -36,6 +49,7 @@ fn build_menu(app: &tauri::AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, t
         .build()?;
 
     MenuBuilder::new(app)
+        .item(&app_menu)
         .item(&file_menu)
         .item(&edit_menu)
         .item(&window_menu)
@@ -56,11 +70,17 @@ pub fn run() {
             Ok(())
         })
         .on_menu_event(|app, event| {
-            if event.id().as_ref() == "new_window" {
-                let app = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    let _ = commands::window::create_window(app).await;
-                });
+            match event.id().as_ref() {
+                "new_window" => {
+                    let app = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = commands::window::create_window(app).await;
+                    });
+                }
+                "about_clif" => {
+                    let _ = app.emit("show-about", ());
+                }
+                _ => {}
             }
         })
         .on_window_event(|window, event| {

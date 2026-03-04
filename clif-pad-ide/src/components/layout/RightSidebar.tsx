@@ -225,8 +225,8 @@ const GitGraphRow: Component<{
                   <span
                     class="px-1 rounded font-mono"
                     style={{
-                      "font-size": "9px",
-                      "line-height": "16px",
+                      "font-size": "0.75em",
+                      "line-height": "1.4",
                       background: ref.isHead
                         ? "var(--accent-blue)"
                         : BRANCH_COLORS[i() % BRANCH_COLORS.length],
@@ -245,8 +245,8 @@ const GitGraphRow: Component<{
             class="truncate"
             style={{
               color: "var(--text-primary)",
-              "font-size": "11px",
-              "line-height": "16px",
+              "font-size": "0.92em",
+              "line-height": "1.4",
             }}
           >
             {props.entry.message}
@@ -254,7 +254,7 @@ const GitGraphRow: Component<{
           {/* Hash + author + date */}
           <div
             class="flex items-center gap-2 mt-0.5"
-            style={{ color: "var(--text-muted)", "font-size": "10px" }}
+            style={{ color: "var(--text-muted)", "font-size": "0.84em" }}
           >
             <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>
               {props.entry.short_hash}
@@ -272,7 +272,7 @@ const GitGraphRow: Component<{
           overflow: "hidden",
           "max-height": "0",
           "padding-left": "24px",
-          "font-size": "10px",
+          "font-size": "0.84em",
           transition: "max-height 0.15s ease",
         }}
       >
@@ -880,7 +880,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
               </Show>
 
               {/* Refresh button */}
-              <div class="p-2 mt-auto shrink-0">
+              <div class="p-2 shrink-0">
                 <button
                   class="w-full py-1 rounded transition-colors"
                   style={{

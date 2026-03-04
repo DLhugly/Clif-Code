@@ -19,7 +19,7 @@ const SparkleIcon = () => (
   </svg>
 );
 
-const StatusBar: Component = () => {
+const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
   const [appVersion, setAppVersion] = createSignal("...");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
   const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
@@ -192,8 +192,18 @@ const StatusBar: Component = () => {
               color: updateStatus().state === "downloading" || updateStatus().state === "installing"
                 ? "var(--accent-yellow, #eab308)"
                 : "var(--accent-primary)",
+              cursor: updateStatus().state === "idle" ? "pointer" : "default",
             }}
             title={`ClifPad v${appVersion()}`}
+            onClick={() => {
+              if (updateStatus().state === "idle" && props.onShowAbout) props.onShowAbout();
+            }}
+            onMouseEnter={(e) => {
+              if (updateStatus().state === "idle") (e.currentTarget as HTMLElement).style.opacity = "0.7";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.opacity = "1";
+            }}
           >
             <SparkleIcon />
             <span class="text-xs">{updateLabel()}</span>
