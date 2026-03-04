@@ -1,7 +1,11 @@
-import { Component, Show } from "solid-js";
+import { Component, Show, createSignal, onMount } from "solid-js";
 import { activeFile, projectRoot } from "../../stores/fileStore";
 import { isGitRepo, currentBranch } from "../../stores/gitStore";
 import { theme, THEMES } from "../../stores/uiStore";
+import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
+import type { Update } from "@tauri-apps/plugin-updater";
+
+const APP_VERSION = "1.6.1";
 
 const TerminalIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -10,7 +14,16 @@ const TerminalIcon = () => (
   </svg>
 );
 
+const SparkleIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+  </svg>
+);
+
 const StatusBar: Component = () => {
+  const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
+  const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
+
   const filePath = () => {
     const file = activeFile();
     return file ? file.path : "";
@@ -19,6 +32,57 @@ const StatusBar: Component = () => {
   const language = () => {
     const file = activeFile();
     return file ? file.language : "";
+  };
+
+  onMount(() => {
+    // Delay update check so it doesn't block startup
+    setTimeout(async () => {
+      const update = await checkForUpdate();
+      if (update) {
+        setPendingUpdate(update);
+        setUpdateStatus({ state: "available", version: update.version, update });
+      }
+    }, 3000);
+  });
+
+  const handleUpdateClick = async () => {
+    const update = pendingUpdate();
+    if (!update) return;
+
+    setUpdateStatus({ state: "downloading", progress: 0 });
+
+    try {
+      await installUpdate(update, (progress) => {
+        setUpdateStatus({ state: "downloading", progress });
+      });
+      // relaunch happens inside installUpdate, so we won't reach here normally
+    } catch (e) {
+      setUpdateStatus({
+        state: "error",
+        message: e instanceof Error ? e.message : "Update failed",
+      });
+    }
+  };
+
+  const updateLabel = () => {
+    const status = updateStatus();
+    switch (status.state) {
+      case "available":
+        return `Update v${status.version}`;
+      case "downloading":
+        return `Updating ${status.progress}%`;
+      case "installing":
+        return "Installing...";
+      case "error":
+        return "Update failed";
+      default:
+        return `Clif v${APP_VERSION}`;
+    }
+  };
+
+  const isClickable = () => {
+    const s = updateStatus().state;
+    return s === "available" || s === "error";
   };
 
   return (
@@ -36,6 +100,9 @@ const StatusBar: Component = () => {
     >
       {/* Left section */}
       <div class="flex items-center gap-3 min-w-0">
+        {/* Version label */}
+        <span style={{ color: "var(--text-muted)" }}>v{APP_VERSION}</span>
+
         {/* Git branch */}
         <Show when={isGitRepo()}>
           <div
@@ -101,15 +168,28 @@ const StatusBar: Component = () => {
           </span>
         </Show>
 
-        {/* Clif label with accent */}
+        {/* Clif label with update indicator */}
         <div
           class="flex items-center gap-1.5"
-          style={{ color: "var(--accent-primary)" }}
+          style={{
+            color: updateStatus().state === "available"
+              ? "var(--accent-green)"
+              : updateStatus().state === "error"
+                ? "var(--accent-red, #ef4444)"
+                : "var(--accent-primary)",
+            cursor: isClickable() ? "pointer" : "default",
+          }}
+          onClick={isClickable() ? handleUpdateClick : undefined}
+          title={
+            updateStatus().state === "available"
+              ? "Click to install update and restart"
+              : updateStatus().state === "error"
+                ? "Click to retry update"
+                : `ClifPad v${APP_VERSION}`
+          }
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
-          </svg>
-          <span class="text-xs">Clif</span>
+          <SparkleIcon />
+          <span class="text-xs">{updateLabel()}</span>
         </div>
       </div>
     </div>

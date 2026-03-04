@@ -20,6 +20,8 @@
     "core:window:allow-create",
     "core:event:default",
     "core:event:allow-emit",
-    "core:event:allow-listen"
+    "core:event:allow-listen",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

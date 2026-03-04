@@ -130,6 +130,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v${{ needs.semantic-release.outputs.new-release-version }}
           releaseName: ClifPad v${{ needs.semantic-release.outputs.new-release-version }}
@@ -138,6 +140,7 @@ jobs:
           prerelease: false
           projectPath: clif-pad-ide
           args: --target ${{ matrix.target }}
+          includeUpdaterJson: true
 
       - name: Generate Checksums
         run: |
@@ -205,6 +208,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v${{ needs.semantic-release.outputs.new-release-version }}
           releaseName: ClifPad v${{ needs.semantic-release.outputs.new-release-version }}
@@ -212,6 +217,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           projectPath: clif-pad-ide
+          includeUpdaterJson: true
 
       - name: Generate Checksums
         shell: bash
@@ -292,6 +298,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v${{ needs.semantic-release.outputs.new-release-version }}
           releaseName: ClifPad v${{ needs.semantic-release.outputs.new-release-version }}
@@ -299,6 +307,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           projectPath: clif-pad-ide
+          includeUpdaterJson: true
 
       - name: Generate Checksums
         run: |

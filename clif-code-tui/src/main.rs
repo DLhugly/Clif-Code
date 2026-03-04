@@ -598,6 +598,7 @@ fn print_help() {
         ui::BOLD, ui::BRIGHT_MAGENTA, ui::RESET
     );
     let workspace_cmds = [
+        ("pwd", "Print current workspace directory"),
         ("cd <dir>", "Change workspace directory"),
         ("add <file>", "Add file to context"),
         ("drop <file>", "Remove file from context"),
@@ -681,11 +682,17 @@ fn main() -> Result<()> {
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     let mut workspace_str = workspace.to_string_lossy().to_string();
 
+    let mut autonomy = match cli.autonomy.as_str() {
+        "suggest" => Autonomy::Suggest,
+        "full" | "full-auto" => Autonomy::FullAuto,
+        _ => Autonomy::AutoEdit,
+    };
+
     // Non-interactive mode
     if cli.prompt.is_some() {
         let bk = resolve_backend(&cli)?;
-        let mut conv = Conversation::new(&workspace_str, &Autonomy::AutoEdit, &[]);
-        let usage = run_turn(&bk, &mut conv, cli.prompt.as_ref().unwrap(), &mut workspace_str, &Autonomy::AutoEdit, false)?;
+        let mut conv = Conversation::new(&workspace_str, &autonomy, &[]);
+        let usage = run_turn(&bk, &mut conv, cli.prompt.as_ref().unwrap(), &mut workspace_str, &autonomy, false)?;
         if usage.prompt_tokens > 0 || usage.completion_tokens > 0 {
             ui::print_usage(usage.prompt_tokens, usage.completion_tokens);
         }
@@ -695,12 +702,6 @@ fn main() -> Result<()> {
     // Interactive mode
     ui::print_logo();
     let mut bk = resolve_backend(&cli)?;
-
-    let mut autonomy = match cli.autonomy.as_str() {
-        "suggest" => Autonomy::Suggest,
-        "full" | "full-auto" => Autonomy::FullAuto,
-        _ => Autonomy::AutoEdit,
-    };
 
     let mut context_files: Vec<String> = Vec::new();
     let auto_commit = git::is_git_repo(&workspace_str);
@@ -840,6 +841,10 @@ fn main() -> Result<()> {
                         ui::print_error(&format!("  Cannot resume: {e}"));
                     }
                 }
+                continue;
+            }
+            "pwd" => {
+                println!("  {}", workspace_str);
                 continue;
             }
             "cd" => {
