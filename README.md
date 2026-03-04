@@ -7,15 +7,17 @@
 </p>
 
 <p align="center">
-  <strong>~20MB desktop IDE. Terminal AI agent. Both native. Both open source.</strong>
+  <strong>~20MB native code editor with built-in AI agents. Open source.</strong>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
   <a href="https://github.com/DLhugly/Clif-Code/releases"><img src="https://img.shields.io/github/v/release/DLhugly/Clif-Code?label=release&color=blue&style=flat-square" alt="Release"></a>
+  <a href="https://crates.io/crates/clifcode"><img src="https://img.shields.io/crates/v/clifcode?color=e6522c&style=flat-square" alt="crates.io"></a>
   <a href="https://www.npmjs.com/package/clifcode"><img src="https://img.shields.io/npm/v/clifcode?color=red&label=npm&style=flat-square" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/clifcode"><img src="https://img.shields.io/npm/dm/clifcode?color=cb3837&label=npm%20downloads&style=flat-square" alt="npm downloads"></a>
+  <a href="https://github.com/DLhugly/Clif-Code/stargazers"><img src="https://img.shields.io/github/stars/DLhugly/Clif-Code?style=flat-square&color=yellow" alt="GitHub Stars"></a>
   <img src="https://img.shields.io/badge/binary-~20MB-ff6b6b?style=flat-square" alt="~20MB">
-  <img src="https://img.shields.io/badge/runtime-7KB-51cf66?style=flat-square" alt="7KB runtime">
   <img src="https://img.shields.io/badge/tauri-2.0-orange?style=flat-square" alt="Tauri 2">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="Platform">
 </p>
@@ -33,7 +35,7 @@
 
 Cursor is 400MB. VS Code is 350MB. Zed doesn't do AI.
 
-**Clif is ~20MB.** A native Rust binary with a 7KB SolidJS frontend. VS Code-quality editing via Monaco. Real terminal via PTY. Git built into the backend. AI when you want it, silence when you don't.
+**ClifPad is ~20MB.** A native Rust IDE with a 7KB SolidJS frontend. VS Code-quality editing via Monaco. Real terminal via PTY. Git built into the backend. AI via [ClifCode](#-clifcode) and [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) — both integrated, both optional.
 
 No Electron. No telemetry. No subscription. Open source.
 
@@ -72,9 +74,11 @@ No Electron. No telemetry. No subscription. Open source.
 cargo install clifcode
 ```
 
-Run `clifcode` in any project directory. That's it.
+```bash
+npm i -g clifcode
+```
 
-> `npm i -g clifcode` — coming soon
+Run `clifcode` in any project directory. That's it.
 
 <details>
 <summary>Other install methods</summary>
@@ -105,7 +109,7 @@ cd Clif-Code/clif-code-tui && cargo install --path .
 
 **🌿 Git** — Branch, status, stage, commit, per-file `+/-` diff stats, visual commit graph. All Rust.
 
-**🤖 AI** — OpenRouter (100+ models), Ollama (fully local), Claude Code CLI. Ghost text completions. All opt-in.
+**🤖 AI Agents** — Built-in support for [ClifCode](#-clifcode) (our open-source TUI agent) and [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview). Also connects to OpenRouter (100+ models) and Ollama (fully local). Ghost text completions. All opt-in.
 
 **🎨 5 Themes** — Midnight, Graphite, Dawn, Arctic, Dusk. Editor, terminal, and UI stay in sync.
 
@@ -126,7 +130,9 @@ Tauri 2 compiles to a single native binary. SolidJS has no virtual DOM overhead.
 
 ## ⚡ ClifCode
 
-> **Open-source AI coding agent for your terminal. Like Claude Code — but you own it.**
+> **The open-source AI agent that powers ClifPad's AI — and works as a standalone terminal tool.**
+>
+> Like Claude Code, but you own it, configure it, and run it with any LLM.
 
 ```
    _____ _ _  __ _____          _
@@ -162,40 +168,124 @@ Tauri 2 compiles to a single native binary. SolidJS has no virtual DOM overhead.
   ∙ 2.1k tokens  ∙ ~$0.0312
 ```
 
-**What it does:** Tool-calling AI agent that reads your codebase, writes code, runs commands, searches files, and auto-commits — all from a TUI.
+**What it does:** Tool-calling AI agent that reads your codebase, writes code, runs commands, searches files, and auto-commits — all from a TUI. Bring your own API key, use any LLM, or run fully local with Ollama.
 
-| | | |
-|---|---|---|
-| **Agentic loop** — up to 7 tool calls per turn | **Any provider** — OpenRouter, OpenAI, Anthropic, Ollama | **Parallel tools** — concurrent read-only calls |
-| **3 autonomy modes** — suggest, auto-edit, full-auto | **Sessions** — auto-save, resume, cost tracking | **9 built-in tools** — read, write, edit, find, search, run, list, cd, submit |
+### 🔧 9 Built-in Tools
+
+| Tool | Description |
+|------|-------------|
+| **read_file** | Read file contents with offset support for large files |
+| **write_file** | Create or overwrite files, auto-creates directories, shows diff |
+| **edit_file** | Targeted string replacement with fuzzy matching fallback (60%+ similarity) |
+| **find_file** | Recursive file search by name (5 levels deep, top 30 results) |
+| **search** | Grep-based pattern search across 15+ file types |
+| **list_files** | Tree view directory listing (3 levels, 200 entry max) |
+| **run_command** | Execute shell commands in workspace context |
+| **change_directory** | Switch workspace, auto-updates repo map |
+| **submit** | Mark task complete, triggers git auto-commit |
+
+### 🎛️ 3 Autonomy Modes
+
+| Mode | Behavior |
+|------|----------|
+| **suggest** | Shows diff, prompts Y/n before every write |
+| **auto-edit** (default) | Applies changes automatically, shows collapsed diff (Ctrl+O to expand) |
+| **full-auto** | Hands-off — applies all changes silently |
+
+### ✨ Feature Highlights
+
+| Feature | Details |
+|---------|---------|
+| **Agentic loop** | Up to 7 tool calls per turn with chained reasoning |
+| **Parallel tools** | Read-only calls execute concurrently on threads |
+| **Session persistence** | Auto-saves every conversation — resume any session by ID |
+| **Git auto-commit** | Commits on task completion — author: `ClifCode <clifcode@local>`, undo with `/undo` |
+| **Repo mapping** | Auto-generates directory tree (4 levels deep) injected into context |
+| **Auto-context** | Reads README, Cargo.toml, package.json, pyproject.toml, go.mod, Dockerfile, .clifcode.toml, etc. |
+| **Smart compaction** | 3-tier context management: truncate large results → stub old results → drop old turns |
+| **Fuzzy edit matching** | When exact match fails, line-based sliding window with 60%+ similarity threshold |
+| **Cost tracking** | Per-turn token usage and estimated cost displayed inline |
+| **Streaming markdown** | Live token-by-token rendering with code block detection |
+| **npm distribution** | 6 platform binaries: macOS/Linux/Windows × x64/ARM64 |
+
+### 📋 Slash Commands
+
+```
+◆ Session     /new  /sessions  /resume [id]  /cost  /clear  /quit
+◆ Workspace   /cd   /add       /drop         /context
+◆ Settings    /mode /backend   /config
+◆ Git         /status  /undo
+◆ Help        /help
+```
+
+| Command | What it does |
+|---------|-------------|
+| `/new` | Start a fresh conversation |
+| `/sessions` | List all saved sessions with date and preview |
+| `/resume [id]` | Resume a saved session (interactive picker if no ID) |
+| `/cost` | Show session token usage and estimated cost |
+| `/mode` | Switch between suggest / auto-edit / full-auto |
+| `/backend` | Show current provider and model |
+| `/config` | Re-run provider setup wizard |
+| `/cd [dir]` | Change workspace directory |
+| `/add <file>` | Add file to persistent context |
+| `/drop <file>` | Remove file from context |
+| `/context` | Show conversation messages and context files |
+| `/status` | Show `git status --short` |
+| `/undo` | Soft-reset last ClifCode commit (keeps changes staged) |
+
+### 🔌 Providers
+
+| Provider | Setup | Default Model |
+|----------|-------|---------------|
+| **OpenRouter** (default) | `CLIFCODE_API_KEY` | `anthropic/claude-sonnet-4` |
+| **OpenAI** | `--api-url https://api.openai.com/v1` | `gpt-4o` |
+| **Anthropic** | `--api-url https://api.anthropic.com/v1` | `claude-sonnet-4-20250514` |
+| **Ollama** | `--backend ollama` (no API key needed) | `qwen2.5-coder:7b` |
+| **Any OpenAI-compatible** | `--api-url <endpoint>` | user-specified |
+
+### 🚩 CLI Flags
 
 ```bash
-clifcode                                        # interactive mode
-clifcode -p "explain this codebase"             # non-interactive
-clifcode --backend ollama                       # local models
-clifcode --autonomy suggest                     # confirm every write
-clifcode --resume                               # resume last session
+clifcode                                          # interactive mode
+clifcode -p "explain this codebase"               # non-interactive single prompt
+clifcode --backend ollama                         # use local models
+clifcode --autonomy suggest                       # confirm every write
+clifcode --resume                                 # resume last session
+clifcode --resume <session-id>                    # resume specific session
+clifcode -w /path/to/project                      # set workspace
+clifcode --api-model gpt-4o --api-url https://api.openai.com/v1  # custom provider
+clifcode --max-tokens 2048                        # max completion tokens
 ```
 
-<details>
-<summary><strong>Commands & providers</strong></summary>
+| Flag | Env Variable | Default |
+|------|-------------|---------|
+| `--backend <auto\|api\|ollama\|stub>` | — | `auto` |
+| `--api-url <url>` | `CLIFCODE_API_URL` | OpenRouter |
+| `--api-key <key>` | `CLIFCODE_API_KEY` | — |
+| `--api-model <name>` | `CLIFCODE_API_MODEL` | `anthropic/claude-sonnet-4` |
+| `--workspace, -w <path>` | — | current directory |
+| `--max-tokens <n>` | — | `1024` |
+| `--prompt, -p <text>` | — | — |
+| `--autonomy <mode>` | — | `auto-edit` |
+| `--resume [id]` | — | — |
 
-```
-  ◆ Session     /new  /sessions  /resume  /cost  /clear  /quit
-  ◆ Workspace   /cd   /add       /drop    /context
-  ◆ Settings    /mode /backend   /config
-  ◆ Git         /status  /undo
-```
+### ⚔️ Why ClifCode?
 
-| Provider | Config |
-|----------|--------|
-| **OpenRouter** (default) | `CLIFCODE_API_KEY` — access to 100+ models |
-| **OpenAI** | `--api-url https://api.openai.com/v1` |
-| **Anthropic** | Via OpenRouter or compatible proxy |
-| **Ollama** | `--backend ollama` — fully local, no API key |
-| **Any OpenAI-compatible** | `--api-url <your-endpoint>` |
+| | ClifCode | Claude Code | Aider |
+|---|:---:|:---:|:---:|
+| **Open source** | ✅ MIT | ✅ Apache-2.0 | ✅ Apache-2.0 |
+| **Any LLM provider** | ✅ 100+ via OpenRouter | Anthropic only | ✅ Multi-provider |
+| **Local models (Ollama)** | ✅ | ❌ | ✅ |
+| **Tool-calling agent** | ✅ 9 tools | ✅ | ❌ diff-based |
+| **Session persistence** | ✅ Resume any | ✅ | ❌ |
+| **Git auto-commit** | ✅ | ✅ | ✅ |
+| **TUI interface** | ✅ | ✅ | ✅ |
+| **Cost tracking** | ✅ Per-turn | ✅ | ✅ |
+| **Runtime** | Rust (native binary) | Node.js | Python |
+| **No subscription** | ✅ BYO key | API costs | ✅ BYO key |
 
-</details>
+ClifCode gives you the agentic tool-calling experience of Claude Code with the provider freedom of Aider — in a single native Rust binary.
 
 ---
 
@@ -295,7 +385,10 @@ We will. For now, the $99/year Apple Developer fee goes toward more important th
 ClifPad: Yes — AI features are opt-in. Without API keys, it's a fully offline editor with terminal and git. ClifCode: Needs an API provider (but Ollama runs fully local with no internet).
 
 **What models does ClifCode support?**
-Any OpenAI-compatible API. Default is `anthropic/claude-sonnet-4` via OpenRouter. Also works with GPT-4o, Gemini, Llama, Qwen, Mistral, DeepSeek — anything on OpenRouter or Ollama.
+Any model accessible through an OpenAI-compatible API. Default is `anthropic/claude-sonnet-4` via OpenRouter, which gives access to 100+ models including GPT-4o, Gemini, Llama, Qwen, Mistral, and DeepSeek. Use `--backend ollama` for fully local inference with any Ollama-supported model.
+
+**How does ClifCode compare to Claude Code / Aider?**
+ClifCode is a tool-calling agent (like Claude Code) that works with any LLM provider (like Aider). It combines the agentic loop and tool-calling architecture of Claude Code with the provider flexibility of Aider — in a single native Rust binary with no Node.js or Python runtime. See the [comparison table](#-why-clifcode) for details.
 
 ---
 

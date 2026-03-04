@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clif — AI-native code editor & terminal agent</title>
-  <meta name="description" content="ClifPad: ~20MB native code editor. ClifCode: AI terminal agent. No Electron. No telemetry. Open source.">
-  <meta property="og:title" content="Clif — AI-native code editor & terminal agent">
-  <meta property="og:description" content="ClifPad: ~20MB native IDE with Monaco, terminal, git. ClifCode: AI coding agent for your terminal. Both open source.">
+  <title>ClifPad — ~20MB native code editor with built-in AI agents</title>
+  <meta name="description" content="~20MB native code editor with Monaco, real terminal, git, and built-in AI agents (ClifCode + Claude Code). ClifCode also works standalone: Rust TUI with tool-calling, sessions, any LLM. No Electron. No telemetry.">
+  <meta property="og:title" content="ClifPad — ~20MB native code editor with built-in AI agents">
+  <meta property="og:description" content="~20MB native IDE with Monaco editing, real terminal, git, and AI agents built in. ClifCode + Claude Code integrated. Also ships as a standalone Rust TUI agent. Open source.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#0d1117">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -266,6 +266,29 @@
       line-height: 1.8; max-width: 620px; width: 100%;
     }
 
+    /* COMPARISON TABLE */
+    .compare-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: var(--bg2); border-radius: 12px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06); margin-top: 40px;
+      font-size: 14px; text-align: center;
+    }
+    .compare-table th {
+      padding: 14px 16px; font-weight: 700; font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: var(--bg3);
+    }
+    .compare-table th:first-child { text-align: left; }
+    .compare-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .compare-table td:first-child { text-align: left; font-weight: 600; font-size: 13px; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table .yes { color: var(--green); }
+    .compare-table .no { color: var(--muted); }
+    .compare-table .highlight-col { background: rgba(59, 130, 246, 0.05); }
+
     /* OPEN SOURCE / SOURCE */
     .source {
       padding: 60px 0 80px; text-align: center;
@@ -355,8 +378,8 @@
   <section class="hero" id="download">
     <div class="container">
       <div class="version">v1.11.0</div>
-      <h1>Code editor.<br>AI agent.<br><span class="thin">Both native. Both open source.</span></h1>
-      <p class="tagline">~20MB desktop IDE with Monaco editing, real terminal, and git. Terminal AI agent with tool-calling, streaming, and session persistence. No Electron. No telemetry.</p>
+      <h1>Code editor.<br>AI built in.<br><span class="thin">~20MB. Native. Open source.</span></h1>
+      <p class="tagline">~20MB desktop IDE with Monaco editing, real terminal, and git. AI-powered by ClifCode and Claude Code — both integrated, both optional. No Electron. No telemetry.</p>
 
       <!-- Dual CTAs -->
       <div class="dual-ctas">
@@ -402,7 +425,7 @@
   <section class="section" id="clifpad">
     <div class="container">
       <h2>Everything you need.</h2>
-      <p class="sub">A full IDE in ~20MB. Monaco editing, real terminal, git, AI — all native.</p>
+      <p class="sub">A full IDE in ~20MB. Monaco editing, real terminal, git, and AI agents — all native.</p>
       <div class="feat-grid">
         <div class="feat">
           <div class="tag">Monaco</div>
@@ -425,9 +448,9 @@
           <p>One-click dev server, auto-detects localhost URLs, live browser preview. Run and see your app without leaving the editor.</p>
         </div>
         <div class="feat">
-          <div class="tag">opt-in</div>
-          <h3>AI your way</h3>
-          <p>OpenRouter for 100+ cloud models, Ollama for fully local inference, Claude Code CLI. All optional. Works offline.</p>
+          <div class="tag">agents</div>
+          <h3>AI agents built in</h3>
+          <p>ClifCode and Claude Code integrated as AI backends. Plus OpenRouter (100+ models) and Ollama for local inference. All optional.</p>
         </div>
         <div class="feat">
           <div class="tag">0 tracking</div>
@@ -488,7 +511,7 @@
   <section class="clifcode-section" id="clifcode">
     <div class="container">
       <h2>ClifCode</h2>
-      <p class="sub">AI coding agent for your terminal. Tool-calling loop, streaming markdown, session persistence. Works with any API.</p>
+      <p class="sub">The AI agent behind ClifPad — also a standalone terminal tool. 9 built-in tools, any LLM, session persistence, git auto-commit.</p>
 
       <!-- Terminal Mockup -->
       <div class="tui-mockup">
@@ -524,28 +547,21 @@
       </div>
 
       <div class="clifcode-install">
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">cargo install clifcode</span>
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">cargo install clifcode</span><br>
+        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">npm i -g clifcode</span>
       </div>
-      <p style="font-size: 13px; color: var(--muted); margin-bottom: 24px;">
-        <code style="background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">npm i -g clifcode</code> — coming soon
-      </p>
 
-      <!-- 6 Feature Cards -->
+      <!-- 9 Feature Cards -->
       <div class="clifcode-features">
         <div class="clifcode-feat">
           <div class="tag">agent</div>
-          <h4>Agentic loop</h4>
-          <p>Up to 7 tool calls per turn — reads, writes, runs, searches, and commits automatically</p>
+          <h4>9 tools, 7 turns</h4>
+          <p>Read, write, edit, find, search, list, run, cd, submit — chained automatically per task</p>
         </div>
         <div class="clifcode-feat">
           <div class="tag">api</div>
-          <h4>Any provider</h4>
-          <p>OpenRouter, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">threads</div>
-          <h4>Parallel tools</h4>
-          <p>Read-only calls execute concurrently on threads for faster turnaround</p>
+          <h4>Any LLM provider</h4>
+          <p>OpenRouter (100+ models), OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint</p>
         </div>
         <div class="clifcode-feat">
           <div class="tag">modes</div>
@@ -554,13 +570,33 @@
         </div>
         <div class="clifcode-feat">
           <div class="tag">persist</div>
-          <h4>Sessions</h4>
-          <p>Auto-saves every conversation. Resume any session. Per-turn cost tracking</p>
+          <h4>Session persistence</h4>
+          <p>Auto-saves every conversation. Resume any session by ID. Per-turn cost tracking</p>
+        </div>
+        <div class="clifcode-feat">
+          <div class="tag">git</div>
+          <h4>Git auto-commit</h4>
+          <p>Commits on task completion. Undo with /undo (soft reset). Author: ClifCode</p>
+        </div>
+        <div class="clifcode-feat">
+          <div class="tag">context</div>
+          <h4>Repo mapping</h4>
+          <p>Auto-reads README, Cargo.toml, package.json, Dockerfile. Generates directory tree for context</p>
+        </div>
+        <div class="clifcode-feat">
+          <div class="tag">smart</div>
+          <h4>Context compaction</h4>
+          <p>3-tier system: truncate large results, stub old ones, drop old turns. Stays within token limits</p>
+        </div>
+        <div class="clifcode-feat">
+          <div class="tag">threads</div>
+          <h4>Parallel tools</h4>
+          <p>Read-only calls execute concurrently on threads for faster turnaround</p>
         </div>
         <div class="clifcode-feat">
           <div class="tag">$$$</div>
           <h4>Cost tracking</h4>
-          <p>Per-turn and session-wide token usage with estimated cost. Stay in budget</p>
+          <p>Per-turn token usage and estimated cost displayed inline. Session totals via /cost</p>
         </div>
       </div>
 
@@ -578,6 +614,60 @@
         <span style="color: var(--muted);"># Resume last session</span><br>
         <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode --resume</span>
       </div>
+
+      <!-- Why ClifCode Comparison -->
+      <h3 style="font-size: 24px; font-weight: 800; margin-top: 56px; margin-bottom: 8px;">Why ClifCode?</h3>
+      <p style="font-size: 14px; color: var(--muted); margin-bottom: 24px;">Agentic tool-calling of Claude Code + provider freedom of Aider — in a native Rust binary.</p>
+      <table class="compare-table">
+        <tr>
+          <th></th>
+          <th class="highlight-col">ClifCode</th>
+          <th>Claude Code</th>
+          <th>Aider</th>
+        </tr>
+        <tr>
+          <td>Any LLM provider</td>
+          <td class="highlight-col"><span class="yes">100+ via OpenRouter</span></td>
+          <td><span class="no">Anthropic only</span></td>
+          <td><span class="yes">Multi-provider</span></td>
+        </tr>
+        <tr>
+          <td>Local models</td>
+          <td class="highlight-col"><span class="yes">Ollama</span></td>
+          <td><span class="no">No</span></td>
+          <td><span class="yes">Ollama</span></td>
+        </tr>
+        <tr>
+          <td>Tool-calling agent</td>
+          <td class="highlight-col"><span class="yes">9 tools</span></td>
+          <td><span class="yes">Yes</span></td>
+          <td><span class="no">Diff-based</span></td>
+        </tr>
+        <tr>
+          <td>Session persistence</td>
+          <td class="highlight-col"><span class="yes">Resume any</span></td>
+          <td><span class="yes">Yes</span></td>
+          <td><span class="no">No</span></td>
+        </tr>
+        <tr>
+          <td>Git auto-commit</td>
+          <td class="highlight-col"><span class="yes">Yes</span></td>
+          <td><span class="yes">Yes</span></td>
+          <td><span class="yes">Yes</span></td>
+        </tr>
+        <tr>
+          <td>Runtime</td>
+          <td class="highlight-col"><span class="yes">Rust (native)</span></td>
+          <td><span class="no">Node.js</span></td>
+          <td><span class="no">Python</span></td>
+        </tr>
+        <tr>
+          <td>Open source</td>
+          <td class="highlight-col"><span class="yes">MIT</span></td>
+          <td><span class="yes">Apache-2.0</span></td>
+          <td><span class="yes">Apache-2.0</span></td>
+        </tr>
+      </table>
     </div>
   </section>
 
@@ -620,6 +710,10 @@
         <div class="faq-item">
           <h3>Does it work offline?</h3>
           <p>ClifPad: Yes — AI features are opt-in. Without API keys, it's a fully offline editor with terminal and git. ClifCode: Needs an API provider (but Ollama runs fully local with no internet).</p>
+        </div>
+        <div class="faq-item">
+          <h3>How does ClifCode compare to Claude Code / Aider?</h3>
+          <p>ClifCode is a tool-calling agent (like Claude Code) that works with any LLM provider (like Aider). It combines agentic tool-calling with provider flexibility in a single native Rust binary — no Node.js or Python runtime required. It also adds session persistence, git auto-commit, repo mapping, and 3 autonomy modes.</p>
         </div>
       </div>
     </div>
