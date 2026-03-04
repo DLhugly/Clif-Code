@@ -303,6 +303,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
   const [isCommitting, setIsCommitting] = createSignal(false);
+  const [creatingType, setCreatingType] = createSignal<"file" | "folder" | null>(null);
 
   async function handleCommit() {
     const msg = commitMsg().trim();
@@ -388,9 +389,40 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
         <Show when={activeTab() === "files"}>
           <Show when={projectRoot()}>
             <div
-              class="flex items-center justify-end shrink-0 px-2 py-1"
+              class="flex items-center justify-end shrink-0 px-2 py-1 gap-0.5"
               style={{ "border-bottom": "1px solid var(--border-muted)" }}
             >
+              {/* New File */}
+              <button
+                class="flex items-center justify-center rounded p-1 transition-colors"
+                style={{ color: "var(--text-muted)", cursor: "pointer" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                onClick={() => setCreatingType("file")}
+                title="New File"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <line x1="9" y1="15" x2="15" y2="15" />
+                </svg>
+              </button>
+              {/* New Folder */}
+              <button
+                class="flex items-center justify-center rounded p-1 transition-colors"
+                style={{ color: "var(--text-muted)", cursor: "pointer" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                onClick={() => setCreatingType("folder")}
+                title="New Folder"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 10v6M9 13h6" />
+                  <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" />
+                </svg>
+              </button>
+              {/* Refresh */}
               <button
                 class="flex items-center justify-center rounded p-1 transition-colors"
                 style={{ color: "var(--text-muted)", cursor: "pointer" }}
@@ -409,7 +441,11 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
             </div>
           </Show>
           <Suspense>
-            <FileTree onOpenFolder={props.onOpenFolder} />
+            <FileTree
+              onOpenFolder={props.onOpenFolder}
+              creatingType={creatingType()}
+              onCreateDone={() => setCreatingType(null)}
+            />
           </Suspense>
         </Show>
 

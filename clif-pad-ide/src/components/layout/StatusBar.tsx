@@ -171,28 +171,53 @@ const StatusBar: Component = () => {
         </Show>
 
         {/* Clif label with update indicator */}
-        <div
-          class="flex items-center gap-1.5"
-          style={{
-            color: updateStatus().state === "available"
-              ? "var(--accent-green)"
-              : updateStatus().state === "error"
-                ? "var(--accent-red, #ef4444)"
+        <Show when={!isClickable()}>
+          <div
+            class="flex items-center gap-1.5"
+            style={{
+              color: updateStatus().state === "downloading" || updateStatus().state === "installing"
+                ? "var(--accent-yellow, #eab308)"
                 : "var(--accent-primary)",
-            cursor: isClickable() ? "pointer" : "default",
-          }}
-          onClick={isClickable() ? handleUpdateClick : undefined}
-          title={
-            updateStatus().state === "available"
-              ? "Click to install update and restart"
-              : updateStatus().state === "error"
-                ? "Click to retry update"
-                : `ClifPad v${appVersion()}`
-          }
-        >
-          <SparkleIcon />
-          <span class="text-xs">{updateLabel()}</span>
-        </div>
+            }}
+            title={`ClifPad v${appVersion()}`}
+          >
+            <SparkleIcon />
+            <span class="text-xs">{updateLabel()}</span>
+          </div>
+        </Show>
+        <Show when={isClickable()}>
+          <button
+            class="flex items-center gap-1.5"
+            style={{
+              color: updateStatus().state === "error"
+                ? "var(--accent-red, #ef4444)"
+                : "#fff",
+              background: updateStatus().state === "error"
+                ? "var(--accent-red, #ef4444)22"
+                : "var(--accent-green)",
+              border: "none",
+              "border-radius": "4px",
+              padding: "2px 8px",
+              cursor: "pointer",
+              "font-size": "11px",
+              "font-family": "var(--font-sans)",
+              "font-weight": "600",
+              "line-height": "1.4",
+              transition: "opacity 0.15s",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.85"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+            onClick={handleUpdateClick}
+            title={
+              updateStatus().state === "available"
+                ? "Click to install update and restart"
+                : "Click to retry update"
+            }
+          >
+            <SparkleIcon />
+            <span>{updateLabel()}</span>
+          </button>
+        </Show>
       </div>
     </div>
   );
