@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/DLhugly/Clif-Code/compare/v1.14.0...v1.15.0) (2026-03-04)
+
+
+### Features
+
+* auto-open diffs, diff highlighting, fix Monaco workers, rename to ClifPad ([396f521](https://github.com/DLhugly/Clif-Code/commit/396f52157f0534d7e1514dddf93819ddd2520fe8))
+
 # [1.14.0](https://github.com/DLhugly/Clif-Code/compare/v1.13.0...v1.14.0) (2026-03-04)
 
 
