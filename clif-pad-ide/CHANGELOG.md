@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/DLhugly/Clif-Code/compare/v1.12.0...v1.13.0) (2026-03-04)
+
+
+### Features
+
+* add About ClifPad dialog, fix git graph spacing and font scaling ([4c7b851](https://github.com/DLhugly/Clif-Code/commit/4c7b8514f2c93e7cabc4a5423bec26f3e2f37849))
+
 # [1.12.0](https://github.com/DLhugly/Clif-Code/compare/v1.11.0...v1.12.0) (2026-03-04)
 
 
