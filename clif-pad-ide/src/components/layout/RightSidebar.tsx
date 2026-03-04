@@ -5,11 +5,9 @@ import {
   stagedFiles, unstagedFiles, commitLog, fileNumstats,
   refreshGitStatus, refreshBranches, stageFile, unstageFile, stageAll, unstageAll, commitChanges, initializeRepo,
 } from "../../stores/gitStore";
-import { devDrawerOpen, devDrawerHeight, setDevDrawerHeight } from "../../stores/uiStore";
 import type { GitLogEntry } from "../../types/git";
 
 const FileTree = lazy(() => import("../explorer/FileTree"));
-const DevPreviewPanel = lazy(() => import("./DevPreviewPanel"));
 
 type SidebarTab = "files" | "git";
 
@@ -77,7 +75,7 @@ const FileRow: Component<{
 
   return (
     <div
-      class="flex items-center gap-1 px-2 py-0.5 text-xs cursor-pointer"
+      class="flex items-center gap-1 px-2 py-0.5 cursor-pointer"
       style={{
         color: "var(--text-primary)",
         background: hovered() ? "var(--bg-hover)" : "transparent",
@@ -171,7 +169,7 @@ const GitGraphRow: Component<{
   });
 
   return (
-    <div class="git-graph-row px-2 py-1 text-xs cursor-default">
+    <div class="git-graph-row px-2 py-1 cursor-default">
       <div class="flex items-start gap-2">
         {/* Graph column */}
         <div
@@ -305,7 +303,6 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
   const [isCommitting, setIsCommitting] = createSignal(false);
-  const [isDraggingDrawer, setIsDraggingDrawer] = createSignal(false);
 
   async function handleCommit() {
     const msg = commitMsg().trim();
@@ -321,38 +318,13 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
     }
   }
 
-  let containerRef!: HTMLDivElement;
-
-  function handleDrawerResize(e: MouseEvent) {
-    e.preventDefault();
-    setIsDraggingDrawer(true);
-
-    const onMouseMove = (e: MouseEvent) => {
-      const rect = containerRef.getBoundingClientRect();
-      const totalHeight = rect.height;
-      const offsetY = e.clientY - rect.top;
-      const topPct = (offsetY / totalHeight) * 100;
-      const bottomPct = 100 - topPct;
-      setDevDrawerHeight(Math.max(20, Math.min(80, bottomPct)));
-    };
-
-    const onMouseUp = () => {
-      setIsDraggingDrawer(false);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  }
-
   return (
     <div
-      ref={containerRef}
       class="flex flex-col h-full overflow-hidden"
       style={{
         background: "var(--bg-surface)",
         "border-left": "1px solid var(--border-default)",
+        "font-size": "var(--ui-font-size)",
       }}
     >
       {/* Tab buttons */}
@@ -364,7 +336,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
         }}
       >
         <button
-          class="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
+          class="flex-1 flex items-center justify-center gap-1.5 font-medium transition-colors"
           style={{
             color: activeTab() === "files" ? "var(--text-primary)" : "var(--text-muted)",
             background: activeTab() === "files" ? "var(--bg-base)" : "transparent",
@@ -379,7 +351,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
           Files
         </button>
         <button
-          class="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors"
+          class="flex-1 flex items-center justify-center gap-1.5 font-medium transition-colors"
           style={{
             color: activeTab() === "git" ? "var(--text-primary)" : "var(--text-muted)",
             background: activeTab() === "git" ? "var(--bg-base)" : "transparent",
@@ -411,14 +383,8 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
         </button>
       </div>
 
-      {/* Panel content — top pane */}
-      <div
-        class="overflow-y-auto min-h-0"
-        style={{
-          flex: devDrawerOpen() ? `0 0 ${100 - devDrawerHeight()}%` : "1 1 auto",
-          transition: isDraggingDrawer() ? "none" : "flex 0.15s",
-        }}
-      >
+      {/* Panel content */}
+      <div class="overflow-y-auto min-h-0 flex-1">
         <Show when={activeTab() === "files"}>
           <Show when={projectRoot()}>
             <div
@@ -452,12 +418,12 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
             <Show when={isGitRepo()} fallback={
               <div class="flex flex-col items-center justify-center h-full gap-3 p-4">
                 <GitBranchIcon />
-                <p class="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+                <p class="text-center" style={{ color: "var(--text-muted)" }}>
                   {projectRoot() ? "Not a git repository" : "Open a folder first"}
                 </p>
                 <Show when={projectRoot()}>
                   <button
-                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                    class="px-3 py-1.5 rounded font-medium transition-colors"
                     style={{
                       background: "var(--accent-blue)",
                       color: "#fff",
@@ -483,12 +449,12 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
               >
                 <div class="flex items-center gap-2 mb-1.5">
                   <GitBranchIcon />
-                  <span class="text-xs font-mono truncate font-medium" style={{ color: "var(--text-primary)" }}>
+                  <span class="font-mono truncate font-medium" style={{ color: "var(--text-primary)" }}>
                     {currentBranch() || "main"}
                   </span>
                 </div>
                 <Show when={diffStat().files_changed > 0 || changedFiles.length > 0}>
-                  <div class="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <div class="flex items-center gap-3" style={{ color: "var(--text-muted)" }}>
                     <span>{changedFiles.length} file{changedFiles.length !== 1 ? "s" : ""}</span>
                     <Show when={diffStat().insertions > 0}>
                       <span style={{ color: "var(--accent-green)" }}>+{diffStat().insertions}</span>
@@ -504,7 +470,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
               <div class="shrink-0 p-2" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
                 <input
                   type="text"
-                  class="w-full text-xs rounded px-2 py-1.5 outline-none"
+                  class="w-full rounded px-2 py-1.5 outline-none"
                   style={{
                     background: "var(--bg-base)",
                     color: "var(--text-primary)",
@@ -518,7 +484,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                   }}
                 />
                 <button
-                  class="w-full mt-1.5 py-1 rounded text-xs font-medium transition-colors"
+                  class="w-full mt-1.5 py-1 rounded font-medium transition-colors"
                   style={{
                     background: commitMsg().trim() && stagedFiles().length > 0
                       ? "var(--accent-blue)" : "var(--bg-hover)",
@@ -541,11 +507,11 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                     class="flex items-center justify-between px-2 py-1.5"
                     style={{ "border-bottom": "1px solid var(--border-muted)" }}
                   >
-                    <span class="text-xs font-medium" style={{ color: "var(--accent-green)" }}>
+                    <span class="font-medium" style={{ color: "var(--accent-green)" }}>
                       Staged ({stagedFiles().length})
                     </span>
                     <button
-                      class="text-xs px-1.5 py-0.5 rounded transition-colors"
+                      class="px-1.5 py-0.5 rounded transition-colors"
                       style={{ color: "var(--text-muted)", background: "transparent" }}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
@@ -578,11 +544,11 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                     class="flex items-center justify-between px-2 py-1.5"
                     style={{ "border-bottom": "1px solid var(--border-muted)" }}
                   >
-                    <span class="text-xs font-medium" style={{ color: "var(--accent-yellow)" }}>
+                    <span class="font-medium" style={{ color: "var(--accent-yellow)" }}>
                       Changes ({unstagedFiles().length})
                     </span>
                     <button
-                      class="text-xs px-1.5 py-0.5 rounded transition-colors"
+                      class="px-1.5 py-0.5 rounded transition-colors"
                       style={{ color: "var(--text-muted)", background: "transparent" }}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
@@ -627,7 +593,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                     class="flex items-center justify-between px-2 py-1.5"
                     style={{ "border-bottom": "1px solid var(--border-muted)" }}
                   >
-                    <span class="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                    <span class="font-medium" style={{ color: "var(--text-secondary)" }}>
                       Commits ({commitLog().length})
                     </span>
                   </div>
@@ -648,7 +614,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
               {/* Refresh button */}
               <div class="p-2 mt-auto shrink-0">
                 <button
-                  class="w-full py-1 rounded text-xs transition-colors"
+                  class="w-full py-1 rounded transition-colors"
                   style={{
                     color: "var(--text-muted)",
                     background: "transparent",
@@ -669,41 +635,6 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
         </Show>
       </div>
 
-      {/* Resize handle between top pane and Dev Preview */}
-      <Show when={devDrawerOpen()}>
-        <div
-          class="shrink-0 cursor-row-resize"
-          style={{
-            height: "5px",
-            background: isDraggingDrawer() ? "var(--accent-primary)" : "var(--border-default)",
-            transition: isDraggingDrawer() ? "none" : "background 0.15s",
-          }}
-          onMouseDown={handleDrawerResize}
-          onMouseEnter={(e) => {
-            if (!isDraggingDrawer()) {
-              (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isDraggingDrawer()) {
-              (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
-            }
-          }}
-        />
-      </Show>
-
-      {/* Dev Preview Panel — bottom pane */}
-      <div
-        style={{
-          flex: devDrawerOpen() ? `0 0 ${devDrawerHeight()}%` : "0 0 auto",
-          transition: isDraggingDrawer() ? "none" : "flex 0.15s",
-          "min-height": "32px",
-        }}
-      >
-        <Suspense>
-          <DevPreviewPanel />
-        </Suspense>
-      </div>
     </div>
   );
 };

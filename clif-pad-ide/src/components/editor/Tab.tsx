@@ -83,27 +83,46 @@ const Tab: Component<TabProps> = (props) => {
           }
         }}
       >
-        {/* Eye icon for preview tabs, color dot for regular */}
+        {/* Icon: globe for browser, eye for preview, color dot for regular */}
         <Show
-          when={props.file.isPreview}
+          when={props.file.isBrowser}
           fallback={
-            <span
-              class="w-2 h-2 rounded-full shrink-0"
-              style={{ "background-color": getExtensionColor(props.file.name) }}
-            />
+            <Show
+              when={props.file.isPreview}
+              fallback={
+                <span
+                  class="w-2 h-2 rounded-full shrink-0"
+                  style={{ "background-color": getExtensionColor(props.file.name) }}
+                />
+              }
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+                <circle cx="8" cy="8" r="2" />
+              </svg>
+            </Show>
           }
         >
           <svg
             class="w-3.5 h-3.5 shrink-0"
-            viewBox="0 0 16 16"
+            viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.3"
+            stroke-width="1.5"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-            <circle cx="8" cy="8" r="2" />
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
           </svg>
         </Show>
 
@@ -145,7 +164,7 @@ const Tab: Component<TabProps> = (props) => {
             data-tab-menu
             class="fixed z-[9999] py-1 min-w-[180px] rounded shadow-lg border border-[var(--border-color)]"
             style={{
-              background: "var(--sidebar-bg)",
+              background: "var(--bg-overlay)",
               left: `${menuPos().x}px`,
               top: `${menuPos().y}px`,
               "font-family": "var(--font-sans)",

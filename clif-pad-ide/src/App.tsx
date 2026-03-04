@@ -6,7 +6,7 @@ import RightSidebar from "./components/layout/RightSidebar";
 import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
-import { saveActiveFile, projectRoot, openProject } from "./stores/fileStore";
+import { saveActiveFile, projectRoot, openProject, openBrowser } from "./stores/fileStore";
 import { initGit } from "./stores/gitStore";
 import { configureMonaco } from "./lib/monaco-setup";
 import { loadGoogleFont, applyUiFont } from "./lib/fonts";
@@ -130,7 +130,7 @@ const App: Component = () => {
       style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
     >
       {/* Top Bar */}
-      <TopBar onLaunchClaude={handleLaunchClaude} onLaunchClifCode={handleLaunchClifCode} onOpenFolder={handleOpenFolder} />
+      <TopBar onLaunchClaude={handleLaunchClaude} onLaunchClifCode={handleLaunchClifCode} onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
 
       {/* Main content: Terminal (left) + Editor (center) + Sidebar (right) */}
       <div class="flex flex-1 min-h-0">

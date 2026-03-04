@@ -4,8 +4,7 @@ import { isGitRepo, currentBranch } from "../../stores/gitStore";
 import { theme, THEMES } from "../../stores/uiStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
-
-const APP_VERSION = "1.6.1";
+import { getVersion } from "@tauri-apps/api/app";
 
 const TerminalIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -21,6 +20,7 @@ const SparkleIcon = () => (
 );
 
 const StatusBar: Component = () => {
+  const [appVersion, setAppVersion] = createSignal("...");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
   const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
 
@@ -35,6 +35,8 @@ const StatusBar: Component = () => {
   };
 
   onMount(() => {
+    getVersion().then((v) => setAppVersion(v)).catch(() => {});
+
     // Delay update check so it doesn't block startup
     setTimeout(async () => {
       const update = await checkForUpdate();
@@ -76,7 +78,7 @@ const StatusBar: Component = () => {
       case "error":
         return "Update failed";
       default:
-        return `Clif v${APP_VERSION}`;
+        return `Clif v${appVersion()}`;
     }
   };
 
@@ -101,7 +103,7 @@ const StatusBar: Component = () => {
       {/* Left section */}
       <div class="flex items-center gap-3 min-w-0">
         {/* Version label */}
-        <span style={{ color: "var(--text-muted)" }}>v{APP_VERSION}</span>
+        <span style={{ color: "var(--text-muted)" }}>v{appVersion()}</span>
 
         {/* Git branch */}
         <Show when={isGitRepo()}>
@@ -185,7 +187,7 @@ const StatusBar: Component = () => {
               ? "Click to install update and restart"
               : updateStatus().state === "error"
                 ? "Click to retry update"
-                : `ClifPad v${APP_VERSION}`
+                : `ClifPad v${appVersion()}`
           }
         >
           <SparkleIcon />

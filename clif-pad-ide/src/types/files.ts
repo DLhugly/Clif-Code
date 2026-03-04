@@ -13,4 +13,5 @@ export interface OpenFile {
   language: string;
   isDirty: boolean;
   isPreview?: boolean;
+  isBrowser?: boolean;
 }

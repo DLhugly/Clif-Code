@@ -3,7 +3,7 @@ import { theme, applyTheme, fontSize, setUiFontSize, THEMES } from "../../stores
 import type { Theme } from "../../stores/uiStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
-import { MONO_FONTS, SANS_FONTS, loadGoogleFont, applyUiFont } from "../../lib/fonts";
+import { MONO_FONTS, loadGoogleFont, applyUiFont } from "../../lib/fonts";
 
 const FolderIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -152,10 +152,19 @@ const FontDropdown: Component<FontDropdownProps> = (props) => {
   );
 };
 
+const GlobeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
 const TopBar: Component<{
   onLaunchClaude: () => void;
   onLaunchClifCode: () => void;
   onOpenFolder: () => void;
+  onOpenBrowser: () => void;
 }> = (props) => {
   const hasProject = () => !!projectRoot();
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
@@ -195,20 +204,10 @@ const TopBar: Component<{
     updateSettings({ fontSize: size });
   };
 
-  const handleEditorFontChange = (font: string) => {
-    loadGoogleFont(font);
-    updateSettings({ editorFont: font });
-  };
-
-  const handleTerminalFontChange = (font: string) => {
-    loadGoogleFont(font);
-    updateSettings({ terminalFont: font });
-  };
-
-  const handleUiFontChange = (font: string) => {
+  const handleFontFamilyChange = (font: string) => {
     loadGoogleFont(font);
     applyUiFont(font);
-    updateSettings({ uiFont: font });
+    updateSettings({ editorFont: font, terminalFont: font, uiFont: font });
   };
 
   const themeKeys = Object.keys(THEMES) as Theme[];
@@ -296,30 +295,20 @@ const TopBar: Component<{
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
 
-        {/* Font dropdowns */}
+        {/* Font dropdown */}
+        <span style={{ "font-size": "11px", color: "var(--text-muted)", "font-weight": "500" }}>Fonts:</span>
         <FontDropdown
-          label="Editor"
+          label="Font"
           value={settings().editorFont}
           options={MONO_FONTS}
-          onChange={handleEditorFontChange}
-        />
-        <FontDropdown
-          label="Terminal"
-          value={settings().terminalFont}
-          options={MONO_FONTS}
-          onChange={handleTerminalFontChange}
-        />
-        <FontDropdown
-          label="UI"
-          value={settings().uiFont}
-          options={SANS_FONTS}
-          onChange={handleUiFontChange}
+          onChange={handleFontFamilyChange}
         />
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
 
         {/* Theme dropdown */}
+        <span style={{ "font-size": "11px", color: "var(--text-muted)", "font-weight": "500" }}>Themes:</span>
         <div ref={dropdownRef} style={{ position: "relative" }}>
           <button
             class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-all duration-150"
@@ -422,6 +411,33 @@ const TopBar: Component<{
             </div>
           </Show>
         </div>
+
+        {/* Divider */}
+        <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
+
+        {/* Browser button */}
+        <button
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150"
+          style={{
+            background: "transparent",
+            color: "var(--text-secondary)",
+            border: "none",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+          }}
+          onClick={() => props.onOpenBrowser()}
+          title="Open browser tab"
+        >
+          <GlobeIcon />
+          Browser
+        </button>
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />

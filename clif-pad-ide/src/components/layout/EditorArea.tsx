@@ -4,6 +4,7 @@ import { activeFile, openFiles } from "../../stores/fileStore";
 const TabBar = lazy(() => import("../editor/TabBar"));
 const MonacoEditor = lazy(() => import("../editor/MonacoEditor"));
 const MarkdownPreview = lazy(() => import("../editor/MarkdownPreview"));
+const BrowserPanel = lazy(() => import("../editor/BrowserPanel"));
 
 const EmptyState: Component = () => (
   <div
@@ -57,8 +58,12 @@ const EditorArea: Component = () => {
               </div>
             }
           >
-            <Show when={activeFile()?.isPreview} fallback={<MonacoEditor />}>
-              <MarkdownPreview />
+            <Show when={activeFile()?.isBrowser} fallback={
+              <Show when={activeFile()?.isPreview} fallback={<MonacoEditor />}>
+                <MarkdownPreview />
+              </Show>
+            }>
+              <BrowserPanel />
             </Show>
           </Suspense>
         </Show>

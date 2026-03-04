@@ -135,8 +135,16 @@ const TerminalPanel: Component<{ ref?: (ref: TerminalPanelRef) => void; workingD
   createEffect(() => {
     const font = settings().terminalFont;
     if (terminal) {
-      terminal.options.fontFamily = `${font}, Menlo, Monaco, Courier New, monospace`;
+      const family = `${font}, Menlo, Monaco, Courier New, monospace`;
+      terminal.options.fontFamily = family;
       fitAddon?.fit();
+      // Wait for the specific font to load, then re-fit so xterm renders with it
+      document.fonts.load(`14px "${font}"`).then(() => {
+        if (terminal) {
+          terminal.options.fontFamily = family;
+          fitAddon?.fit();
+        }
+      });
     }
   });
 

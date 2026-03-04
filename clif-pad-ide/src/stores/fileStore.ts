@@ -123,6 +123,24 @@ function isDirExpanded(path: string): boolean {
   return expandedDirs[path] || false;
 }
 
+let browserCounter = 0;
+
+function openBrowser() {
+  browserCounter++;
+  const path = `browser://${browserCounter}`;
+  const existing = openFiles.find((f) => f.isBrowser);
+  if (existing) {
+    setActiveFilePath(existing.path);
+    return;
+  }
+  setOpenFiles(
+    produce((files) => {
+      files.push({ path, name: "Browser", content: "", language: "", isDirty: false, isBrowser: true });
+    })
+  );
+  setActiveFilePath(path);
+}
+
 async function openFile(path: string) {
   // If already open, just switch to it
   const existing = openFiles.find((f) => f.path === path);
@@ -130,6 +148,9 @@ async function openFile(path: string) {
     setActiveFilePath(path);
     return;
   }
+
+  // Guard virtual paths
+  if (path.startsWith("browser://")) return;
 
   try {
     const content = await readFile(path);
@@ -213,7 +234,7 @@ function updateFileContent(path: string, content: string) {
 
 async function saveFile(path: string) {
   const file = openFiles.find((f) => f.path === path);
-  if (!file) return;
+  if (!file || file.isBrowser) return;
 
   try {
     await writeFile(path, file.content);
@@ -279,6 +300,7 @@ export {
   toggleDir,
   isDirExpanded,
   openFile,
+  openBrowser,
   closeFile,
   updateFileContent,
   saveFile,
