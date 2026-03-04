@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/DLhugly/Clif-Code/compare/v1.9.0...v1.10.0) (2026-03-04)
+
+
+### Features
+
+* add browser tab, fix context menu, and sidebar font scaling ([77806c6](https://github.com/DLhugly/Clif-Code/commit/77806c6d64bf35a2e395678d6bfdb1225b941f9e))
+
 # [1.9.0](https://github.com/DLhugly/Clif-Code/compare/v1.8.0...v1.9.0) (2026-03-04)
 
 
