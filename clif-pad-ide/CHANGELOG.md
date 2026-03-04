@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/DLhugly/Clif-Code/compare/v1.11.0...v1.12.0) (2026-03-04)
+
+
+### Features
+
+* add git remote buttons (branch switch, fetch, pull, push) ([c3d310b](https://github.com/DLhugly/Clif-Code/commit/c3d310b4faf901c1e1cf5f8d750438bc0fb2be21))
+
 # [1.11.0](https://github.com/DLhugly/Clif-Code/compare/v1.10.0...v1.11.0) (2026-03-04)
 
 
