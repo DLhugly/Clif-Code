@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/DLhugly/Clif-Code/compare/v1.8.0...v1.9.0) (2026-03-04)
+
+
+### Features
+
+* add auto-updater and ClifCode TUI improvements ([ee1c460](https://github.com/DLhugly/Clif-Code/commit/ee1c4601b7a1e400c2888c9a054b19a1fa0126cc))
+
 # [1.8.0](https://github.com/DLhugly/Clif-Code/compare/v1.7.0...v1.8.0) (2026-03-04)
 
 
