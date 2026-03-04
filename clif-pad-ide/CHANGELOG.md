@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/DLhugly/Clif-Code/compare/v1.7.0...v1.8.0) (2026-03-04)
+
+
+### Features
+
+* add 5 new themes and 3 font dropdowns ([5bf8e13](https://github.com/DLhugly/Clif-Code/commit/5bf8e13b14aecfc0b320ba2771606c95e098f6bd))
+
 # [1.7.0](https://github.com/DLhugly/Clif-Code/compare/v1.6.1...v1.7.0) (2026-03-02)
 
 
