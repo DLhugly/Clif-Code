@@ -112,6 +112,26 @@ export async function gitInit(path: string): Promise<string> {
   return invoke("git_init", { path });
 }
 
+export async function gitFetch(path: string): Promise<string> {
+  return invoke("git_fetch", { path });
+}
+
+export async function gitPull(path: string): Promise<string> {
+  return invoke("git_pull", { path });
+}
+
+export async function gitPush(path: string): Promise<string> {
+  return invoke("git_push", { path });
+}
+
+export async function gitCreateBranch(path: string, branch: string): Promise<void> {
+  return invoke("git_create_branch", { path, branch });
+}
+
+export async function gitAheadBehind(path: string): Promise<[number, number]> {
+  return invoke("git_ahead_behind", { path });
+}
+
 export async function gitLog(path: string, count?: number): Promise<GitLogEntry[]> {
   return invoke("git_log", { path, count: count ?? null });
 }

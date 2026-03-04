@@ -168,6 +168,100 @@ pub fn git_checkout(path: String, branch: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub fn git_fetch(path: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["fetch", "--all"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git fetch: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git fetch failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    // git fetch writes progress to stderr
+    Ok(if stdout.is_empty() { stderr } else { stdout })
+}
+
+#[tauri::command]
+pub fn git_pull(path: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["pull"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git pull: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git pull failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(stdout)
+}
+
+#[tauri::command]
+pub fn git_push(path: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["push"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git push: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git push failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    Ok(if stdout.is_empty() { stderr } else { stdout })
+}
+
+#[tauri::command]
+pub fn git_create_branch(path: String, branch: String) -> Result<(), String> {
+    let output = Command::new("git")
+        .args(["checkout", "-b", &branch])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git checkout -b: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git checkout -b failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn git_ahead_behind(path: String) -> Result<(usize, usize), String> {
+    let output = Command::new("git")
+        .args(["rev-list", "--count", "--left-right", "@{upstream}...HEAD"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git rev-list: {}", e))?;
+
+    if !output.status.success() {
+        // No upstream configured — return (0, 0)
+        return Ok((0, 0));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parts: Vec<&str> = stdout.trim().split('\t').collect();
+    if parts.len() == 2 {
+        let behind = parts[0].parse::<usize>().unwrap_or(0);
+        let ahead = parts[1].parse::<usize>().unwrap_or(0);
+        Ok((ahead, behind))
+    } else {
+        Ok((0, 0))
+    }
+}
+
 #[derive(serde::Serialize)]
 pub struct GitDiffStat {
     pub files_changed: usize,

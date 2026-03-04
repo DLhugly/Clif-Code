@@ -1,6 +1,6 @@
 import { Component, Show, createSignal, onMount } from "solid-js";
 import { activeFile, projectRoot } from "../../stores/fileStore";
-import { isGitRepo, currentBranch } from "../../stores/gitStore";
+import { isGitRepo, currentBranch, aheadBehind, fetchRemote } from "../../stores/gitStore";
 import { theme, THEMES } from "../../stores/uiStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
@@ -109,7 +109,11 @@ const StatusBar: Component = () => {
         <Show when={isGitRepo()}>
           <div
             class="flex items-center gap-1.5 shrink-0"
-            style={{ color: "var(--text-secondary)" }}
+            style={{ color: "var(--text-secondary)", cursor: "pointer" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+            title="Click to sync"
+            onClick={() => { fetchRemote().catch(() => {}); }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="6" y1="3" x2="6" y2="15" />
@@ -120,6 +124,16 @@ const StatusBar: Component = () => {
             <span class="truncate" style={{ "max-width": "120px" }}>
               {currentBranch() || "main"}
             </span>
+            <Show when={aheadBehind().ahead > 0 || aheadBehind().behind > 0}>
+              <span class="flex items-center gap-1" style={{ "font-size": "10px", "font-family": "var(--font-mono, monospace)" }}>
+                <Show when={aheadBehind().ahead > 0}>
+                  <span style={{ color: "var(--accent-green)" }}>{"\u2191"}{aheadBehind().ahead}</span>
+                </Show>
+                <Show when={aheadBehind().behind > 0}>
+                  <span style={{ color: "var(--accent-blue)" }}>{"\u2193"}{aheadBehind().behind}</span>
+                </Show>
+              </span>
+            </Show>
           </div>
         </Show>
 

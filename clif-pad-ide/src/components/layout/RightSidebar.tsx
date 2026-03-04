@@ -3,7 +3,9 @@ import { projectRoot, openFile, refreshFileTree } from "../../stores/fileStore";
 import {
   isGitRepo, currentBranch, changedFiles, diffStat,
   stagedFiles, unstagedFiles, commitLog, fileNumstats,
+  aheadBehind, isSyncing, branches,
   refreshGitStatus, refreshBranches, stageFile, unstageFile, stageAll, unstageAll, commitChanges, initializeRepo,
+  switchBranch, createBranch, fetchRemote, pullRemote, pushRemote,
 } from "../../stores/gitStore";
 import type { GitLogEntry } from "../../types/git";
 
@@ -299,11 +301,32 @@ const GitGraphRow: Component<{
   );
 };
 
+const CheckIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const ChevronDownIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const SpinnerIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+);
+
 const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
   const [isCommitting, setIsCommitting] = createSignal(false);
   const [creatingType, setCreatingType] = createSignal<"file" | "folder" | null>(null);
+  const [branchDropdownOpen, setBranchDropdownOpen] = createSignal(false);
+  const [creatingBranch, setCreatingBranch] = createSignal(false);
+  const [newBranchName, setNewBranchName] = createSignal("");
 
   async function handleCommit() {
     const msg = commitMsg().trim();
@@ -478,19 +501,151 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                 </Show>
               </div>
             }>
-              {/* Branch + stats */}
+              {/* Branch picker */}
               <div
-                class="shrink-0 px-3 py-2"
+                class="shrink-0 px-3 py-2 relative"
                 style={{ "border-bottom": "1px solid var(--border-muted)" }}
               >
-                <div class="flex items-center gap-2 mb-1.5">
+                <button
+                  class="flex items-center gap-2 w-full rounded px-1.5 py-1 transition-colors"
+                  style={{
+                    color: "var(--text-primary)",
+                    background: branchDropdownOpen() ? "var(--bg-hover)" : "transparent",
+                    cursor: "pointer",
+                    border: "none",
+                    "font-size": "inherit",
+                    "font-family": "inherit",
+                  }}
+                  onMouseEnter={(e) => { if (!branchDropdownOpen()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { if (!branchDropdownOpen()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                  onClick={() => {
+                    setBranchDropdownOpen(!branchDropdownOpen());
+                    setCreatingBranch(false);
+                    setNewBranchName("");
+                  }}
+                >
                   <GitBranchIcon />
-                  <span class="font-mono truncate font-medium" style={{ color: "var(--text-primary)" }}>
+                  <span class="font-mono truncate font-medium flex-1 text-left">
                     {currentBranch() || "main"}
                   </span>
-                </div>
+                  <ChevronDownIcon />
+                </button>
+
+                {/* Branch dropdown */}
+                <Show when={branchDropdownOpen()}>
+                  <div
+                    class="absolute left-2 right-2 rounded shadow-lg overflow-hidden z-50"
+                    style={{
+                      top: "100%",
+                      background: "var(--bg-base)",
+                      border: "1px solid var(--border-default)",
+                      "max-height": "200px",
+                      "overflow-y": "auto",
+                    }}
+                  >
+                    <For each={branches}>
+                      {(branch) => (
+                        <button
+                          class="flex items-center gap-2 w-full px-2 py-1.5 transition-colors text-left"
+                          style={{
+                            color: branch.is_current ? "var(--accent-blue)" : "var(--text-primary)",
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            "font-size": "inherit",
+                            "font-family": "var(--font-mono, monospace)",
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                          onClick={async () => {
+                            if (!branch.is_current) {
+                              try {
+                                await switchBranch(branch.name);
+                              } catch (e) {
+                                console.error("Branch switch failed:", e);
+                              }
+                            }
+                            setBranchDropdownOpen(false);
+                          }}
+                        >
+                          <span class="shrink-0" style={{ width: "14px" }}>
+                            <Show when={branch.is_current}><CheckIcon /></Show>
+                          </span>
+                          <span class="truncate">{branch.name}</span>
+                        </button>
+                      )}
+                    </For>
+                    {/* Separator */}
+                    <div style={{ height: "1px", background: "var(--border-muted)" }} />
+                    {/* Create new branch */}
+                    <Show when={!creatingBranch()}>
+                      <button
+                        class="flex items-center gap-2 w-full px-2 py-1.5 transition-colors text-left"
+                        style={{
+                          color: "var(--text-muted)",
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          "font-size": "inherit",
+                          "font-family": "inherit",
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        onClick={() => setCreatingBranch(true)}
+                      >
+                        <PlusIcon />
+                        <span>Create new branch...</span>
+                      </button>
+                    </Show>
+                    <Show when={creatingBranch()}>
+                      <div class="px-2 py-1.5">
+                        <input
+                          type="text"
+                          class="w-full rounded px-2 py-1 outline-none"
+                          style={{
+                            background: "var(--bg-surface)",
+                            color: "var(--text-primary)",
+                            border: "1px solid var(--accent-blue)",
+                            "font-size": "inherit",
+                            "font-family": "var(--font-mono, monospace)",
+                          }}
+                          placeholder="branch-name"
+                          value={newBranchName()}
+                          onInput={(e) => setNewBranchName(e.currentTarget.value)}
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter" && newBranchName().trim()) {
+                              try {
+                                await createBranch(newBranchName().trim());
+                              } catch (err) {
+                                console.error("Create branch failed:", err);
+                              }
+                              setCreatingBranch(false);
+                              setNewBranchName("");
+                              setBranchDropdownOpen(false);
+                            }
+                            if (e.key === "Escape") {
+                              setCreatingBranch(false);
+                              setNewBranchName("");
+                            }
+                          }}
+                          ref={(el) => setTimeout(() => el.focus(), 0)}
+                        />
+                      </div>
+                    </Show>
+                  </div>
+                  {/* Click-outside overlay */}
+                  <div
+                    class="fixed inset-0 z-40"
+                    onClick={() => {
+                      setBranchDropdownOpen(false);
+                      setCreatingBranch(false);
+                      setNewBranchName("");
+                    }}
+                  />
+                </Show>
+
                 <Show when={diffStat().files_changed > 0 || changedFiles.length > 0}>
-                  <div class="flex items-center gap-3" style={{ color: "var(--text-muted)" }}>
+                  <div class="flex items-center gap-3 mt-1" style={{ color: "var(--text-muted)", "padding-left": "2px" }}>
                     <span>{changedFiles.length} file{changedFiles.length !== 1 ? "s" : ""}</span>
                     <Show when={diffStat().insertions > 0}>
                       <span style={{ color: "var(--accent-green)" }}>+{diffStat().insertions}</span>
@@ -500,6 +655,83 @@ const RightSidebar: Component<{ onOpenFolder?: () => void }> = (props) => {
                     </Show>
                   </div>
                 </Show>
+              </div>
+
+              {/* Fetch / Pull / Push action buttons */}
+              <div
+                class="shrink-0 flex items-center gap-1.5 px-3 py-1.5"
+                style={{ "border-bottom": "1px solid var(--border-muted)" }}
+              >
+                <button
+                  class="flex-1 flex items-center justify-center gap-1 py-1 rounded transition-colors"
+                  style={{
+                    color: isSyncing() ? "var(--text-muted)" : "var(--text-secondary)",
+                    background: "var(--bg-base)",
+                    border: "1px solid var(--border-muted)",
+                    cursor: isSyncing() ? "not-allowed" : "pointer",
+                    "font-size": "11px",
+                    "font-family": "inherit",
+                    opacity: isSyncing() ? "0.6" : "1",
+                  }}
+                  onMouseEnter={(e) => { if (!isSyncing()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-base)"; }}
+                  disabled={isSyncing()}
+                  onClick={async () => {
+                    try { await fetchRemote(); } catch (e) { console.error("Fetch failed:", e); }
+                  }}
+                  title="Fetch from remote"
+                >
+                  {isSyncing() ? <SpinnerIcon /> : <span>Fetch</span>}
+                  {!isSyncing() && <span style={{ "font-size": "12px" }}>&#x27F3;</span>}
+                </button>
+                <button
+                  class="flex-1 flex items-center justify-center gap-1 py-1 rounded transition-colors"
+                  style={{
+                    color: isSyncing() ? "var(--text-muted)" : "var(--text-secondary)",
+                    background: "var(--bg-base)",
+                    border: "1px solid var(--border-muted)",
+                    cursor: isSyncing() ? "not-allowed" : "pointer",
+                    "font-size": "11px",
+                    "font-family": "inherit",
+                    opacity: isSyncing() ? "0.6" : "1",
+                  }}
+                  onMouseEnter={(e) => { if (!isSyncing()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-base)"; }}
+                  disabled={isSyncing()}
+                  onClick={async () => {
+                    try { await pullRemote(); } catch (e) { console.error("Pull failed:", e); }
+                  }}
+                  title="Pull from remote"
+                >
+                  <span>Pull</span>
+                  <Show when={aheadBehind().behind > 0}>
+                    <span style={{ color: "var(--accent-blue)" }}>{"\u2193"}{aheadBehind().behind}</span>
+                  </Show>
+                </button>
+                <button
+                  class="flex-1 flex items-center justify-center gap-1 py-1 rounded transition-colors"
+                  style={{
+                    color: isSyncing() ? "var(--text-muted)" : "var(--text-secondary)",
+                    background: "var(--bg-base)",
+                    border: "1px solid var(--border-muted)",
+                    cursor: isSyncing() ? "not-allowed" : "pointer",
+                    "font-size": "11px",
+                    "font-family": "inherit",
+                    opacity: isSyncing() ? "0.6" : "1",
+                  }}
+                  onMouseEnter={(e) => { if (!isSyncing()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-base)"; }}
+                  disabled={isSyncing()}
+                  onClick={async () => {
+                    try { await pushRemote(); } catch (e) { console.error("Push failed:", e); }
+                  }}
+                  title="Push to remote"
+                >
+                  <span>Push</span>
+                  <Show when={aheadBehind().ahead > 0}>
+                    <span style={{ color: "var(--accent-green)" }}>{"\u2191"}{aheadBehind().ahead}</span>
+                  </Show>
+                </button>
               </div>
 
               {/* Commit input */}

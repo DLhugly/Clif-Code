@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { GitFileStatus, GitBranch, GitLogEntry } from "../types/git";
-import { gitStatus, gitDiff, gitBranches, gitStage, gitUnstage, gitCommit, gitDiffStat, gitDiffNumstat, gitInit, gitLog } from "../lib/tauri";
+import { gitStatus, gitDiff, gitBranches, gitCheckout, gitStage, gitUnstage, gitCommit, gitDiffStat, gitDiffNumstat, gitInit, gitLog, gitFetch, gitPull, gitPush, gitCreateBranch, gitAheadBehind } from "../lib/tauri";
 import { projectRoot } from "./fileStore";
 
 const [currentBranch, setCurrentBranch] = createSignal<string>("");
@@ -11,6 +11,8 @@ const [branches, setBranches] = createStore<GitBranch[]>([]);
 const [diffStat, setDiffStat] = createSignal<{ files_changed: number; insertions: number; deletions: number }>({ files_changed: 0, insertions: 0, deletions: 0 });
 const [commitLog, setCommitLog] = createSignal<GitLogEntry[]>([]);
 const [fileNumstats, setFileNumstats] = createSignal<Map<string, { insertions: number; deletions: number }>>(new Map());
+const [aheadBehind, setAheadBehind] = createSignal<{ ahead: number; behind: number }>({ ahead: 0, behind: 0 });
+const [isSyncing, setIsSyncing] = createSignal(false);
 
 const stagedFiles = () => changedFiles.filter((f) => f.staged);
 const unstagedFiles = () => changedFiles.filter((f) => !f.staged);
@@ -71,6 +73,7 @@ async function refreshBranches() {
     setBranches(b);
     const current = b.find((br) => br.is_current);
     if (current) setCurrentBranch(current.name);
+    await refreshAheadBehind();
   } catch {
     setBranches([]);
   }
@@ -124,6 +127,75 @@ async function initializeRepo() {
   await refreshBranches();
 }
 
+async function refreshAheadBehind() {
+  const root = projectRoot();
+  if (!root) return;
+  try {
+    const [ahead, behind] = await gitAheadBehind(root);
+    setAheadBehind({ ahead, behind });
+  } catch {
+    setAheadBehind({ ahead: 0, behind: 0 });
+  }
+}
+
+async function switchBranch(name: string) {
+  const root = projectRoot();
+  if (!root) return;
+  await gitCheckout(root, name);
+  await refreshGitStatus();
+  await refreshBranches();
+  await refreshAheadBehind();
+}
+
+async function createBranch(name: string) {
+  const root = projectRoot();
+  if (!root) return;
+  await gitCreateBranch(root, name);
+  await refreshGitStatus();
+  await refreshBranches();
+  await refreshAheadBehind();
+}
+
+async function fetchRemote() {
+  const root = projectRoot();
+  if (!root) return;
+  setIsSyncing(true);
+  try {
+    await gitFetch(root);
+    await refreshGitStatus();
+    await refreshAheadBehind();
+  } finally {
+    setIsSyncing(false);
+  }
+}
+
+async function pullRemote() {
+  const root = projectRoot();
+  if (!root) return;
+  setIsSyncing(true);
+  try {
+    await gitPull(root);
+    await refreshGitStatus();
+    await refreshBranches();
+    await refreshAheadBehind();
+  } finally {
+    setIsSyncing(false);
+  }
+}
+
+async function pushRemote() {
+  const root = projectRoot();
+  if (!root) return;
+  setIsSyncing(true);
+  try {
+    await gitPush(root);
+    await refreshGitStatus();
+    await refreshAheadBehind();
+  } finally {
+    setIsSyncing(false);
+  }
+}
+
 let branchPollTimer: ReturnType<typeof setInterval> | undefined;
 
 async function initGit() {
@@ -145,6 +217,8 @@ export {
   unstagedFiles,
   commitLog,
   fileNumstats,
+  aheadBehind,
+  isSyncing,
   refreshGitStatus,
   refreshBranches,
   refreshLog,
@@ -154,5 +228,10 @@ export {
   unstageAll,
   commitChanges,
   initializeRepo,
+  switchBranch,
+  createBranch,
+  fetchRemote,
+  pullRemote,
+  pushRemote,
   initGit,
 };
