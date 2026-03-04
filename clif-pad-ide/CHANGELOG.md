@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/DLhugly/Clif-Code/compare/v1.13.0...v1.14.0) (2026-03-04)
+
+
+### Features
+
+* add git diff view, draggable resizer, app icon, reveal in finder, fix about links ([6dfe25a](https://github.com/DLhugly/Clif-Code/commit/6dfe25aedce7911db7d8ee0f9397ca9eb8f4a86b))
+
 # [1.13.0](https://github.com/DLhugly/Clif-Code/compare/v1.12.0...v1.13.0) (2026-03-04)
 
 
