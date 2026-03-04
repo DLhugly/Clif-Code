@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/DLhugly/Clif-Code/compare/v1.15.0...v1.15.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* add vite-env.d.ts for ?worker import type declarations ([a4df1e3](https://github.com/DLhugly/Clif-Code/commit/a4df1e3563b96d3eb75e9e49c71878556b7af1ed))
+
 # [1.15.0](https://github.com/DLhugly/Clif-Code/compare/v1.14.0...v1.15.0) (2026-03-04)
 
 
