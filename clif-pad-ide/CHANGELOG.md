@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/DLhugly/Clif-Code/compare/v1.15.1...v1.16.0) (2026-03-05)
+
+
+### Features
+
+* improve diff views, file watcher, and markdown preview ([2ddfd9a](https://github.com/DLhugly/Clif-Code/commit/2ddfd9acae477341c858426b222f2a9bc1a39e2b))
+
 ## [1.15.1](https://github.com/DLhugly/Clif-Code/compare/v1.15.0...v1.15.1) (2026-03-04)
 
 
