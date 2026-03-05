@@ -60,17 +60,25 @@ async function openProject(path: string) {
     if (!event.path.startsWith(root)) return;
 
     if (event.kind === "create" || event.kind === "modify") {
-      // If the file is already open, refresh its content
+      // Check if the file is already open — either as raw path or as ::diff
       const existingIdx = openFiles.findIndex((f) => f.path === event.path);
+      const diffIdx = openFiles.findIndex((f) => f.path === event.path + "::diff");
+
       if (existingIdx !== -1) {
+        // File is open as a regular tab — refresh and upgrade to diff if possible
         try {
           const content = await readFile(event.path);
-          // Only update if the content actually differs (avoid loops from our own saves)
           if (openFiles[existingIdx].content !== content) {
             setOpenFiles(existingIdx, "content", content);
             setOpenFiles(existingIdx, "isDirty", false);
 
-            // If it's a regular file (not already a diff) and has a committed version, upgrade to diff view
+            // Also update any open preview tab for this file
+            const previewIdx = openFiles.findIndex((f) => f.path === event.path + "::preview");
+            if (previewIdx !== -1) {
+              setOpenFiles(previewIdx, "content", content);
+            }
+
+            // Upgrade to diff view if tracked in git
             const root = projectRoot();
             if (root && !openFiles[existingIdx].isDiff && !openFiles[existingIdx].isPreview && !openFiles[existingIdx].isBrowser) {
               try {
@@ -82,7 +90,6 @@ async function openProject(path: string) {
                   setOpenFiles(existingIdx, "isDiff", true);
                   setOpenFiles(existingIdx, "originalContent", original);
                   setOpenFiles(existingIdx, "name", getFileName(event.path) + " (diff)");
-                  // Update the path to use diff path convention
                   const diffPath = event.path + "::diff";
                   setOpenFiles(existingIdx, "path", diffPath);
                   if (activeFilePath() === event.path) {
@@ -96,6 +103,42 @@ async function openProject(path: string) {
           }
         } catch {
           // File might be temporarily locked during write
+        }
+      } else if (diffIdx !== -1) {
+        // File is already open as a diff — refresh its content
+        try {
+          const content = await readFile(event.path);
+          const root = projectRoot();
+
+          // Check if the file still differs from HEAD
+          if (root) {
+            try {
+              const relativePath = event.path.startsWith(root)
+                ? event.path.slice(root.length + 1)
+                : event.path;
+              const original = await gitShow(root, relativePath);
+              if (content === original) {
+                // File matches HEAD (e.g. after staging+commit or revert) — close the diff
+                closeFile(event.path + "::diff");
+                return;
+              }
+              // Update both current and original content
+              setOpenFiles(diffIdx, "originalContent", original);
+            } catch {
+              // File no longer tracked — close diff, open as regular
+              closeFile(event.path + "::diff");
+              await openFile(event.path);
+              return;
+            }
+          }
+
+          if (openFiles[diffIdx] && openFiles[diffIdx].content !== content) {
+            setOpenFiles(diffIdx, "content", content);
+            setOpenFiles(diffIdx, "isDirty", false);
+            setActiveFilePath(event.path + "::diff");
+          }
+        } catch {
+          // File might be temporarily locked
         }
       } else if (event.kind === "create") {
         // Auto-open newly created files
@@ -145,6 +188,7 @@ async function openProject(path: string) {
       } catch {}
     }, 500);
   });
+
 }
 
 async function refreshFileTree() {
@@ -212,14 +256,37 @@ function closeFile(path: string) {
   const idx = openFiles.findIndex((f) => f.path === path);
   if (idx === -1) return;
 
+  // Collect linked tabs to close (preview, diff)
+  const basePath = path.replace(/::(?:preview|diff)$/, "");
+  const linkedPaths: string[] = [];
+  if (!path.endsWith("::preview")) {
+    // Closing source or diff — also close its preview
+    const previewPath = basePath + "::preview";
+    if (openFiles.find((f) => f.path === previewPath)) {
+      linkedPaths.push(previewPath);
+    }
+  }
+  if (path.endsWith("::preview")) {
+    // Closing preview — don't close the source
+  }
+
   setOpenFiles(
     produce((files) => {
-      files.splice(idx, 1);
+      // Remove linked tabs first (iterate backwards)
+      for (let i = files.length - 1; i >= 0; i--) {
+        if (linkedPaths.includes(files[i].path)) {
+          files.splice(i, 1);
+        }
+      }
+      // Remove the target tab
+      const targetIdx = files.findIndex((f) => f.path === path);
+      if (targetIdx !== -1) files.splice(targetIdx, 1);
     })
   );
 
-  // If we closed the active file, switch to another
-  if (activeFilePath() === path) {
+  // If we closed the active file (or it was a linked tab), switch to another
+  const active = activeFilePath();
+  if (active === path || linkedPaths.includes(active || "")) {
     if (openFiles.length > 0) {
       const newIdx = Math.min(idx, openFiles.length - 1);
       setActiveFilePath(openFiles[newIdx]?.path || null);
@@ -269,6 +336,12 @@ function updateFileContent(path: string, content: string) {
   if (idx === -1) return;
   setOpenFiles(idx, "content", content);
   setOpenFiles(idx, "isDirty", true);
+
+  // Live-update any open preview tab for this file
+  const previewIdx = openFiles.findIndex((f) => f.path === path + "::preview");
+  if (previewIdx !== -1) {
+    setOpenFiles(previewIdx, "content", content);
+  }
 }
 
 async function saveFile(path: string) {
@@ -323,6 +396,28 @@ async function openPreview(sourcePath: string) {
   setActiveFilePath(previewPath);
 }
 
+function togglePreview() {
+  const path = activeFilePath();
+  if (!path) return;
+
+  // If viewing a preview, switch back to source
+  if (path.endsWith("::preview")) {
+    const sourcePath = path.replace(/::preview$/, "");
+    const sourceFile = openFiles.find((f) => f.path === sourcePath);
+    if (sourceFile) {
+      setActiveFilePath(sourcePath);
+    }
+    closeFile(path);
+    return;
+  }
+
+  // If active file is markdown, open preview
+  const file = openFiles.find((f) => f.path === path);
+  if (file && file.name.endsWith(".md")) {
+    openPreview(path);
+  }
+}
+
 async function openDiff(filePath: string, repoRoot: string) {
   const diffPath = filePath + "::diff";
 
@@ -339,11 +434,22 @@ async function openDiff(filePath: string, repoRoot: string) {
       ? filePath.slice(repoRoot.length + 1)
       : filePath;
 
-    // Fetch current content and HEAD version in parallel
-    const [currentContent, originalContent] = await Promise.all([
-      readFile(filePath).catch(() => ""),
-      gitShow(repoRoot, relativePath).catch(() => ""),
-    ]);
+    // Get HEAD version — if file doesn't exist in HEAD, don't open as diff
+    let originalContent: string;
+    try {
+      originalContent = await gitShow(repoRoot, relativePath);
+    } catch {
+      // File not tracked in git — open as regular file instead
+      await openFile(filePath);
+      return;
+    }
+
+    const currentContent = await readFile(filePath).catch(() => "");
+
+    // If content matches HEAD, no diff to show
+    if (currentContent === originalContent) {
+      return;
+    }
 
     const name = getFileName(filePath);
     const ext = getFileExtension(name);
@@ -394,4 +500,5 @@ export {
   closeAllFiles,
   closeFilesToRight,
   openDiff,
+  togglePreview,
 };

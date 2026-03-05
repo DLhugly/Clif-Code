@@ -7,7 +7,7 @@ import AboutModal from "./components/layout/AboutModal";
 import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
-import { saveActiveFile, projectRoot, openProject, openBrowser } from "./stores/fileStore";
+import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
 import { initGit } from "./stores/gitStore";
 import { configureMonaco } from "./lib/monaco-setup";
 import { loadGoogleFont, applyUiFont } from "./lib/fonts";
@@ -122,6 +122,7 @@ const App: Component = () => {
     registerKeybinding("`", ["ctrl"], toggleTerminal, "Toggle terminal");
     registerKeybinding("b", ["ctrl"], toggleSidebar, "Toggle sidebar");
     registerKeybinding("p", ["ctrl", "shift"], () => setShowCommandPalette(true), "Command palette");
+    registerKeybinding("v", ["ctrl", "shift"], togglePreview, "Toggle markdown preview");
 
     initKeybindings();
 

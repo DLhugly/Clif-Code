@@ -495,8 +495,8 @@ pub fn git_show(path: String, file: String, revision: Option<String>) -> Result<
         .map_err(|e| format!("Failed to run git show: {}", e))?;
 
     if !output.status.success() {
-        // File might not exist in HEAD (new/untracked file)
-        return Ok(String::new());
+        // File doesn't exist in this revision (new/untracked file)
+        return Err("File not found in revision".to_string());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();

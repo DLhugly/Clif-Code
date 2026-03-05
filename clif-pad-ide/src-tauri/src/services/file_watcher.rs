@@ -67,17 +67,20 @@ pub fn start_watching(
                         continue;
                     }
 
-                    // Only emit for actual files, not directories
-                    if path.is_file() || kind_str == "remove" {
-                        let _ = app_clone.emit_to(
-                            &label,
-                            "file-changed",
-                            FileChangeEvent {
-                                path: path_str,
-                                kind: kind_str.to_string(),
-                            },
-                        );
+                    // Skip directories (but allow creates/removes where the path
+                    // might not exist yet or anymore — is_dir returns false for those)
+                    if path.is_dir() {
+                        continue;
                     }
+
+                    let _ = app_clone.emit_to(
+                        &label,
+                        "file-changed",
+                        FileChangeEvent {
+                            path: path_str,
+                            kind: kind_str.to_string(),
+                        },
+                    );
                 }
             }
         }
