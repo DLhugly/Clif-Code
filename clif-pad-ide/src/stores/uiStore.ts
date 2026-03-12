@@ -2,6 +2,9 @@ import { createSignal } from "solid-js";
 
 export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai";
 
+export type PanelSlot = "terminal" | "sidebar" | "none";
+export type LayoutPreset = "default" | "terminal-only" | "sidebar-only" | "zen";
+
 export interface ThemeMeta {
   label: string;
   accent: string;
@@ -31,6 +34,33 @@ const [fontSize, setFontSize] = createSignal(14);
 const [showCommandPalette, setShowCommandPalette] = createSignal(false);
 const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
+
+const [leftPanel, setLeftPanel] = createSignal<PanelSlot>("terminal");
+const [rightPanel, setRightPanel] = createSignal<PanelSlot>("sidebar");
+
+const LAYOUT_PRESETS: Record<LayoutPreset, { left: PanelSlot; right: PanelSlot }> = {
+  "default": { left: "terminal", right: "sidebar" },
+  "terminal-only": { left: "terminal", right: "none" },
+  "sidebar-only": { left: "none", right: "sidebar" },
+  "zen": { left: "none", right: "none" },
+};
+
+function applyLayoutPreset(preset: LayoutPreset) {
+  const config = LAYOUT_PRESETS[preset];
+  setLeftPanel(config.left);
+  setRightPanel(config.right);
+  setTerminalVisible(config.left === "terminal");
+  setSidebarVisible(config.right === "sidebar");
+}
+
+function getCurrentPreset(): LayoutPreset | null {
+  const l = leftPanel();
+  const r = rightPanel();
+  for (const [key, val] of Object.entries(LAYOUT_PRESETS)) {
+    if (val.left === l && val.right === r) return key as LayoutPreset;
+  }
+  return null;
+}
 
 const VALID_THEMES = Object.keys(THEMES) as Theme[];
 
@@ -80,4 +110,11 @@ export {
   setDevDrawerOpen,
   devDrawerHeight,
   setDevDrawerHeight,
+  leftPanel,
+  setLeftPanel,
+  rightPanel,
+  setRightPanel,
+  applyLayoutPreset,
+  getCurrentPreset,
+  LAYOUT_PRESETS,
 };

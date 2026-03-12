@@ -4,7 +4,7 @@ import EditorArea from "./components/layout/EditorArea";
 import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
-import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
+import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -112,6 +112,10 @@ const App: Component = () => {
     applyTheme(s.theme);
     setUiFontSize(s.fontSize);
 
+    // Restore layout from settings
+    if (s.leftPanel) setLeftPanel(s.leftPanel);
+    if (s.rightPanel) setRightPanel(s.rightPanel);
+
     // Load and apply saved fonts
     loadGoogleFont(s.editorFont);
     loadGoogleFont(s.terminalFont);
@@ -139,10 +143,10 @@ const App: Component = () => {
       {/* Top Bar */}
       <TopBar onLaunchClaude={handleLaunchClaude} onLaunchClifCode={handleLaunchClifCode} onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
 
-      {/* Main content: Terminal (left) + Editor (center) + Sidebar (right) */}
+      {/* Main content: Left Panel + Editor (center) + Right Panel */}
       <div class="flex flex-1 min-h-0">
-        {/* Terminal Panel */}
-        <Show when={terminalVisible()}>
+        {/* Left Panel: Terminal */}
+        <Show when={leftPanel() === "terminal"}>
           <div
             style={{ width: `${terminalWidth()}%` }}
             class="h-full min-w-0 shrink-0"
@@ -183,13 +187,13 @@ const App: Component = () => {
           />
         </Show>
 
-        {/* Editor Panel */}
+        {/* Editor Panel (always center) */}
         <div class="flex-1 min-w-0 h-full">
           <EditorArea />
         </div>
 
-        {/* Right Sidebar */}
-        <Show when={sidebarVisible()}>
+        {/* Right Panel: Sidebar */}
+        <Show when={rightPanel() === "sidebar"}>
           {/* Sidebar Resize Handle */}
           <div
             class="shrink-0 cursor-col-resize"
