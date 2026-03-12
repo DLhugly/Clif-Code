@@ -1,6 +1,6 @@
 import { Component, Show, For, createSignal, onCleanup } from "solid-js";
-import { theme, applyTheme, fontSize, setUiFontSize, THEMES } from "../../stores/uiStore";
-import type { Theme } from "../../stores/uiStore";
+import { theme, applyTheme, fontSize, setUiFontSize, THEMES, leftPanel, rightPanel, setLeftPanel, setRightPanel, applyLayoutPreset, getCurrentPreset, LAYOUT_PRESETS } from "../../stores/uiStore";
+import type { Theme, LayoutPreset, PanelSlot } from "../../stores/uiStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
 import { MONO_FONTS, loadGoogleFont, applyUiFont } from "../../lib/fonts";
@@ -145,6 +145,135 @@ const FontDropdown: Component<FontDropdownProps> = (props) => {
                 </Show>
               </button>
             )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+};
+
+const LayoutIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+    <line x1="15" y1="3" x2="15" y2="21" />
+  </svg>
+);
+
+const PRESET_LABELS: Record<LayoutPreset, { label: string; desc: string }> = {
+  "default": { label: "Default", desc: "Terminal | Editor | Files" },
+  "agent-mode": { label: "Agent Mode", desc: "Terminal | Editor | Agent" },
+  "agent-focus": { label: "Agent Focus", desc: "Agent | Editor | Files" },
+  "zen": { label: "Zen", desc: "Editor only" },
+};
+
+const LayoutDropdown: Component = () => {
+  const [open, setOpen] = createSignal(false);
+  let ref: HTMLDivElement | undefined;
+
+  const handleClickOutside = (e: MouseEvent) => {
+    if (ref && !ref.contains(e.target as Node)) {
+      setOpen(false);
+    }
+  };
+
+  const toggle = () => {
+    const next = !open();
+    setOpen(next);
+    if (next) {
+      setTimeout(() => document.addEventListener("click", handleClickOutside), 0);
+    } else {
+      document.removeEventListener("click", handleClickOutside);
+    }
+  };
+
+  onCleanup(() => {
+    document.removeEventListener("click", handleClickOutside);
+  });
+
+  const handlePreset = (preset: LayoutPreset) => {
+    applyLayoutPreset(preset);
+    const config = LAYOUT_PRESETS[preset];
+    updateSettings({ leftPanel: config.left, rightPanel: config.right });
+    setOpen(false);
+    document.removeEventListener("click", handleClickOutside);
+  };
+
+  const presetKeys = Object.keys(LAYOUT_PRESETS) as LayoutPreset[];
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-all duration-150"
+        style={{
+          color: "var(--text-secondary)",
+          background: open() ? "var(--bg-hover)" : "transparent",
+          border: "none",
+          cursor: "pointer",
+        }}
+        onMouseEnter={(e) => {
+          if (!open()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+        }}
+        onMouseLeave={(e) => {
+          if (!open()) (e.currentTarget as HTMLElement).style.background = "transparent";
+        }}
+        onClick={toggle}
+        title="Layout"
+      >
+        <LayoutIcon />
+        <span>Layout</span>
+        <ChevronIcon />
+      </button>
+
+      <Show when={open()}>
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: "0",
+            background: "var(--bg-overlay)",
+            border: "1px solid var(--border-default)",
+            "border-radius": "var(--radius-lg)",
+            "box-shadow": "var(--shadow-lg)",
+            padding: "4px",
+            "min-width": "200px",
+            "z-index": "200",
+            "backdrop-filter": "blur(20px)",
+            "-webkit-backdrop-filter": "blur(20px)",
+          }}
+        >
+          <For each={presetKeys}>
+            {(preset) => {
+              const isActive = () => getCurrentPreset() === preset;
+              return (
+                <button
+                  class="flex flex-col w-full rounded-md px-3 py-2 text-left transition-colors duration-100"
+                  style={{
+                    color: isActive() ? "var(--text-primary)" : "var(--text-secondary)",
+                    background: isActive() ? "var(--bg-active)" : "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive()) (e.currentTarget as HTMLElement).style.background = "transparent";
+                  }}
+                  onClick={() => handlePreset(preset)}
+                >
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="flex-1 font-medium">{PRESET_LABELS[preset].label}</span>
+                    <Show when={isActive()}>
+                      <CheckIcon />
+                    </Show>
+                  </div>
+                  <span style={{ "font-size": "11px", color: "var(--text-muted)" }}>
+                    {PRESET_LABELS[preset].desc}
+                  </span>
+                </button>
+              );
+            }}
           </For>
         </div>
       </Show>
@@ -411,6 +540,12 @@ const TopBar: Component<{
             </div>
           </Show>
         </div>
+
+        {/* Divider */}
+        <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
+
+        {/* Layout dropdown */}
+        <LayoutDropdown />
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />

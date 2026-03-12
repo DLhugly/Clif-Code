@@ -4,7 +4,11 @@ import EditorArea from "./components/layout/EditorArea";
 import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
-import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
+import {
+  terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth,
+  applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette,
+  leftPanel, rightPanel, agentWidth, setAgentWidth, setLeftPanel, setRightPanel, toggleAgentPanel,
+} from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -14,11 +18,14 @@ import { loadGoogleFont, applyUiFont } from "./lib/fonts";
 import type { TerminalPanelRef } from "./components/terminal/TerminalPanel";
 
 const TerminalPanel = lazy(() => import("./components/terminal/TerminalPanel"));
+const AgentChatPanel = lazy(() => import("./components/agent/AgentChatPanel"));
 
 const App: Component = () => {
   let terminalRef: TerminalPanelRef | undefined;
   const [isDraggingTerminal, setIsDraggingTerminal] = createSignal(false);
   const [isDraggingSidebar, setIsDraggingSidebar] = createSignal(false);
+  const [isDraggingLeftAgent, setIsDraggingLeftAgent] = createSignal(false);
+  const [isDraggingRightAgent, setIsDraggingRightAgent] = createSignal(false);
   const [showAbout, setShowAbout] = createSignal(false);
 
   function handleLaunchClaude() {
@@ -58,8 +65,8 @@ const App: Component = () => {
     setIsDraggingTerminal(true);
 
     const onMouseMove = (e: MouseEvent) => {
-      const sidebarPx = sidebarVisible() ? sidebarWidth() : 0;
-      const availableWidth = window.innerWidth - sidebarPx;
+      const rightPx = rightPanel() === "sidebar" ? sidebarWidth() : rightPanel() === "agent" ? agentWidth() : 0;
+      const availableWidth = window.innerWidth - rightPx;
       const pct = (e.clientX / availableWidth) * 100;
       setTerminalWidth(Math.max(20, Math.min(80, pct)));
     };
@@ -93,6 +100,70 @@ const App: Component = () => {
     document.addEventListener("mouseup", onMouseUp);
   }
 
+  function handleLeftAgentResize(e: MouseEvent) {
+    e.preventDefault();
+    setIsDraggingLeftAgent(true);
+
+    const onMouseMove = (e: MouseEvent) => {
+      setAgentWidth(Math.max(280, Math.min(600, e.clientX)));
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingLeftAgent(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
+  function handleRightAgentResize(e: MouseEvent) {
+    e.preventDefault();
+    setIsDraggingRightAgent(true);
+
+    const onMouseMove = (e: MouseEvent) => {
+      const width = window.innerWidth - e.clientX;
+      setAgentWidth(Math.max(280, Math.min(600, width)));
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingRightAgent(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
+  function ResizeHandle(props: {
+    isDragging: () => boolean;
+    onMouseDown: (e: MouseEvent) => void;
+  }) {
+    return (
+      <div
+        class="shrink-0 cursor-col-resize"
+        style={{
+          width: "5px",
+          background: props.isDragging() ? "var(--accent-primary)" : "var(--border-default)",
+          transition: props.isDragging() ? "none" : "background 0.15s",
+        }}
+        onMouseDown={props.onMouseDown}
+        onMouseEnter={(e) => {
+          if (!props.isDragging()) {
+            (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!props.isDragging()) {
+            (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
+          }
+        }}
+      />
+    );
+  }
+
   createEffect(async () => {
     const root = projectRoot();
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -112,6 +183,10 @@ const App: Component = () => {
     applyTheme(s.theme);
     setUiFontSize(s.fontSize);
 
+    // Restore layout from settings
+    if (s.leftPanel) setLeftPanel(s.leftPanel);
+    if (s.rightPanel) setRightPanel(s.rightPanel);
+
     // Load and apply saved fonts
     loadGoogleFont(s.editorFont);
     loadGoogleFont(s.terminalFont);
@@ -123,6 +198,7 @@ const App: Component = () => {
     registerKeybinding("b", ["ctrl"], toggleSidebar, "Toggle sidebar");
     registerKeybinding("p", ["ctrl", "shift"], () => setShowCommandPalette(true), "Command palette");
     registerKeybinding("v", ["ctrl", "shift"], togglePreview, "Toggle markdown preview");
+    registerKeybinding("a", ["ctrl", "shift"], toggleAgentPanel, "Toggle agent panel");
 
     initKeybindings();
 
@@ -139,10 +215,10 @@ const App: Component = () => {
       {/* Top Bar */}
       <TopBar onLaunchClaude={handleLaunchClaude} onLaunchClifCode={handleLaunchClifCode} onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
 
-      {/* Main content: Terminal (left) + Editor (center) + Sidebar (right) */}
+      {/* Main content: Left Panel + Editor (center) + Right Panel */}
       <div class="flex flex-1 min-h-0">
-        {/* Terminal Panel */}
-        <Show when={terminalVisible()}>
+        {/* Left Panel */}
+        <Show when={leftPanel() === "terminal"}>
           <div
             style={{ width: `${terminalWidth()}%` }}
             class="h-full min-w-0 shrink-0"
@@ -160,62 +236,46 @@ const App: Component = () => {
               <TerminalPanel ref={(r) => (terminalRef = r)} workingDir={projectRoot() || undefined} />
             </Suspense>
           </div>
-
-          {/* Terminal Resize Handle */}
-          <div
-            class="shrink-0 cursor-col-resize"
-            style={{
-              width: "5px",
-              background: isDraggingTerminal() ? "var(--accent-primary)" : "var(--border-default)",
-              transition: isDraggingTerminal() ? "none" : "background 0.15s",
-            }}
-            onMouseDown={handleTerminalResize}
-            onMouseEnter={(e) => {
-              if (!isDraggingTerminal()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isDraggingTerminal()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
-              }
-            }}
-          />
+          <ResizeHandle isDragging={isDraggingTerminal} onMouseDown={handleTerminalResize} />
         </Show>
 
-        {/* Editor Panel */}
+        <Show when={leftPanel() === "agent"}>
+          <div
+            style={{ width: `${agentWidth()}px` }}
+            class="h-full shrink-0"
+          >
+            <Suspense fallback={<div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)" }}>Loading agent...</div>}>
+              <AgentChatPanel />
+            </Suspense>
+          </div>
+          <ResizeHandle isDragging={isDraggingLeftAgent} onMouseDown={handleLeftAgentResize} />
+        </Show>
+
+        {/* Editor Panel (always center) */}
         <div class="flex-1 min-w-0 h-full">
           <EditorArea />
         </div>
 
-        {/* Right Sidebar */}
-        <Show when={sidebarVisible()}>
-          {/* Sidebar Resize Handle */}
-          <div
-            class="shrink-0 cursor-col-resize"
-            style={{
-              width: "5px",
-              background: isDraggingSidebar() ? "var(--accent-primary)" : "var(--border-default)",
-              transition: isDraggingSidebar() ? "none" : "background 0.15s",
-            }}
-            onMouseDown={handleSidebarResize}
-            onMouseEnter={(e) => {
-              if (!isDraggingSidebar()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isDraggingSidebar()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
-              }
-            }}
-          />
-
+        {/* Right Panel */}
+        <Show when={rightPanel() === "sidebar"}>
+          <ResizeHandle isDragging={isDraggingSidebar} onMouseDown={handleSidebarResize} />
           <div
             style={{ width: `${sidebarWidth()}px` }}
             class="h-full shrink-0"
           >
             <RightSidebar onOpenFolder={handleOpenFolder} />
+          </div>
+        </Show>
+
+        <Show when={rightPanel() === "agent"}>
+          <ResizeHandle isDragging={isDraggingRightAgent} onMouseDown={handleRightAgentResize} />
+          <div
+            style={{ width: `${agentWidth()}px` }}
+            class="h-full shrink-0"
+          >
+            <Suspense fallback={<div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)" }}>Loading agent...</div>}>
+              <AgentChatPanel />
+            </Suspense>
           </div>
         </Show>
       </div>

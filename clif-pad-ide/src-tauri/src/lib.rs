@@ -142,6 +142,8 @@ pub fn run() {
             commands::pty::pty_resize,
             commands::pty::pty_kill,
             commands::window::create_window,
+            commands::agent::agent_chat,
+            commands::agent::agent_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

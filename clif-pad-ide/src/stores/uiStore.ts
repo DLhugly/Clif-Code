@@ -2,6 +2,9 @@ import { createSignal } from "solid-js";
 
 export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai";
 
+export type PanelSlot = "terminal" | "agent" | "sidebar" | "none";
+export type LayoutPreset = "default" | "agent-mode" | "agent-focus" | "zen";
+
 export interface ThemeMeta {
   label: string;
   accent: string;
@@ -31,6 +34,44 @@ const [fontSize, setFontSize] = createSignal(14);
 const [showCommandPalette, setShowCommandPalette] = createSignal(false);
 const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
+
+const [leftPanel, setLeftPanel] = createSignal<PanelSlot>("terminal");
+const [rightPanel, setRightPanel] = createSignal<PanelSlot>("sidebar");
+const [agentWidth, setAgentWidth] = createSignal(380);
+
+const LAYOUT_PRESETS: Record<LayoutPreset, { left: PanelSlot; right: PanelSlot }> = {
+  "default": { left: "terminal", right: "sidebar" },
+  "agent-mode": { left: "terminal", right: "agent" },
+  "agent-focus": { left: "agent", right: "sidebar" },
+  "zen": { left: "none", right: "none" },
+};
+
+function applyLayoutPreset(preset: LayoutPreset) {
+  const config = LAYOUT_PRESETS[preset];
+  setLeftPanel(config.left);
+  setRightPanel(config.right);
+  // Sync visibility signals for backward compat
+  setTerminalVisible(config.left === "terminal");
+  setSidebarVisible(config.right === "sidebar");
+}
+
+function toggleAgentPanel() {
+  const current = rightPanel();
+  if (current === "agent") {
+    setRightPanel("sidebar");
+  } else {
+    setRightPanel("agent");
+  }
+}
+
+function getCurrentPreset(): LayoutPreset | null {
+  const l = leftPanel();
+  const r = rightPanel();
+  for (const [key, val] of Object.entries(LAYOUT_PRESETS)) {
+    if (val.left === l && val.right === r) return key as LayoutPreset;
+  }
+  return null;
+}
 
 const VALID_THEMES = Object.keys(THEMES) as Theme[];
 
@@ -80,4 +121,14 @@ export {
   setDevDrawerOpen,
   devDrawerHeight,
   setDevDrawerHeight,
+  leftPanel,
+  setLeftPanel,
+  rightPanel,
+  setRightPanel,
+  agentWidth,
+  setAgentWidth,
+  applyLayoutPreset,
+  toggleAgentPanel,
+  getCurrentPreset,
+  LAYOUT_PRESETS,
 };
