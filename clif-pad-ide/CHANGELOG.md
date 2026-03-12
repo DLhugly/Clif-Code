@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/DLhugly/Clif-Code/compare/v1.16.0...v1.17.0) (2026-03-12)
+
+
+### Features
+
+* add configurable layout preset system ([97a6388](https://github.com/DLhugly/Clif-Code/commit/97a6388a7a385bb23e02d5f79dd108b175a36646))
+
 # [1.16.0](https://github.com/DLhugly/Clif-Code/compare/v1.15.1...v1.16.0) (2026-03-05)
 
 
