@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/DLhugly/Clif-Code/compare/v1.17.0...v1.18.0) (2026-03-17)
+
+
+### Features
+
+* add large file performance guard and toast notification system ([aba2d28](https://github.com/DLhugly/Clif-Code/commit/aba2d28e5404e6c6132cd2a407a172358100b437))
+
 # [1.17.0](https://github.com/DLhugly/Clif-Code/compare/v1.16.0...v1.17.0) (2026-03-12)
 
 
