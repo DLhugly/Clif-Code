@@ -5,11 +5,18 @@ import { theme, fontSize } from "../../stores/uiStore";
 import { settings } from "../../stores/settingsStore";
 import { monacoThemes } from "../../lib/themes";
 import { registerGhostTextProvider } from "./GhostText";
+import { showToast } from "../../stores/toastStore";
 import type { Theme } from "../../stores/uiStore";
 
 // Model + viewstate cache
 const modelCache = new Map<string, monaco.editor.ITextModel>();
 const viewStateCache = new Map<string, monaco.editor.ICodeEditorViewState>();
+
+const LARGE_FILE_THRESHOLD = 512 * 1024; // 512 KB
+
+function isLargeFile(content: string): boolean {
+  return content.length >= LARGE_FILE_THRESHOLD;
+}
 
 function getOrCreateModel(path: string, content: string, language: string): monaco.editor.ITextModel {
   const existing = modelCache.get(path);
@@ -18,7 +25,11 @@ function getOrCreateModel(path: string, content: string, language: string): mona
     if (currentLang !== language) {
       monaco.editor.setModelLanguage(existing, language);
     }
-    if (existing.getValue() !== content) {
+    // For large files, compare length first to avoid expensive getValue()
+    const needsUpdate = isLargeFile(content)
+      ? existing.getValueLength() !== content.length
+      : existing.getValue() !== content;
+    if (needsUpdate) {
       existing.setValue(content);
     }
     return existing;
@@ -106,8 +117,25 @@ const MonacoEditor: Component = () => {
       return;
     }
 
+    const large = isLargeFile(file.content);
     const model = getOrCreateModel(file.path, file.content, file.language);
     editor.setModel(model);
+
+    if (large) {
+      const sizeMB = (file.content.length / (1024 * 1024)).toFixed(1);
+      showToast(`Large file (${sizeMB} MB) — some features disabled for performance`, "warn");
+    }
+
+    // Toggle performance options based on file size
+    editor.updateOptions({
+      minimap: { enabled: !large },
+      folding: !large,
+      wordWrap: large ? "off" : (settings().wordWrap as "on" | "off"),
+      renderWhitespace: large ? "none" : "selection",
+      guides: { bracketPairs: !large },
+      bracketPairColorization: { enabled: !large },
+      occurrencesHighlight: large ? "off" : "multiFile",
+    });
 
     const savedState = viewStateCache.get(file.path);
     if (savedState) {

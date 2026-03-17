@@ -4,6 +4,7 @@ import EditorArea from "./components/layout/EditorArea";
 import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
+import ToastContainer from "./components/layout/ToastContainer";
 import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
@@ -229,6 +230,9 @@ const App: Component = () => {
 
       {/* About Modal */}
       <AboutModal open={showAbout()} onClose={() => setShowAbout(false)} />
+
+      {/* Toasts */}
+      <ToastContainer />
     </div>
   );
 };

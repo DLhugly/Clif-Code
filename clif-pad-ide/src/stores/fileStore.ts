@@ -3,7 +3,11 @@ import { createStore, produce } from "solid-js/store";
 import type { FileEntry, OpenFile } from "../types/files";
 import { readDir, readFile, writeFile, watchDir, onFileChanged, gitShow } from "../lib/tauri";
 import { getLanguageFromExtension, getFileName, getFileExtension } from "../lib/utils";
+import { showToast } from "./toastStore";
 import type { UnlistenFn } from "@tauri-apps/api/event";
+
+// Files above this size (bytes) skip auto-diff and get large-file treatment
+const LARGE_FILE_THRESHOLD = 512 * 1024; // 512 KB
 
 // Project root
 const [projectRoot, setProjectRoot] = createSignal<string | null>(null);
@@ -78,9 +82,9 @@ async function openProject(path: string) {
               setOpenFiles(previewIdx, "content", content);
             }
 
-            // Upgrade to diff view if tracked in git
+            // Upgrade to diff view if tracked in git (skip for large files)
             const root = projectRoot();
-            if (root && !openFiles[existingIdx].isDiff && !openFiles[existingIdx].isPreview && !openFiles[existingIdx].isBrowser) {
+            if (root && content.length < LARGE_FILE_THRESHOLD && !openFiles[existingIdx].isDiff && !openFiles[existingIdx].isPreview && !openFiles[existingIdx].isBrowser) {
               try {
                 const relativePath = event.path.startsWith(root)
                   ? event.path.slice(root.length + 1)
@@ -148,18 +152,22 @@ async function openProject(path: string) {
           // File might not be fully written yet
         }
       } else if (event.kind === "modify") {
-        // Auto-open modified files — use diff mode if tracked in git
+        // Auto-open modified files — use diff mode if tracked in git (skip large files)
         try {
           const root = projectRoot();
           if (root) {
             try {
-              const relativePath = event.path.startsWith(root)
-                ? event.path.slice(root.length + 1)
-                : event.path;
-              const original = await gitShow(root, relativePath);
-              if (original !== undefined && original !== null) {
-                await openDiff(event.path, root);
-                return;
+              const content = await readFile(event.path);
+              // Only auto-diff if under the size threshold
+              if (content.length < LARGE_FILE_THRESHOLD) {
+                const relativePath = event.path.startsWith(root)
+                  ? event.path.slice(root.length + 1)
+                  : event.path;
+                const original = await gitShow(root, relativePath);
+                if (original !== undefined && original !== null) {
+                  await openDiff(event.path, root);
+                  return;
+                }
               }
             } catch {
               // Not tracked, fall through to regular open
@@ -445,6 +453,13 @@ async function openDiff(filePath: string, repoRoot: string) {
     }
 
     const currentContent = await readFile(filePath).catch(() => "");
+
+    // Large files: open as regular file instead of diff to avoid UI freeze
+    if (currentContent.length >= LARGE_FILE_THRESHOLD || originalContent.length >= LARGE_FILE_THRESHOLD) {
+      showToast("Diff view disabled for large file", "warn");
+      await openFile(filePath);
+      return;
+    }
 
     // If content matches HEAD, no diff to show
     if (currentContent === originalContent) {

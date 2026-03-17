@@ -51,19 +51,25 @@ const DiffView: Component<DiffViewProps> = (props) => {
     });
   });
 
-  // Update models when props change
+  // Update models when props change (skip expensive setValue if length matches for large files)
   createEffect(() => {
     const orig = props.original;
     const mod = props.modified;
     const lang = props.language;
 
     if (originalModel && !originalModel.isDisposed()) {
-      originalModel.setValue(orig);
+      const needsUpdate = orig.length > 512 * 1024
+        ? originalModel.getValueLength() !== orig.length
+        : originalModel.getValue() !== orig;
+      if (needsUpdate) originalModel.setValue(orig);
       monaco.editor.setModelLanguage(originalModel, lang);
     }
 
     if (modifiedModel && !modifiedModel.isDisposed()) {
-      modifiedModel.setValue(mod);
+      const needsUpdate = mod.length > 512 * 1024
+        ? modifiedModel.getValueLength() !== mod.length
+        : modifiedModel.getValue() !== mod;
+      if (needsUpdate) modifiedModel.setValue(mod);
       monaco.editor.setModelLanguage(modifiedModel, lang);
     }
   });

@@ -425,3 +425,12 @@
     background-color: rgba(248, 81, 73, 0.30) !important;
   }
 }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out;
+}
