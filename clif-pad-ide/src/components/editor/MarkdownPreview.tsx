@@ -12,7 +12,7 @@ const MarkdownPreview: Component = () => {
       class="h-full overflow-y-auto p-8"
       style={{ background: "var(--editor-bg)", color: "var(--text-primary)" }}
     >
-      <div class="max-w-3xl mx-auto markdown-preview" innerHTML={html()} />
+      <div class="max-w-3xl mx-auto markdown-preview" style={{ "user-select": "text" }} innerHTML={html()} />
 
       <style>{`
         .markdown-preview h1 {
