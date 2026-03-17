@@ -5,10 +5,11 @@ import ContextMenu, { type ContextMenuItem } from "../explorer/ContextMenu";
 import {
   isGitRepo, currentBranch, changedFiles, diffStat,
   stagedFiles, unstagedFiles, commitLog, fileNumstats,
-  aheadBehind, isSyncing, branches,
+  aheadBehind, isSyncing, branches, remoteUrl,
   refreshGitStatus, refreshBranches, stageFile, unstageFile, stageAll, unstageAll, commitChanges, initializeRepo,
   switchBranch, createBranch, fetchRemote, pullRemote, pushRemote,
 } from "../../stores/gitStore";
+import { open } from "@tauri-apps/plugin-shell";
 import type { GitLogEntry } from "../../types/git";
 
 const FileTree = lazy(() => import("../explorer/FileTree"));
@@ -392,9 +393,30 @@ const GitGraphRow: Component<{
             class="flex items-center gap-2 mt-0.5"
             style={{ color: "var(--text-muted)", "font-size": "0.84em" }}
           >
-            <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>
-              {props.entry.short_hash}
-            </span>
+            <Show when={remoteUrl()}>
+              <span
+                class="font-mono"
+                style={{
+                  color: "var(--accent-yellow)",
+                  cursor: "pointer",
+                  "text-decoration": "none",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                title={`Open commit on ${new URL(remoteUrl()!).hostname}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open(`${remoteUrl()}/commit/${props.entry.hash}`);
+                }}
+              >
+                {props.entry.short_hash}
+              </span>
+            </Show>
+            <Show when={!remoteUrl()}>
+              <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>
+                {props.entry.short_hash}
+              </span>
+            </Show>
             <span class="truncate">{props.entry.author}</span>
             <span class="shrink-0 ml-auto">{props.entry.date}</span>
           </div>
@@ -421,7 +443,23 @@ const GitGraphRow: Component<{
         >
           <div class="flex gap-2 mb-1">
             <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Commit</span>
-            <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>{props.entry.hash.slice(0, 16)}</span>
+            <Show when={remoteUrl()}>
+              <span
+                class="font-mono"
+                style={{ color: "var(--accent-yellow)", cursor: "pointer" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open(`${remoteUrl()}/commit/${props.entry.hash}`);
+                }}
+              >
+                {props.entry.hash.slice(0, 16)}
+              </span>
+            </Show>
+            <Show when={!remoteUrl()}>
+              <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>{props.entry.hash.slice(0, 16)}</span>
+            </Show>
           </div>
           <div class="flex gap-2 mb-1">
             <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Author</span>

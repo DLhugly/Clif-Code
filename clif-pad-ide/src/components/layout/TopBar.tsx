@@ -5,12 +5,6 @@ import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
 import { MONO_FONTS, loadGoogleFont, applyUiFont } from "../../lib/fonts";
 
-const FolderIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-  </svg>
-);
-
 const SparkleIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
@@ -361,29 +355,35 @@ const TopBar: Component<{
         style={{ width: "78px", height: "48px", "flex-shrink": "0" }}
       />
 
-      {/* Folder / Project name button */}
-      <button
-        class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all duration-150"
-        style={{
-          color: "var(--text-primary)",
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.background = "transparent";
-        }}
-        onClick={() => props.onOpenFolder()}
-        title={projectRoot() || "Open folder"}
+      {/* Logo + Project name */}
+      <div
+        class="flex items-center gap-2"
+        style={{ "flex-shrink": "0", "padding-left": "2px" }}
       >
-        <FolderIcon />
-        <span class="font-medium" style={{ "max-width": "160px", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
-          {getProjectName() || "Open Folder"}
+        <svg width="22" height="22" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="topbar-logo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1"/>
+              <stop offset="100%" style="stop-color:#a855f7"/>
+            </linearGradient>
+          </defs>
+          <rect width="1024" height="1024" rx="200" ry="200" fill="url(#topbar-logo-bg)"/>
+          <polyline points="640 768 880 512 640 256" fill="none" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="384 256 144 512 384 768" fill="none" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span
+          class="text-sm font-medium"
+          style={{
+            color: "var(--text-primary)",
+            "max-width": "160px",
+            overflow: "hidden",
+            "text-overflow": "ellipsis",
+            "white-space": "nowrap",
+          }}
+        >
+          {getProjectName() || "ClifPad"}
         </span>
-      </button>
+      </div>
 
       {/* Spacer — also draggable */}
       <div data-tauri-drag-region class="flex-1 h-full" />
@@ -608,7 +608,7 @@ const TopBar: Component<{
           title={hasProject() ? "Launch ClifCode (offline AI) in terminal" : "Open a folder first"}
         >
           <ClifCodeIcon />
-          ClifCode
+          Launch ClifCode
         </button>
 
         {/* Launch Claude button */}

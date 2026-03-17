@@ -144,6 +144,10 @@ export async function gitLog(path: string, count?: number): Promise<GitLogEntry[
   return invoke("git_log", { path, count: count ?? null });
 }
 
+export async function gitRemoteUrl(path: string): Promise<string | null> {
+  return invoke("git_remote_url", { path });
+}
+
 // Search
 export async function searchFiles(
   path: string,

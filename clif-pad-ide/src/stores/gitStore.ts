@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { GitFileStatus, GitBranch, GitLogEntry } from "../types/git";
-import { gitStatus, gitDiff, gitBranches, gitCheckout, gitStage, gitUnstage, gitCommit, gitDiffStat, gitDiffNumstat, gitInit, gitLog, gitFetch, gitPull, gitPush, gitCreateBranch, gitAheadBehind } from "../lib/tauri";
+import { gitStatus, gitDiff, gitBranches, gitCheckout, gitStage, gitUnstage, gitCommit, gitDiffStat, gitDiffNumstat, gitInit, gitLog, gitFetch, gitPull, gitPush, gitCreateBranch, gitAheadBehind, gitRemoteUrl } from "../lib/tauri";
 import { projectRoot } from "./fileStore";
 
 const [currentBranch, setCurrentBranch] = createSignal<string>("");
@@ -13,6 +13,7 @@ const [commitLog, setCommitLog] = createSignal<GitLogEntry[]>([]);
 const [fileNumstats, setFileNumstats] = createSignal<Map<string, { insertions: number; deletions: number }>>(new Map());
 const [aheadBehind, setAheadBehind] = createSignal<{ ahead: number; behind: number }>({ ahead: 0, behind: 0 });
 const [isSyncing, setIsSyncing] = createSignal(false);
+const [remoteUrl, setRemoteUrl] = createSignal<string | null>(null);
 
 const stagedFiles = () => changedFiles.filter((f) => f.staged);
 const unstagedFiles = () => changedFiles.filter((f) => !f.staged);
@@ -198,9 +199,21 @@ async function pushRemote() {
 
 let branchPollTimer: ReturnType<typeof setInterval> | undefined;
 
+async function refreshRemoteUrl() {
+  const root = projectRoot();
+  if (!root) return;
+  try {
+    const url = await gitRemoteUrl(root);
+    setRemoteUrl(url);
+  } catch {
+    setRemoteUrl(null);
+  }
+}
+
 async function initGit() {
   await refreshGitStatus();
   await refreshBranches();
+  await refreshRemoteUrl();
 
   // Poll for branch changes from external tools (e.g. CLI git checkout)
   if (branchPollTimer) clearInterval(branchPollTimer);
@@ -219,6 +232,7 @@ export {
   fileNumstats,
   aheadBehind,
   isSyncing,
+  remoteUrl,
   refreshGitStatus,
   refreshBranches,
   refreshLog,

@@ -131,6 +131,7 @@ pub fn run() {
             commands::git::git_show,
             commands::git::git_init,
             commands::git::git_log,
+            commands::git::git_remote_url,
             commands::search::search_files,
             commands::claude_code::claude_code_start,
             commands::claude_code::claude_code_send,

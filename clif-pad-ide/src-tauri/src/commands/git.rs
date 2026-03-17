@@ -521,6 +521,44 @@ pub fn git_init(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn git_remote_url(path: String) -> Result<Option<String>, String> {
+    let output = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git remote get-url: {}", e))?;
+
+    if !output.status.success() {
+        // No remote configured
+        return Ok(None);
+    }
+
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        return Ok(None);
+    }
+
+    // Normalize SSH URLs to HTTPS: git@github.com:user/repo.git -> https://github.com/user/repo
+    let normalized = if url.starts_with("git@") {
+        url.trim_start_matches("git@")
+            .replacen(':', "/", 1)
+            .trim_end_matches(".git")
+            .to_string()
+            .replace("//", "/")
+    } else {
+        url.trim_end_matches(".git").to_string()
+    };
+
+    let https_url = if normalized.starts_with("https://") || normalized.starts_with("http://") {
+        normalized
+    } else {
+        format!("https://{}", normalized)
+    };
+
+    Ok(Some(https_url))
+}
+
+#[tauri::command]
 pub fn git_stage(path: String, files: Vec<String>) -> Result<(), String> {
     if files.is_empty() {
         return Ok(());

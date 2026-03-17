@@ -102,9 +102,6 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
     >
       {/* Left section */}
       <div class="flex items-center gap-3 min-w-0">
-        {/* Version label */}
-        <span style={{ color: "var(--text-muted)" }}>v{appVersion()}</span>
-
         {/* Git branch */}
         <Show when={isGitRepo()}>
           <div
