@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/DLhugly/Clif-Code/compare/v1.18.0...v1.19.0) (2026-03-17)
+
+
+### Features
+
+* add recent folders, sidebar search bar, and git file context menu ([e1963cd](https://github.com/DLhugly/Clif-Code/commit/e1963cdbd099f0f8503e3371184510c7a2ec80ff))
+
 # [1.18.0](https://github.com/DLhugly/Clif-Code/compare/v1.17.0...v1.18.0) (2026-03-17)
 
 
