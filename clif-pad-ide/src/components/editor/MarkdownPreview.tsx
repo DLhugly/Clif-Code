@@ -10,9 +10,9 @@ const MarkdownPreview: Component = () => {
   return (
     <div
       class="h-full overflow-y-auto p-8"
-      style={{ background: "var(--editor-bg)", color: "var(--text-primary)" }}
+      style={{ background: "var(--editor-bg)", color: "var(--text-primary)", "user-select": "text", cursor: "text" }}
     >
-      <div class="max-w-3xl mx-auto markdown-preview" style={{ "user-select": "text" }} innerHTML={html()} />
+      <div class="max-w-3xl mx-auto markdown-preview" innerHTML={html()} />
 
       <style>{`
         .markdown-preview h1 {
@@ -130,6 +130,11 @@ const MarkdownPreview: Component = () => {
         .markdown-preview img {
           max-width: 100%;
           border-radius: 6px;
+        }
+        .markdown-preview,
+        .markdown-preview * {
+          user-select: text !important;
+          -webkit-user-select: text !important;
         }
       `}</style>
     </div>
