@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/DLhugly/Clif-Code/compare/v1.19.0...v1.20.0) (2026-03-17)
+
+
+### Features
+
+* add clickable GitHub commit links in git graph, update TopBar logo, and clean up status bar ([74168d7](https://github.com/DLhugly/Clif-Code/commit/74168d7ab0755a3be8dae4ef00f6f7fbf4c51d3b))
+
 # [1.19.0](https://github.com/DLhugly/Clif-Code/compare/v1.18.0...v1.19.0) (2026-03-17)
 
 
