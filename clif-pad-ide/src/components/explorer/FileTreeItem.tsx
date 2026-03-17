@@ -63,6 +63,7 @@ const DeleteIcon = () => (
 interface FileTreeItemProps {
   entry: FileEntry;
   depth: number;
+  searchQuery?: string;
 }
 
 const FileTreeItem: Component<FileTreeItemProps> = (props) => {
@@ -457,8 +458,12 @@ const FileTreeItem: Component<FileTreeItemProps> = (props) => {
 
       {/* Children (recursive) */}
       <Show when={props.entry.is_dir && isDirExpanded(props.entry.path)}>
-        <For each={children()}>
-          {(child) => <FileTreeItem entry={child} depth={props.depth + 1} />}
+        <For each={children().filter((child) => {
+          const q = props.searchQuery?.toLowerCase();
+          if (!q) return true;
+          return child.name.toLowerCase().includes(q) || child.is_dir;
+        })}>
+          {(child) => <FileTreeItem entry={child} depth={props.depth + 1} searchQuery={props.searchQuery} />}
         </For>
       </Show>
 

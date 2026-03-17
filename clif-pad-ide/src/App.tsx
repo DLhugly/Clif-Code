@@ -220,7 +220,13 @@ const App: Component = () => {
             style={{ width: `${sidebarWidth()}px` }}
             class="h-full shrink-0"
           >
-            <RightSidebar onOpenFolder={handleOpenFolder} />
+            <RightSidebar onOpenFolder={handleOpenFolder} onOpenRecent={async (path) => {
+              await openProject(path);
+              if (terminalRef) {
+                terminalRef.sendCommand(`cd ${JSON.stringify(path)}\n`);
+              }
+              await initGit();
+            }} />
           </div>
         </Show>
       </div>

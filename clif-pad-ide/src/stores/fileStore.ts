@@ -12,6 +12,39 @@ const LARGE_FILE_THRESHOLD = 512 * 1024; // 512 KB
 // Project root
 const [projectRoot, setProjectRoot] = createSignal<string | null>(null);
 
+// Recent folders (persisted in localStorage, reactive via signal)
+const RECENT_FOLDERS_KEY = "clif-recent-folders";
+const MAX_RECENT_FOLDERS = 10;
+
+function loadRecentFromStorage(): string[] {
+  try {
+    const stored = localStorage.getItem(RECENT_FOLDERS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+const [recentFolders, setRecentFolders] = createSignal<string[]>(loadRecentFromStorage());
+
+function getRecentFolders(): string[] {
+  return recentFolders();
+}
+
+function addRecentFolder(path: string) {
+  const folders = recentFolders().filter((f) => f !== path);
+  folders.unshift(path);
+  if (folders.length > MAX_RECENT_FOLDERS) folders.length = MAX_RECENT_FOLDERS;
+  localStorage.setItem(RECENT_FOLDERS_KEY, JSON.stringify(folders));
+  setRecentFolders(folders);
+}
+
+function removeRecentFolder(path: string) {
+  const folders = recentFolders().filter((f) => f !== path);
+  localStorage.setItem(RECENT_FOLDERS_KEY, JSON.stringify(folders));
+  setRecentFolders(folders);
+}
+
 // File tree
 const [fileTree, setFileTree] = createSignal<FileEntry[]>([]);
 const [expandedDirs, setExpandedDirs] = createStore<Record<string, boolean>>({});
@@ -44,6 +77,7 @@ async function loadDirectory(path: string): Promise<FileEntry[]> {
 
 async function openProject(path: string) {
   setProjectRoot(path);
+  addRecentFolder(path);
   const entries = await loadDirectory(path);
   setFileTree(entries);
 
@@ -516,4 +550,6 @@ export {
   closeFilesToRight,
   openDiff,
   togglePreview,
+  getRecentFolders,
+  removeRecentFolder,
 };
