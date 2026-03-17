@@ -1,8 +1,9 @@
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { GitFileStatus, GitBranch, GitLogEntry } from "../types/git";
-import { gitStatus, gitDiff, gitBranches, gitCheckout, gitStage, gitUnstage, gitCommit, gitDiffStat, gitDiffNumstat, gitInit, gitLog, gitFetch, gitPull, gitPush, gitCreateBranch, gitAheadBehind, gitRemoteUrl } from "../lib/tauri";
+import { gitStatus, gitDiff, gitBranches, gitCheckout, gitStage, gitUnstage, gitCommit, gitDiffStat, gitDiffNumstat, gitInit, gitLog, gitFetch, gitPull, gitPush, gitCreateBranch, gitAheadBehind, gitRemoteUrl, onGitChanged } from "../lib/tauri";
 import { projectRoot } from "./fileStore";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 
 const [currentBranch, setCurrentBranch] = createSignal<string>("");
 const [isGitRepo, setIsGitRepo] = createSignal(false);
@@ -198,6 +199,8 @@ async function pushRemote() {
 }
 
 let branchPollTimer: ReturnType<typeof setInterval> | undefined;
+let unlistenGitChanged: UnlistenFn | undefined;
+let gitChangeDebounce: ReturnType<typeof setTimeout> | undefined;
 
 async function refreshRemoteUrl() {
   const root = projectRoot();
@@ -218,6 +221,17 @@ async function initGit() {
   // Poll for branch changes from external tools (e.g. CLI git checkout)
   if (branchPollTimer) clearInterval(branchPollTimer);
   branchPollTimer = setInterval(refreshBranches, 3000);
+
+  // Listen for .git/ state changes (commits, staging, branch switches from terminal)
+  unlistenGitChanged?.();
+  unlistenGitChanged = await onGitChanged(() => {
+    // Debounce — git operations often touch multiple files in rapid succession
+    clearTimeout(gitChangeDebounce);
+    gitChangeDebounce = setTimeout(() => {
+      refreshGitStatus();
+      refreshBranches();
+    }, 300);
+  });
 }
 
 export {

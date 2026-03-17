@@ -224,3 +224,9 @@ export function onFileChanged(
 ): Promise<UnlistenFn> {
   return listen("file-changed", (event) => callback(event.payload as any));
 }
+
+export function onGitChanged(
+  callback: (data: { path: string; kind: string }) => void
+): Promise<UnlistenFn> {
+  return listen("git-changed", (event) => callback(event.payload as any));
+}

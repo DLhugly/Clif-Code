@@ -62,6 +62,19 @@ pub fn start_watching(
                 for path in &event.paths {
                     let path_str = path.to_string_lossy().to_string();
 
+                    // Emit git-changed for .git/ mutations that signal state changes
+                    if is_git_state_change(&path_str) {
+                        let _ = app_clone.emit_to(
+                            &label,
+                            "git-changed",
+                            FileChangeEvent {
+                                path: path_str,
+                                kind: kind_str.to_string(),
+                            },
+                        );
+                        continue;
+                    }
+
                     // Skip hidden files/dirs, node_modules, target, .git
                     if should_ignore(&path_str) {
                         continue;
@@ -101,6 +114,18 @@ pub fn stop_watching(state: &WatcherState, window_label: &str) {
 
 pub fn stop_all_for_window(state: &WatcherState, window_label: &str) {
     stop_watching(state, window_label);
+}
+
+/// Returns true for .git/ paths that indicate a meaningful state change
+/// (commit, stage/unstage, branch switch, etc.)
+fn is_git_state_change(path: &str) -> bool {
+    if !path.contains("/.git/") {
+        return false;
+    }
+    // index = staging area, HEAD = current ref, refs/ = branches/tags,
+    // COMMIT_EDITMSG = after commit
+    let triggers = ["/index", "/HEAD", "/refs/", "/COMMIT_EDITMSG"];
+    triggers.iter().any(|t| path.ends_with(t) || path.contains(&format!("/.git{}", t)))
 }
 
 fn should_ignore(path: &str) -> bool {
