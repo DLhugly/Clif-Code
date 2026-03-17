@@ -1,3 +1,15 @@
+# [1.21.0](https://github.com/DLhugly/Clif-Code/compare/v1.20.0...v1.21.0) (2026-03-17)
+
+
+### Bug Fixes
+
+* enable text selection in markdown preview ([162ccf8](https://github.com/DLhugly/Clif-Code/commit/162ccf872dab21eb507591ab8231814db32c976f))
+
+
+### Features
+
+* auto-refresh git status when .git state changes from terminal ([a58e6be](https://github.com/DLhugly/Clif-Code/commit/a58e6be68a8e7736da7c43d1a7c1ccba9c321b3e))
+
 # [1.20.0](https://github.com/DLhugly/Clif-Code/compare/v1.19.0...v1.20.0) (2026-03-17)
 
 
