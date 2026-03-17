@@ -1,3 +1,10 @@
+## [1.21.1](https://github.com/DLhugly/Clif-Code/compare/v1.21.0...v1.21.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* ensure text selection works in markdown preview on WebKit ([28a79df](https://github.com/DLhugly/Clif-Code/commit/28a79dfe42ed76907f43b5695f6426d7d83c5750))
+
 # [1.21.0](https://github.com/DLhugly/Clif-Code/compare/v1.20.0...v1.21.0) (2026-03-17)
 
 
