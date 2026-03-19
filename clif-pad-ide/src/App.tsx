@@ -12,6 +12,7 @@ import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } 
 import { initGit } from "./stores/gitStore";
 import { configureMonaco } from "./lib/monaco-setup";
 import { loadGoogleFont, applyUiFont } from "./lib/fonts";
+import { createTerminalTab } from "./stores/terminalStore";
 import type { TerminalPanelRef } from "./components/terminal/TerminalPanel";
 
 const TerminalPanel = lazy(() => import("./components/terminal/TerminalPanel"));
@@ -125,6 +126,8 @@ const App: Component = () => {
 
     registerKeybinding("s", ["ctrl"], saveActiveFile, "Save file");
     registerKeybinding("`", ["ctrl"], toggleTerminal, "Toggle terminal");
+    registerKeybinding("`", ["ctrl", "shift"], () => createTerminalTab(), "New terminal");
+    registerKeybinding("k", ["meta"], () => terminalRef?.clearTerminal(), "Clear terminal");
     registerKeybinding("b", ["ctrl"], toggleSidebar, "Toggle sidebar");
     registerKeybinding("p", ["ctrl", "shift"], () => setShowCommandPalette(true), "Command palette");
     registerKeybinding("v", ["ctrl", "shift"], togglePreview, "Toggle markdown preview");

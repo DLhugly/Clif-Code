@@ -37,7 +37,7 @@ jobs:
           echo "Version: ${{ steps.semantic.outputs.new_release_version }}"
 
   # --------------------------------------------------
-  # Publish ClifCode to crates.io
+  # Publish ClifCode TUI to crates.io
   # --------------------------------------------------
   publish-crates:
     needs: semantic-release
@@ -65,23 +65,16 @@ jobs:
 
   # --------------------------------------------------
   # Trigger ClifCode TUI binary builds (all platforms + npm)
-  # Pushes a clifcode-v* tag which triggers clifcode-release.yml
   # --------------------------------------------------
   trigger-clifcode-release:
     needs: semantic-release
     if: needs.semantic-release.outputs.new-release-published == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Tag and trigger ClifCode binary release
+      - name: Trigger ClifCode binary builds
         run: |
           VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
-          git tag "clifcode-v${VERSION}"
-          git push origin "clifcode-v${VERSION}"
+          gh workflow run clifcode-release.yml -R "${{ github.repository }}" -f version="${VERSION}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
