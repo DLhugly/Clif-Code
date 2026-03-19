@@ -1,3 +1,15 @@
+# [1.22.0](https://github.com/DLhugly/Clif-Code/compare/v1.21.1...v1.22.0) (2026-03-19)
+
+
+### Bug Fixes
+
+* overhaul ClifCode TUI reliability — context compaction, error handling, and config fixes ([2ef5b29](https://github.com/DLhugly/Clif-Code/commit/2ef5b291925b2f960248d00e1f96549b5aeb7f4a))
+
+
+### Features
+
+* add auto-update, command safety, and ship-readiness fixes to ClifCode TUI ([81e48a1](https://github.com/DLhugly/Clif-Code/commit/81e48a179197bf2a635429205634a139387b94c7))
+
 ## [1.21.1](https://github.com/DLhugly/Clif-Code/compare/v1.21.0...v1.21.1) (2026-03-17)
 
 
