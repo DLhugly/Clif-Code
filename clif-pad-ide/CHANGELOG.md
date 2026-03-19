@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/DLhugly/Clif-Code/compare/v1.22.0...v1.23.0) (2026-03-19)
+
+
+### Features
+
+* add multi-terminal tabs to ClifPad, fix ClifCode TUI release pipeline ([f22b07a](https://github.com/DLhugly/Clif-Code/commit/f22b07a6df4536e5e01e6af9bd37a8b7dc4124f1))
+
 # [1.22.0](https://github.com/DLhugly/Clif-Code/compare/v1.21.1...v1.22.0) (2026-03-19)
 
 
