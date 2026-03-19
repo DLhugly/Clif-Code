@@ -91,7 +91,7 @@ struct Cli {
     workspace: Option<PathBuf>,
 
     /// Max tokens to generate per response
-    #[arg(long, default_value = "1024")]
+    #[arg(long, default_value = "4096")]
     max_tokens: usize,
 
     /// Non-interactive: run a single prompt and exit
@@ -179,7 +179,6 @@ fn run_turn(
     input: &str,
     workspace: &mut String,
     autonomy: &Autonomy,
-    auto_commit: bool,
 ) -> Result<backend::TokenUsage> {
     // Add the user message to the ongoing conversation
     conv.messages
@@ -196,20 +195,33 @@ fn run_turn(
         ui::print_thinking();
 
         // Compact before sending to avoid context overflow
-        session::compact_messages(&mut conv.messages, 100_000);
+        session::compact_messages(&mut conv.messages, 60_000);
 
         // Use streaming for API backend — tokens print live
         let response = match bk.chat_stream(&conv.messages, Some(&tool_defs)) {
             Ok(r) => r,
             Err(e) => {
                 let msg = format!("{e}");
-                if msg.contains("status code 400") {
-                    // Likely context overflow — compact aggressively and retry once
+                if msg.contains("status code 400") || msg.contains("context_length") || msg.contains("too many tokens") {
                     ui::clear_thinking();
-                    ui::print_dim("  (context too large — compacting and retrying)");
-                    session::compact_messages(&mut conv.messages, 30_000);
+                    ui::print_dim("  (context too large — compacting and retrying...)");
+                    session::compact_messages(&mut conv.messages, 20_000);
                     ui::print_thinking();
-                    bk.chat_stream(&conv.messages, Some(&tool_defs))?
+                    match bk.chat_stream(&conv.messages, Some(&tool_defs)) {
+                        Ok(r) => r,
+                        Err(e2) => {
+                            let msg2 = format!("{e2}");
+                            if msg2.contains("status code 400") || msg2.contains("context_length") {
+                                ui::clear_thinking();
+                                ui::print_dim("  (still too large — aggressive compaction...)");
+                                session::compact_messages(&mut conv.messages, 8_000);
+                                ui::print_thinking();
+                                bk.chat_stream(&conv.messages, Some(&tool_defs))?
+                            } else {
+                                return Err(e2);
+                            }
+                        }
+                    }
                 } else {
                     return Err(e);
                 }
@@ -258,14 +270,16 @@ fn run_turn(
                     "tool_call_id": api_call.id,
                     "content": format!("Task complete: {summary}")
                 }));
-                if auto_commit && !files_changed.is_empty() && git::is_git_repo(workspace) {
-                    let msg = format!(
-                        "ClifCode: {}",
-                        summary.chars().take(72).collect::<String>()
-                    );
-                    match git::git_auto_commit(workspace, &msg) {
-                        Ok(hash) => ui::print_dim(&format!("    [committed {hash}]")),
-                        Err(e) => ui::print_dim(&format!("    [commit skipped: {e}]")),
+                if !files_changed.is_empty() && git::is_git_repo(workspace) {
+                    if ui::confirm("Commit changes?") {
+                        let msg = format!(
+                            "ClifCode: {}",
+                            summary.chars().take(72).collect::<String>()
+                        );
+                        match git::git_commit_with_confirmation(workspace, &msg) {
+                            Ok(hash) => ui::print_dim(&format!("    [committed {hash}]")),
+                            Err(e) => ui::print_dim(&format!("    [commit skipped: {e}]")),
+                        }
                     }
                 }
                 return Ok(turn_usage);
@@ -395,17 +409,19 @@ fn run_turn(
             }
         }
 
-        // Context compaction — 100k token budget (~400k chars)
-        session::compact_messages(&mut conv.messages, 100_000);
+        // Context compaction — 60k token budget
+        session::compact_messages(&mut conv.messages, 60_000);
     }
 
     ui::print_dim("  (reached turn limit)");
 
-    if auto_commit && !files_changed.is_empty() && git::is_git_repo(workspace) {
-        let msg = format!("ClifCode: modified {}", files_changed.join(", "));
-        match git::git_auto_commit(workspace, &msg) {
-            Ok(hash) => ui::print_dim(&format!("    [committed {hash}]")),
-            Err(e) => ui::print_dim(&format!("    [commit skipped: {e}]")),
+    if !files_changed.is_empty() && git::is_git_repo(workspace) {
+        if ui::confirm("Commit changes?") {
+            let msg = format!("ClifCode: modified {}", files_changed.join(", "));
+            match git::git_commit_with_confirmation(workspace, &msg) {
+                Ok(hash) => ui::print_dim(&format!("    [committed {hash}]")),
+                Err(e) => ui::print_dim(&format!("    [commit skipped: {e}]")),
+            }
         }
     }
 
@@ -692,7 +708,7 @@ fn main() -> Result<()> {
     if cli.prompt.is_some() {
         let bk = resolve_backend(&cli)?;
         let mut conv = Conversation::new(&workspace_str, &autonomy, &[]);
-        let usage = run_turn(&bk, &mut conv, cli.prompt.as_ref().unwrap(), &mut workspace_str, &autonomy, false)?;
+        let usage = run_turn(&bk, &mut conv, cli.prompt.as_ref().unwrap(), &mut workspace_str, &autonomy)?;
         if usage.prompt_tokens > 0 || usage.completion_tokens > 0 {
             ui::print_usage(usage.prompt_tokens, usage.completion_tokens);
         }
@@ -704,7 +720,6 @@ fn main() -> Result<()> {
     let mut bk = resolve_backend(&cli)?;
 
     let mut context_files: Vec<String> = Vec::new();
-    let auto_commit = git::is_git_repo(&workspace_str);
     let mut session_prompt_tokens: usize = 0;
     let mut session_completion_tokens: usize = 0;
     let mut session_id = session::new_session_id();
@@ -1013,7 +1028,6 @@ fn main() -> Result<()> {
             input,
             &mut workspace_str,
             &autonomy,
-            auto_commit,
         ) {
             Ok(usage) => {
                 if usage.prompt_tokens > 0 || usage.completion_tokens > 0 {

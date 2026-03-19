@@ -4,7 +4,7 @@ use crate::ui;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const MAX_TURNS: usize = 7;
+pub const MAX_TURNS: usize = 25;
 
 /// Tool call from the API response (OpenAI format)
 #[derive(Debug, Clone)]

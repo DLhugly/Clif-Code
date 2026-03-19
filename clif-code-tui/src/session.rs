@@ -76,16 +76,28 @@ pub fn new_session_id() -> String {
     format!("{ts:x}")
 }
 
-/// Rough token estimate (~4 chars per token)
+/// Token estimate (~4 chars per token). Counts all message fields: content,
+/// tool_calls arguments, tool_call IDs, and structural overhead.
 pub fn estimate_tokens(messages: &[serde_json::Value]) -> usize {
     messages
         .iter()
         .map(|m| {
-            m.get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .len()
-                / 4
+            let mut chars: usize = 0;
+            if let Some(c) = m.get("content").and_then(|v| v.as_str()) {
+                chars += c.len();
+            }
+            if let Some(tc) = m.get("tool_calls").and_then(|v| v.as_array()) {
+                for call in tc {
+                    if let Some(args) = call.pointer("/function/arguments").and_then(|v| v.as_str()) {
+                        chars += args.len();
+                    }
+                    if let Some(name) = call.pointer("/function/name").and_then(|v| v.as_str()) {
+                        chars += name.len();
+                    }
+                }
+            }
+            chars += 20; // role, structure overhead per message
+            chars / 4
         })
         .sum()
 }

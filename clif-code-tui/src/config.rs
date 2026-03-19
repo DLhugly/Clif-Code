@@ -92,6 +92,31 @@ pub fn saved_api_url() -> Option<String> {
 
 /// Interactive first-run setup. Returns (key, url, model) or None on cancel.
 pub fn interactive_setup() -> Option<(String, String, String)> {
+    fn fetch_openai_models(api_key: &str) -> Vec<String> {
+        let resp = ureq::get("https://api.openai.com/v1/models")
+            .set("Authorization", &format!("Bearer {api_key}"))
+            .call();
+
+        match resp {
+            Ok(r) => {
+                if let Ok(json) = r.into_json::<serde_json::Value>() {
+                    let empty = vec![];
+                    let mut models: Vec<String> = json["data"]
+                        .as_array()
+                        .unwrap_or(&empty)
+                        .iter()
+                        .filter_map(|m| m["id"].as_str().map(|s| s.to_string()))
+                        .collect();
+                    models.sort();
+                    models
+                } else {
+                    vec![]
+                }
+            }
+            Err(_) => vec![],
+        }
+    }
+
     println!();
     println!("  {}{}Setup{}", ui::BOLD, ui::YELLOW, ui::RESET);
     println!(
@@ -117,7 +142,7 @@ pub fn interactive_setup() -> Option<(String, String, String)> {
     };
 
     let key = if provider.needs_key {
-        let k = ui::prompt_input("  API key:");
+        let k = saved_api_key().unwrap_or_else(|| ui::prompt_input("  API key:"));
         if k.is_empty() {
             println!("  {}No key — skipping.{}", ui::DIM, ui::RESET);
             return None;
@@ -127,7 +152,17 @@ pub fn interactive_setup() -> Option<(String, String, String)> {
         String::new()
     };
 
-    let model = if provider.default_model.is_empty() {
+    let model = if provider.name == "OpenAI" {
+        let available_models = fetch_openai_models(&key);
+        if available_models.is_empty() {
+            ui::print_dim("  (could not fetch models — using default)");
+            provider.default_model.to_string()
+        } else {
+            let refs: Vec<&str> = available_models.iter().map(|s| s.as_str()).collect();
+            let model_choice = ui::select_menu("Choose a model:", &refs)?;
+            available_models[model_choice].clone()
+        }
+    } else if provider.default_model.is_empty() {
         ui::prompt_input("  Model name:")
     } else {
         ui::prompt_input_default("  Model:", provider.default_model)

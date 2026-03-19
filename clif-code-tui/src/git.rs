@@ -24,7 +24,7 @@ pub fn git_init(workspace: &str) -> Result<(), String> {
 }
 
 /// Auto-commit all changes with a descriptive message. Returns the commit hash.
-pub fn git_auto_commit(workspace: &str, message: &str) -> Result<String, String> {
+pub fn git_commit_with_confirmation(workspace: &str, message: &str) -> Result<String, String> {
     // Stage all changes
     let _ = Command::new("git")
         .args(["add", "-A"])

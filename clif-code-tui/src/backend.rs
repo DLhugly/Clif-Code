@@ -179,9 +179,18 @@ fn api_chat_with_tools(
         req = req.set("Authorization", &format!("Bearer {key}"));
     }
 
-    let resp = req
-        .send_string(&body.to_string())
-        .map_err(|e| anyhow::anyhow!("API request failed: {e}"))?;
+    let resp = match req.send_string(&body.to_string()) {
+        Ok(r) => r,
+        Err(ureq::Error::Status(code, response)) => {
+            let body_text: String = response.into_string().unwrap_or_default().chars().take(300).collect();
+            return Err(anyhow::anyhow!(
+                "API request failed: {url}: status code {code} — {body_text}"
+            ));
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!("API request failed: {url}: {e}"));
+        }
+    };
 
     let resp_body: serde_json::Value = resp.into_json()?;
 
@@ -235,9 +244,18 @@ fn api_chat_stream(
         req = req.set("Authorization", &format!("Bearer {key}"));
     }
 
-    let resp = req
-        .send_string(&body.to_string())
-        .map_err(|e| anyhow::anyhow!("API stream request failed: {e}"))?;
+    let resp = match req.send_string(&body.to_string()) {
+        Ok(r) => r,
+        Err(ureq::Error::Status(code, response)) => {
+            let body_text: String = response.into_string().unwrap_or_default().chars().take(300).collect();
+            return Err(anyhow::anyhow!(
+                "API stream request failed: {url}: status code {code} — {body_text}"
+            ));
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!("API stream request failed: {url}: {e}"));
+        }
+    };
 
     let reader = BufReader::new(resp.into_reader());
 
