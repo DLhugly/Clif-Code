@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/DLhugly/Clif-Code/compare/v1.23.1...v1.24.0) (2026-03-19)
+
+
+### Features
+
+* add ClifCode TUI binary builds to release pipeline ([e9ab12f](https://github.com/DLhugly/Clif-Code/commit/e9ab12fd7302c227a51df04db38a0f5c952da8f9))
+
 ## [1.23.1](https://github.com/DLhugly/Clif-Code/compare/v1.23.0...v1.23.1) (2026-03-19)
 
 
