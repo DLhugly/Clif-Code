@@ -1,3 +1,10 @@
+## [1.23.1](https://github.com/DLhugly/Clif-Code/compare/v1.23.0...v1.23.1) (2026-03-19)
+
+
+### Bug Fixes
+
+* add actions:write permission to trigger-clifcode-release job ([d4990b0](https://github.com/DLhugly/Clif-Code/commit/d4990b0824c118f1d38429931a3d9443a383024c))
+
 # [1.23.0](https://github.com/DLhugly/Clif-Code/compare/v1.22.0...v1.23.0) (2026-03-19)
 
 
