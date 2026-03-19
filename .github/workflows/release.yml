@@ -70,6 +70,8 @@ jobs:
     needs: semantic-release
     if: needs.semantic-release.outputs.new-release-published == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - name: Trigger ClifCode binary builds
         run: |
