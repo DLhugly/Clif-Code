@@ -63,6 +63,28 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+  # --------------------------------------------------
+  # Trigger ClifCode TUI binary builds (all platforms + npm)
+  # Pushes a clifcode-v* tag which triggers clifcode-release.yml
+  # --------------------------------------------------
+  trigger-clifcode-release:
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new-release-published == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and trigger ClifCode binary release
+        run: |
+          VERSION="${{ needs.semantic-release.outputs.new-release-version }}"
+          git tag "clifcode-v${VERSION}"
+          git push origin "clifcode-v${VERSION}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-macos:
     needs: semantic-release
     if: needs.semantic-release.outputs.new-release-published == 'true'

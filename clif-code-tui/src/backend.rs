@@ -448,7 +448,10 @@ fn extract_usage_from_obj(u: &serde_json::Value) -> Option<TokenUsage> {
     Some(TokenUsage { prompt_tokens: prompt, completion_tokens: completion })
 }
 
-/// Quick check if Ollama is running locally
+/// Quick check if Ollama is running locally (2s timeout to avoid blocking startup)
 pub fn detect_ollama() -> bool {
-    ureq::get("http://localhost:11434/api/tags").call().is_ok()
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(2))
+        .build();
+    agent.get("http://localhost:11434/api/tags").call().is_ok()
 }

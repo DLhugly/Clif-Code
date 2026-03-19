@@ -142,7 +142,15 @@ pub fn interactive_setup() -> Option<(String, String, String)> {
     };
 
     let key = if provider.needs_key {
-        let k = saved_api_key().unwrap_or_else(|| ui::prompt_input("  API key:"));
+        let saved_provider = load_config()
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let k = if saved_provider.as_deref() == Some(provider.name) {
+            saved_api_key().unwrap_or_else(|| ui::prompt_input("  API key:"))
+        } else {
+            ui::prompt_input("  API key:")
+        };
         if k.is_empty() {
             println!("  {}No key — skipping.{}", ui::DIM, ui::RESET);
             return None;

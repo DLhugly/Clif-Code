@@ -264,7 +264,7 @@ pub fn execute_tool(call: &ToolCall, workspace: &str, confirm_writes: bool, coll
         }
         ToolCall::ListFiles { path } => exec_list_files(workspace, path.as_deref()),
         ToolCall::Search { query, path } => exec_search(workspace, query, path.as_deref()),
-        ToolCall::RunCommand { command } => exec_run_command(workspace, command),
+        ToolCall::RunCommand { command } => exec_run_command(workspace, command, confirm_writes),
         ToolCall::ChangeDir { path } => {
             // Handled in run_turn — this is a fallback
             ui::print_tool_action("cd", path);
@@ -663,14 +663,28 @@ fn exec_search(workspace: &str, query: &str, path: Option<&str>) -> ToolResult {
     }
 }
 
-fn exec_run_command(workspace: &str, command: &str) -> ToolResult {
+fn exec_run_command(workspace: &str, command: &str, confirm: bool) -> ToolResult {
     ui::print_tool_action("run", command);
-    let output = std::process::Command::new("sh")
-        .args(["-c", command])
-        .current_dir(workspace)
-        .output();
-    match output {
-        Ok(out) => {
+
+    if confirm && !ui::confirm("Run this command?") {
+        return ToolResult { success: false, output: "User declined the command".into() };
+    }
+
+    const TIMEOUT_SECS: u64 = 30;
+    let ws = workspace.to_string();
+    let cmd = command.to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+        let result = std::process::Command::new("sh")
+            .args(["-c", &cmd])
+            .current_dir(&ws)
+            .output();
+        let _ = tx.send(result);
+    });
+
+    match rx.recv_timeout(std::time::Duration::from_secs(TIMEOUT_SECS)) {
+        Ok(Ok(out)) => {
             let stdout = String::from_utf8_lossy(&out.stdout);
             let stderr = String::from_utf8_lossy(&out.stderr);
             let combined: String = format!("{stdout}{stderr}").chars().take(4096).collect();
@@ -681,6 +695,13 @@ fn exec_run_command(workspace: &str, command: &str) -> ToolResult {
             }
             ToolResult { success: out.status.success(), output: combined }
         }
-        Err(e) => ToolResult { success: false, output: format!("Command error: {e}") },
+        Ok(Err(e)) => ToolResult { success: false, output: format!("Command error: {e}") },
+        Err(_) => {
+            ui::print_error(&format!("    Command timed out ({TIMEOUT_SECS}s)"));
+            ToolResult {
+                success: false,
+                output: format!("Error: command timed out after {TIMEOUT_SECS} seconds"),
+            }
+        }
     }
 }

@@ -19,6 +19,7 @@ mod repomap;
 mod session;
 mod tools;
 mod ui;
+mod update;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
@@ -64,6 +65,7 @@ impl std::fmt::Display for Autonomy {
 #[derive(Parser)]
 #[command(
     name = "clifcode",
+    version = env!("CARGO_PKG_VERSION"),
     about = "ClifCode — AI coding assistant",
     long_about = "AI coding assistant with tool-calling agent loop.\n\
         Works with any OpenAI-compatible API, Ollama, or local models.\n\
@@ -648,6 +650,24 @@ fn print_help() {
     }
     println!();
 
+    // Update group
+    println!(
+        "  {}{}\u{25c6} Updates{}",
+        ui::BOLD, ui::BRIGHT_BLUE, ui::RESET
+    );
+    let update_cmds = [
+        ("update", "Check for and install updates"),
+        ("version", "Show current version"),
+    ];
+    for (cmd, desc) in &update_cmds {
+        println!(
+            "    {}{}{:<12}{} {}{}{}",
+            ui::BOLD, ui::BRIGHT_BLUE, cmd, ui::RESET,
+            ui::DIM, desc, ui::RESET
+        );
+    }
+    println!();
+
     // Git group
     println!(
         "  {}{}\u{25c6} Git{}",
@@ -719,6 +739,10 @@ fn main() -> Result<()> {
     ui::print_logo();
     let mut bk = resolve_backend(&cli)?;
 
+    // Background update check (non-blocking, cached 24h)
+    let update_rx = update::check_in_background();
+    let mut pending_update: Option<(String, String)> = None;
+
     let mut context_files: Vec<String> = Vec::new();
     let mut session_prompt_tokens: usize = 0;
     let mut session_completion_tokens: usize = 0;
@@ -753,6 +777,12 @@ fn main() -> Result<()> {
 
     println!();
     ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string());
+
+    // Show update notification if the background check found a newer version
+    if let Ok(info) = update_rx.try_recv() {
+        update::print_update_notification(&info.0);
+        pending_update = Some(info);
+    }
 
     let stdin = io::stdin();
     loop {
@@ -1009,8 +1039,36 @@ fn main() -> Result<()> {
                 ui::print_session_cost(session_prompt_tokens, session_completion_tokens);
                 continue;
             }
-            "clear" => {
-                conv = Conversation::new(&workspace_str, &autonomy, &context_files);
+            "update" | "upgrade" => {
+                if pending_update.is_none() {
+                    ui::print_dim("  Checking for updates...");
+                    pending_update = update::check_for_update();
+                }
+                match &pending_update {
+                    Some((version, url)) => {
+                        match update::perform_update(url, version) {
+                            Ok(()) => {}
+                            Err(e) => ui::print_error(&e),
+                        }
+                    }
+                    None => {
+                        ui::print_success(&format!(
+                            "  Already on latest version ({})",
+                            update::current_version()
+                        ));
+                    }
+                }
+                continue;
+            }
+            "version" | "ver" | "v" => {
+                println!(
+                    "  {}ClifCode{} v{}",
+                    ui::BOLD, ui::RESET,
+                    update::current_version()
+                );
+                continue;
+            }
+            "clear" | "cls" => {
                 print!("\x1b[2J\x1b[H");
                 io::stdout().flush().unwrap();
                 ui::print_logo();
