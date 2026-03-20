@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/DLhugly/Clif-Code/compare/v1.25.4...v1.26.0) (2026-03-20)
+
+
+### Features
+
+* add copy button to chat messages, fix user message text selection ([44eaa45](https://github.com/DLhugly/Clif-Code/commit/44eaa45a748c0b9c29ee6a49a2afe1f73d9b7a23))
+
 ## [1.25.4](https://github.com/DLhugly/Clif-Code/compare/v1.25.3...v1.25.4) (2026-03-20)
 
 
