@@ -1,3 +1,10 @@
+## [1.25.2](https://github.com/DLhugly/Clif-Code/compare/v1.25.1...v1.25.2) (2026-03-20)
+
+
+### Bug Fixes
+
+* bump agent compaction threshold to 150K tokens ([8b79d31](https://github.com/DLhugly/Clif-Code/commit/8b79d31b92d55c41b27b3afe30766a67522c362a))
+
 ## [1.25.1](https://github.com/DLhugly/Clif-Code/compare/v1.25.0...v1.25.1) (2026-03-20)
 
 
