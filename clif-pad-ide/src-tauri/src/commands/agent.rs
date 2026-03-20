@@ -625,10 +625,10 @@ async fn run_agent_loop(
     let max_turns = 200; // Safety limit — compaction handles context
 
     for _turn in 0..max_turns {
-        // Auto-compact when context is getting large (~80% of typical 128K window)
+        // Auto-compact when context is getting large (~75% of 200K window)
         let estimated_tokens = estimate_conversation_tokens(&conversation);
-        if estimated_tokens > 80_000 {
-            compact_conversation(&mut conversation, 40_000);
+        if estimated_tokens > 150_000 {
+            compact_conversation(&mut conversation, 80_000);
             let _ = app.emit_to(label, "agent_stream", "\n*[context compacted]*\n");
         }
         // Check cancellation
