@@ -3,6 +3,53 @@ import { marked } from "marked";
 import { fontSize } from "../../stores/uiStore";
 import type { AgentMessage } from "../../types/agent";
 
+const CopyButton: Component<{ text: string }> = (props) => {
+  const [copied, setCopied] = createSignal(false);
+
+  const handleCopy = async (e: MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(props.text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
+  return (
+    <button
+      class="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+      style={{
+        position: "absolute",
+        top: "6px",
+        right: "6px",
+        width: "26px",
+        height: "26px",
+        "border-radius": "6px",
+        border: "none",
+        background: "color-mix(in srgb, var(--bg-base) 80%, transparent)",
+        "backdrop-filter": "blur(8px)",
+        color: copied() ? "var(--accent-green)" : "var(--text-muted)",
+        cursor: "pointer",
+      }}
+      onMouseEnter={(e) => { if (!copied()) (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+      onMouseLeave={(e) => { if (!copied()) (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+      onClick={handleCopy}
+      title={copied() ? "Copied!" : "Copy message"}
+    >
+      <Show when={copied()} fallback={
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      }>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </Show>
+    </button>
+  );
+};
+
 marked.setOptions({ async: false, breaks: true, gfm: true });
 
 const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
@@ -169,8 +216,9 @@ const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
       class={`flex ${isUser() ? "justify-end" : "justify-start"} px-3 py-2`}
     >
       <div
-        class={`max-w-[85%] rounded-2xl ${isUser() ? "rounded-br-md" : "rounded-bl-md"}`}
+        class={`max-w-[85%] rounded-2xl group ${isUser() ? "rounded-br-md" : "rounded-bl-md"}`}
         style={{
+          position: "relative",
           background: isUser()
             ? "var(--accent-primary)"
             : "var(--bg-surface)",
@@ -188,7 +236,7 @@ const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
         }}
       >
         <Show when={isUser()}>
-          <div class="whitespace-pre-wrap">{props.message.content}</div>
+          <div class="whitespace-pre-wrap" style={{ "user-select": "text", "-webkit-user-select": "text" }}>{props.message.content}</div>
         </Show>
         <Show when={isAssistant()}>
           <div class="agent-markdown" innerHTML={renderedHtml()} />
@@ -205,6 +253,9 @@ const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
               }}
             />
           </Show>
+        </Show>
+        <Show when={props.message.status !== "streaming"}>
+          <CopyButton text={props.message.content} />
         </Show>
       </div>
     </div>
