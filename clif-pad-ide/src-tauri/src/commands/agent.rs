@@ -288,15 +288,17 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 .and_then(|v| v.as_str())
                 .unwrap_or(workspace_dir);
 
-            let output = tokio::process::Command::new("sh")
-                .arg("-c")
-                .arg(command)
-                .current_dir(working_dir)
-                .output()
-                .await;
+            let output = tokio::time::timeout(
+                std::time::Duration::from_secs(30),
+                tokio::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(command)
+                    .current_dir(working_dir)
+                    .output()
+            ).await;
 
             match output {
-                Ok(out) => {
+                Ok(Ok(out)) => {
                     let stdout = String::from_utf8_lossy(&out.stdout);
                     let stderr = String::from_utf8_lossy(&out.stderr);
                     let mut result = String::new();
@@ -312,13 +314,13 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                     if result.is_empty() {
                         result = format!("Command completed with exit code {}", out.status.code().unwrap_or(-1));
                     }
-                    // Truncate long output
                     if result.len() > 20000 {
                         result = format!("{}\n\n... (truncated, {} total bytes)", &result[..20000], result.len());
                     }
                     result
                 }
-                Err(e) => format!("Error running command: {}", e),
+                Ok(Err(e)) => format!("Error running command: {}", e),
+                Err(_) => "Error: command timed out after 30 seconds".to_string(),
             }
         }
         "find_file" => {
@@ -854,8 +856,15 @@ async fn run_agent_loop(
         }
         conversation.push(assistant_msg);
 
-        // Execute each tool call
+        // Execute each tool call (with cancellation checks between each)
         for (_, (id, name, args_str)) in &sorted_tool_calls {
+            // Check cancellation before each tool execution
+            if cancel_rx.try_recv().is_ok() {
+                let _ = app.emit_to(label, "agent_stream", "\n*[Stopped by user]*\n");
+                let _ = app.emit_to(label, "agent_stream", "[DONE]");
+                return Ok(());
+            }
+
             let args: serde_json::Value =
                 serde_json::from_str(args_str).unwrap_or(json!({}));
 

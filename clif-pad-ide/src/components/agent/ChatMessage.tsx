@@ -64,6 +64,22 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
     }
   };
 
+  const toolSummary = () => {
+    const tc = toolCall();
+    if (!tc) return "";
+    const args = tc.arguments;
+    switch (props.message.toolName) {
+      case "run_command": return (args.command as string) || "";
+      case "read_file": return (args.path as string) || "";
+      case "write_file": return (args.path as string) || "";
+      case "edit_file": return (args.path as string) || "";
+      case "search": return `"${args.query || ""}" in ${args.path || "."}`;
+      case "find_file": return (args.name as string) || "";
+      case "list_files": return (args.path as string) || ".";
+      default: return "";
+    }
+  };
+
   return (
     <div
       class="rounded-lg overflow-hidden my-1"
@@ -111,6 +127,19 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
         <span class="font-mono font-medium" style={{ color: "var(--accent-primary)" }}>
           {props.message.toolName}
         </span>
+        <Show when={toolSummary()}>
+          <span
+            class="truncate font-mono"
+            style={{
+              color: props.message.toolName === "run_command" ? "var(--accent-yellow)" : "var(--text-muted)",
+              "max-width": "200px",
+              "font-size": "0.9em",
+            }}
+            title={toolSummary()}
+          >
+            {toolSummary()}
+          </span>
+        </Show>
         <Show when={toolCall()?.status === "running"}>
           <svg
             width="12"
