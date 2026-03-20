@@ -172,7 +172,7 @@ const App: Component = () => {
       {/* Main content: Left Panel + Editor (center) + Right Panel */}
       <div class="flex flex-1 min-h-0">
         {/* Left Panel: Terminal */}
-        <Show when={leftPanel() === "terminal"}>
+        <Show when={terminalVisible()}>
           <div
             style={{ width: `${terminalWidth()}%` }}
             class="h-full min-w-0 shrink-0"
