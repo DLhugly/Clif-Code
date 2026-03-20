@@ -833,6 +833,11 @@ const AgentChatPanel: Component = () => {
         .agent-markdown h1 { font-size: 1.2em; }
         .agent-markdown h2 { font-size: 1.1em; }
         .agent-markdown h3 { font-size: 1em; }
+        .agent-markdown,
+        .agent-markdown * {
+          user-select: text !important;
+          -webkit-user-select: text !important;
+        }
       `}</style>
     </div>
   );

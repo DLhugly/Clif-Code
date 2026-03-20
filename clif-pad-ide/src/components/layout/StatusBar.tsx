@@ -3,7 +3,7 @@ import { activeFile, projectRoot } from "../../stores/fileStore";
 
 const hasProject = () => !!projectRoot();
 import { isGitRepo, currentBranch, aheadBehind, fetchRemote } from "../../stores/gitStore";
-import { theme, THEMES, agentVisible, toggleAgentPanel } from "../../stores/uiStore";
+import { theme, THEMES, agentVisible, toggleAgentPanel, terminalVisible, toggleTerminal } from "../../stores/uiStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -136,14 +136,28 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
           </div>
         </Show>
 
-        {/* Terminal indicator */}
-        <div
+        {/* Terminal toggle */}
+        <button
           class="flex items-center gap-1.5 shrink-0"
-          style={{ color: "var(--accent-green)" }}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: terminalVisible() ? "var(--accent-green)" : "var(--text-muted)",
+            cursor: "pointer",
+            padding: "1px 4px",
+            "border-radius": "3px",
+            "font-size": "12px",
+            "font-family": "var(--font-sans)",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          onClick={() => toggleTerminal()}
+          title={terminalVisible() ? "Hide terminal" : "Show terminal"}
         >
           <TerminalIcon />
-          <span>Terminal</span>
-        </div>
+          <span>{terminalVisible() ? "Terminal" : "Show Terminal"}</span>
+        </button>
 
         {/* Divider */}
         <div style={{ width: "1px", height: "14px", background: "var(--border-default)", opacity: "0.4" }} />

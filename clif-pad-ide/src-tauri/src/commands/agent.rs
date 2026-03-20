@@ -381,6 +381,120 @@ fn resolve_path(path: &str, workspace_dir: &str) -> String {
     }
 }
 
+/// Estimate token count for the conversation (~4 chars per token).
+fn estimate_conversation_tokens(conversation: &[serde_json::Value]) -> usize {
+    conversation
+        .iter()
+        .map(|msg| {
+            let mut chars: usize = 0;
+            if let Some(c) = msg.get("content").and_then(|v| v.as_str()) {
+                chars += c.len();
+            }
+            if let Some(tcs) = msg.get("tool_calls").and_then(|v| v.as_array()) {
+                for tc in tcs {
+                    if let Some(args) = tc.pointer("/function/arguments").and_then(|v| v.as_str()) {
+                        chars += args.len();
+                    }
+                }
+            }
+            chars += 20;
+            chars / 4
+        })
+        .sum()
+}
+
+/// Claude Code-style tiered context compaction.
+///
+/// 1. Truncate large tool results (>2000 chars) to first/last 30 lines
+/// 2. Stub old tool results (beyond recent 8 messages) to "[compacted]"
+/// 3. Drop old conversation turns, keeping system prompt + recent 8 messages
+fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens: usize) {
+    if estimate_conversation_tokens(conversation) < target_tokens || conversation.len() < 8 {
+        return;
+    }
+
+    // Tier 1: Truncate large tool results
+    for msg in conversation.iter_mut() {
+        if msg.get("role").and_then(|v| v.as_str()) != Some("tool") {
+            continue;
+        }
+        let content = match msg.get("content").and_then(|v| v.as_str()) {
+            Some(c) if c.len() > 2000 => c.to_string(),
+            _ => continue,
+        };
+        let lines: Vec<&str> = content.lines().collect();
+        if lines.len() <= 60 {
+            continue;
+        }
+        let head: Vec<&str> = lines[..30].to_vec();
+        let tail: Vec<&str> = lines[lines.len() - 30..].to_vec();
+        let truncated = format!(
+            "{}\n\n[... {} lines omitted ...]\n\n{}",
+            head.join("\n"),
+            lines.len() - 60,
+            tail.join("\n")
+        );
+        msg["content"] = serde_json::Value::String(truncated);
+    }
+
+    if estimate_conversation_tokens(conversation) < target_tokens {
+        return;
+    }
+
+    // Tier 2: Stub old tool results (keep recent 8 messages intact)
+    let recent_start = conversation.len().saturating_sub(8);
+    for (i, msg) in conversation.iter_mut().enumerate() {
+        if i >= recent_start {
+            break;
+        }
+        if msg.get("role").and_then(|v| v.as_str()) != Some("tool") {
+            continue;
+        }
+        let content = msg.get("content").and_then(|v| v.as_str()).unwrap_or("");
+        if content.len() > 200 {
+            msg["content"] = serde_json::Value::String("[compacted — tool result omitted]".into());
+        }
+    }
+
+    if estimate_conversation_tokens(conversation) < target_tokens {
+        return;
+    }
+
+    // Tier 3: Drop old turns, keep system prompt (index 0) + recent 8
+    let keep_start = 1;
+    let keep_end = conversation.len().saturating_sub(8);
+    if keep_end <= keep_start {
+        return;
+    }
+
+    let mut summary_parts = Vec::new();
+    for msg in &conversation[keep_start..keep_end] {
+        let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("?");
+        if role == "tool" {
+            continue;
+        }
+        let content = msg.get("content").and_then(|v| v.as_str()).unwrap_or("");
+        let preview: String = content.chars().take(150).collect();
+        if !preview.is_empty() {
+            summary_parts.push(format!("[{}] {}...", role, preview));
+        }
+    }
+
+    let summary = format!(
+        "[Context compacted — {} earlier messages summarized]\n{}",
+        keep_end - keep_start,
+        summary_parts.join("\n")
+    );
+
+    let tail: Vec<_> = conversation[keep_end..].to_vec();
+    conversation.truncate(keep_start);
+    conversation.push(json!({
+        "role": "system",
+        "content": summary,
+    }));
+    conversation.extend(tail);
+}
+
 /// Get the provider URL
 fn get_provider_url(provider: &str) -> String {
     match provider {
@@ -508,9 +622,15 @@ async fn run_agent_loop(
 
     let tools = tool_definitions();
     let client = reqwest::Client::new();
-    let max_turns = 25;
+    let max_turns = 200; // Safety limit — compaction handles context
 
     for _turn in 0..max_turns {
+        // Auto-compact when context is getting large (~80% of typical 128K window)
+        let estimated_tokens = estimate_conversation_tokens(&conversation);
+        if estimated_tokens > 80_000 {
+            compact_conversation(&mut conversation, 40_000);
+            let _ = app.emit_to(label, "agent_stream", "\n*[context compacted]*\n");
+        }
         // Check cancellation
         if cancel_rx.try_recv().is_ok() {
             return Ok(());
@@ -552,6 +672,48 @@ async fn run_agent_loop(
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
+
+            // Context overflow — compact and retry once
+            if status.as_u16() == 400 && (body.contains("context_length") || body.contains("too many tokens") || body.contains("maximum context")) {
+                let _ = app.emit_to(label, "agent_stream", "\n*[context too large — compacting...]*\n");
+                compact_conversation(&mut conversation, 20_000);
+
+                let mut retry_body = json!({
+                    "model": model,
+                    "messages": conversation,
+                    "tools": tools,
+                    "stream": true,
+                });
+                if provider == "openrouter" {
+                    if let Some(obj) = retry_body.as_object_mut() {
+                        obj.insert("transforms".to_string(), json!(["middle-out"]));
+                    }
+                }
+
+                let mut retry_req = client.post(&url).header("Content-Type", "application/json");
+                if let Some(ref k) = key {
+                    retry_req = retry_req.header("Authorization", format!("Bearer {}", k));
+                }
+                if provider == "openrouter" {
+                    retry_req = retry_req
+                        .header("HTTP-Referer", "https://clif.dev")
+                        .header("X-Title", "ClifPad");
+                }
+
+                let retry_response = retry_req.json(&retry_body).send().await
+                    .map_err(|e| format!("Retry failed: {}", e))?;
+
+                if !retry_response.status().is_success() {
+                    let retry_body = retry_response.text().await.unwrap_or_default();
+                    return Err(format!("API error after compaction: {}", retry_body));
+                }
+                // Continue with retry_response — but we need to re-enter the stream parsing.
+                // For simplicity, signal the user to continue.
+                let _ = app.emit_to(label, "agent_stream", "\n*[Compacted. Send another message to continue.]*\n");
+                let _ = app.emit_to(label, "agent_stream", "[DONE]");
+                return Ok(());
+            }
+
             return Err(format!("API error {}: {}", status, body));
         }
 
@@ -705,8 +867,8 @@ async fn run_agent_loop(
         assistant_content = String::new();
     }
 
-    // Max turns reached
-    let _ = app.emit_to(label, "agent_stream", "\n\n*Agent reached maximum turn limit.*");
+    // Safety limit reached (should rarely happen with compaction)
+    let _ = app.emit_to(label, "agent_stream", "\n\n*Paused — send a message to continue.*");
     let _ = app.emit_to(label, "agent_stream", "[DONE]");
 
     Ok(())

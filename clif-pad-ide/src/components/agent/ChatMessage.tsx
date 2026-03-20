@@ -182,6 +182,9 @@ const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
           "font-size": `${fontSize()}px`,
           "line-height": "1.6",
           padding: "10px 14px",
+          "user-select": "text",
+          "-webkit-user-select": "text",
+          cursor: "text",
         }}
       >
         <Show when={isUser()}>
