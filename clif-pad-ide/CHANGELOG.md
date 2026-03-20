@@ -1,3 +1,10 @@
+## [1.25.3](https://github.com/DLhugly/Clif-Code/compare/v1.25.2...v1.25.3) (2026-03-20)
+
+
+### Bug Fixes
+
+* terminal toggle now uses terminalVisible signal instead of leftPanel slot ([5069575](https://github.com/DLhugly/Clif-Code/commit/50695759bcb48277724289742fd1acfd2c43dd46))
+
 ## [1.25.2](https://github.com/DLhugly/Clif-Code/compare/v1.25.1...v1.25.2) (2026-03-20)
 
 
