@@ -625,10 +625,12 @@ async fn run_agent_loop(
     let max_turns = 200; // Safety limit — compaction handles context
 
     for _turn in 0..max_turns {
-        // Auto-compact when context is getting large (~75% of 200K window)
+        // Auto-compact when context grows large. Our estimate runs ~40% below
+        // actual token count (JSON overhead, tokenizer differences), so 80K estimated
+        // maps to roughly 110-130K real tokens — well within 200K model limits.
         let estimated_tokens = estimate_conversation_tokens(&conversation);
-        if estimated_tokens > 150_000 {
-            compact_conversation(&mut conversation, 80_000);
+        if estimated_tokens > 80_000 {
+            compact_conversation(&mut conversation, 40_000);
             let _ = app.emit_to(label, "agent_stream", "\n*[context compacted]*\n");
         }
         // Check cancellation
@@ -848,18 +850,33 @@ async fn run_agent_loop(
             // Execute the tool
             let result = execute_tool(name, &args, &workspace_dir).await;
 
-            // Emit tool_result event
+            // Emit full result to frontend (UI can scroll)
             let _ = app.emit_to(
                 label,
                 "agent_tool_result",
                 json!({ "tool_call_id": id, "result": &result }),
             );
 
-            // Add to conversation
+            // Cap tool result before adding to conversation to prevent context explosion.
+            // A single uncapped read_file or list_files can add 300K+ tokens.
+            const MAX_RESULT_CHARS: usize = 12000;
+            let context_result = if result.len() > MAX_RESULT_CHARS {
+                let head = &result[..MAX_RESULT_CHARS / 2];
+                let tail = &result[result.len() - MAX_RESULT_CHARS / 2..];
+                format!(
+                    "{}\n\n[... {} chars omitted — use read_file with offset for full content ...]\n\n{}",
+                    head,
+                    result.len() - MAX_RESULT_CHARS,
+                    tail
+                )
+            } else {
+                result
+            };
+
             conversation.push(json!({
                 "role": "tool",
                 "tool_call_id": id,
-                "content": result,
+                "content": context_result,
             }));
         }
 
