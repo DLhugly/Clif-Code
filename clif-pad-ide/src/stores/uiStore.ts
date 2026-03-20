@@ -1,9 +1,9 @@
 import { createSignal } from "solid-js";
 
-export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai";
+export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai" | "nord" | "dracula" | "one-dark" | "tokyo-night" | "catppuccin" | "rose-pine" | "ayu-dark" | "vesper" | "poimandres" | "pale-fire";
 
-export type PanelSlot = "terminal" | "sidebar" | "none";
-export type LayoutPreset = "default" | "terminal-only" | "sidebar-only" | "zen";
+export type PanelSlot = "terminal" | "agent" | "sidebar" | "none";
+export type LayoutPreset = "default" | "agent-mode" | "terminal-only" | "sidebar-only" | "zen";
 
 export interface ThemeMeta {
   label: string;
@@ -23,6 +23,16 @@ export const THEMES: Record<Theme, ThemeMeta> = {
   forest:            { label: "Forest",           accent: "#22c55e", bg: "#0f1a0f", isDark: true },
   "solarized-dark":  { label: "Solarized Dark",   accent: "#268bd2", bg: "#002b36", isDark: true },
   monokai:           { label: "Monokai",          accent: "#a6e22e", bg: "#272822", isDark: true },
+  nord:              { label: "Nord",             accent: "#88c0d0", bg: "#2e3440", isDark: true },
+  dracula:           { label: "Dracula",          accent: "#bd93f9", bg: "#282a36", isDark: true },
+  "one-dark":        { label: "One Dark",         accent: "#61afef", bg: "#282c34", isDark: true },
+  "tokyo-night":     { label: "Tokyo Night",      accent: "#7aa2f7", bg: "#1a1b26", isDark: true },
+  catppuccin:        { label: "Catppuccin",        accent: "#cba6f7", bg: "#1e1e2e", isDark: true },
+  "rose-pine":       { label: "Rosé Pine",        accent: "#ebbcba", bg: "#191724", isDark: true },
+  "ayu-dark":        { label: "Ayu Dark",         accent: "#ffb454", bg: "#0a0e14", isDark: true },
+  vesper:            { label: "Vesper",            accent: "#ffc799", bg: "#101010", isDark: true },
+  poimandres:        { label: "Poimandres",        accent: "#a6accd", bg: "#1b1e28", isDark: true },
+  "pale-fire":       { label: "Pale Fire",        accent: "#b4637a", bg: "#faf4ed", isDark: false },
 };
 
 const [terminalWidth, setTerminalWidth] = createSignal(50);
@@ -34,12 +44,15 @@ const [fontSize, setFontSize] = createSignal(14);
 const [showCommandPalette, setShowCommandPalette] = createSignal(false);
 const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
+const [agentWidth, setAgentWidth] = createSignal(380);
+const [agentVisible, setAgentVisible] = createSignal(false);
 
 const [leftPanel, setLeftPanel] = createSignal<PanelSlot>("terminal");
 const [rightPanel, setRightPanel] = createSignal<PanelSlot>("sidebar");
 
 const LAYOUT_PRESETS: Record<LayoutPreset, { left: PanelSlot; right: PanelSlot }> = {
   "default": { left: "terminal", right: "sidebar" },
+  "agent-mode": { left: "terminal", right: "agent" },
   "terminal-only": { left: "terminal", right: "none" },
   "sidebar-only": { left: "none", right: "sidebar" },
   "zen": { left: "none", right: "none" },
@@ -88,6 +101,10 @@ function toggleSidebar() {
   setSidebarVisible(!sidebarVisible());
 }
 
+function toggleAgentPanel() {
+  setAgentVisible(!agentVisible());
+}
+
 export {
   terminalWidth,
   setTerminalWidth,
@@ -114,6 +131,11 @@ export {
   setLeftPanel,
   rightPanel,
   setRightPanel,
+  agentWidth,
+  setAgentWidth,
+  agentVisible,
+  setAgentVisible,
+  toggleAgentPanel,
   applyLayoutPreset,
   getCurrentPreset,
   LAYOUT_PRESETS,

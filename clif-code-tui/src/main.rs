@@ -716,6 +716,7 @@ fn main() -> Result<()> {
         .workspace
         .clone()
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    let workspace = workspace.canonicalize().unwrap_or(workspace);
     let mut workspace_str = workspace.to_string_lossy().to_string();
 
     let mut autonomy = match cli.autonomy.as_str() {
@@ -776,7 +777,7 @@ fn main() -> Result<()> {
     }
 
     println!();
-    ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string());
+    ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string(), update::current_version());
 
     // Show update notification if the background check found a newer version
     if let Ok(info) = update_rx.try_recv() {
@@ -1073,7 +1074,7 @@ fn main() -> Result<()> {
                 io::stdout().flush().unwrap();
                 ui::print_logo();
                 println!();
-                ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string());
+                ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string(), update::current_version());
                 continue;
             }
             _ => {}

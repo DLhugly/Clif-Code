@@ -44,8 +44,8 @@ pub fn print_logo() {
     println!();
 }
 
-pub fn print_banner(workspace: &str, backend_name: &str, mode: &str) {
-    println!("  {BOLD}{WHITE}AI coding assistant{RESET} {DIM}— works anywhere, ships fast{RESET}");
+pub fn print_banner(workspace: &str, backend_name: &str, mode: &str, version: &str) {
+    println!("  {BOLD}{WHITE}AI coding assistant{RESET} {DIM}— works anywhere, ships fast{RESET}  {DIM}v{version}{RESET}");
     println!();
 
     // Status pills

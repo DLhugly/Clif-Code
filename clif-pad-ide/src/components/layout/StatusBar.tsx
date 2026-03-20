@@ -1,7 +1,9 @@
 import { Component, Show, createSignal, onMount } from "solid-js";
 import { activeFile, projectRoot } from "../../stores/fileStore";
+
+const hasProject = () => !!projectRoot();
 import { isGitRepo, currentBranch, aheadBehind, fetchRemote } from "../../stores/gitStore";
-import { theme, THEMES } from "../../stores/uiStore";
+import { theme, THEMES, agentVisible, toggleAgentPanel } from "../../stores/uiStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -19,7 +21,7 @@ const SparkleIcon = () => (
   </svg>
 );
 
-const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
+const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => void; onLaunchClaude?: () => void }> = (props) => {
   const [appVersion, setAppVersion] = createSignal("...");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
   const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
@@ -143,6 +145,59 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
           <span>Terminal</span>
         </div>
 
+        {/* Divider */}
+        <div style={{ width: "1px", height: "14px", background: "var(--border-default)", opacity: "0.4" }} />
+
+        {/* Launch Clif Terminal */}
+        <button
+          class="flex items-center gap-1.5 shrink-0"
+          style={{
+            background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
+            color: hasProject() ? "var(--accent-primary)" : "var(--text-muted)",
+            border: "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)",
+            cursor: hasProject() ? "pointer" : "default",
+            "font-size": "11px",
+            "font-family": "var(--font-sans)",
+            "font-weight": "600",
+            opacity: hasProject() ? "1" : "0.5",
+            padding: "2px 10px",
+            "border-radius": "4px",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { if (hasProject()) { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 22%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-primary)"; } }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 12%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-primary) 25%, transparent)"; }}
+          onClick={() => { if (hasProject()) props.onLaunchClifCode?.(); }}
+          title="Launch ClifCode agent in terminal"
+        >
+          <TerminalIcon />
+          <span>Launch ClifCode</span>
+        </button>
+
+        {/* Launch Claude Terminal */}
+        <button
+          class="flex items-center gap-1.5 shrink-0"
+          style={{
+            background: "color-mix(in srgb, var(--accent-purple, #a855f7) 12%, transparent)",
+            color: hasProject() ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
+            border: "1px solid color-mix(in srgb, var(--accent-purple, #a855f7) 25%, transparent)",
+            cursor: hasProject() ? "pointer" : "default",
+            "font-size": "11px",
+            "font-family": "var(--font-sans)",
+            "font-weight": "600",
+            opacity: hasProject() ? "1" : "0.5",
+            padding: "2px 10px",
+            "border-radius": "4px",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { if (hasProject()) { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-purple, #a855f7) 22%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-purple, #a855f7)"; } }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-purple, #a855f7) 12%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-purple, #a855f7) 25%, transparent)"; }}
+          onClick={() => { if (hasProject()) props.onLaunchClaude?.(); }}
+          title="Launch Claude Code agent in terminal"
+        >
+          <TerminalIcon />
+          <span>Launch Claude</span>
+        </button>
+
         {/* File path */}
         <Show when={filePath()}>
           <div
@@ -181,6 +236,46 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
           </span>
         </Show>
 
+        {/* Agent chat toggle */}
+        <button
+          class="flex items-center gap-1.5"
+          style={{
+            background: agentVisible()
+              ? "var(--accent-primary)"
+              : "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
+            color: agentVisible() ? "#fff" : "var(--accent-primary)",
+            border: agentVisible()
+              ? "1px solid var(--accent-primary)"
+              : "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)",
+            "border-radius": "4px",
+            padding: "2px 10px",
+            cursor: "pointer",
+            "font-size": "11px",
+            "font-family": "var(--font-sans)",
+            "font-weight": "600",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            if (!agentVisible()) {
+              (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 22%, transparent)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-primary)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!agentVisible()) {
+              (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 12%, transparent)";
+              (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-primary) 25%, transparent)";
+            }
+          }}
+          onClick={() => toggleAgentPanel()}
+          title={agentVisible() ? "Close agent chat" : "Open agent chat"}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>{agentVisible() ? "Close Agent" : "Clif Agent"}</span>
+        </button>
+
         {/* Clif label with update indicator */}
         <Show when={!isClickable()}>
           <div
@@ -211,12 +306,14 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
             class="flex items-center gap-1.5"
             style={{
               color: updateStatus().state === "error"
-                ? "var(--accent-red, #ef4444)"
-                : "#fff",
+                ? "var(--accent-red)"
+                : "var(--accent-primary)",
               background: updateStatus().state === "error"
-                ? "var(--accent-red, #ef4444)22"
-                : "var(--accent-green)",
-              border: "none",
+                ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
+                : "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+              border: updateStatus().state === "error"
+                ? "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)"
+                : "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
               "border-radius": "4px",
               padding: "2px 8px",
               cursor: "pointer",

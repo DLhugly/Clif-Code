@@ -230,3 +230,44 @@ export function onGitChanged(
 ): Promise<UnlistenFn> {
   return listen("git-changed", (event) => callback(event.payload as any));
 }
+
+// Agent commands
+export async function agentChat(
+  messages: { role: string; content: string }[],
+  model: string,
+  apiKey: string | null,
+  provider: string,
+  workspaceDir: string,
+  context: string | null
+): Promise<void> {
+  return invoke("agent_chat", { messages, model, apiKey, provider, workspaceDir, context });
+}
+
+export async function agentStop(sessionId: string): Promise<void> {
+  return invoke("agent_stop", { sessionId });
+}
+
+// Agent event listeners
+export function onAgentStream(callback: (chunk: string) => void): Promise<UnlistenFn> {
+  return listen<string>("agent_stream", (event) => callback(event.payload));
+}
+
+export function onAgentToolCall(
+  callback: (data: { id: string; name: string; arguments: string }) => void
+): Promise<UnlistenFn> {
+  return listen("agent_tool_call", (event) => callback(event.payload as any));
+}
+
+export function onAgentToolResult(
+  callback: (data: { tool_call_id: string; result: string }) => void
+): Promise<UnlistenFn> {
+  return listen("agent_tool_result", (event) => callback(event.payload as any));
+}
+
+export function onAgentDone(callback: () => void): Promise<UnlistenFn> {
+  return listen("agent_done", () => callback());
+}
+
+export function onAgentError(callback: (error: string) => void): Promise<UnlistenFn> {
+  return listen<string>("agent_error", (event) => callback(event.payload));
+}

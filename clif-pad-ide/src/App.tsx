@@ -5,7 +5,7 @@ import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
 import ToastContainer from "./components/layout/ToastContainer";
-import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
+import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -16,11 +16,13 @@ import { createTerminalTab } from "./stores/terminalStore";
 import type { TerminalPanelRef } from "./components/terminal/TerminalPanel";
 
 const TerminalPanel = lazy(() => import("./components/terminal/TerminalPanel"));
+const AgentChatPanel = lazy(() => import("./components/agent/AgentChatPanel"));
 
 const App: Component = () => {
   let terminalRef: TerminalPanelRef | undefined;
   const [isDraggingTerminal, setIsDraggingTerminal] = createSignal(false);
   const [isDraggingSidebar, setIsDraggingSidebar] = createSignal(false);
+  const [isDraggingAgent, setIsDraggingAgent] = createSignal(false);
   const [showAbout, setShowAbout] = createSignal(false);
 
   function handleLaunchClaude() {
@@ -30,8 +32,9 @@ const App: Component = () => {
   }
 
   function handleLaunchClifCode() {
-    if (terminalRef && projectRoot()) {
-      terminalRef.sendCommand("clifcode\n");
+    const root = projectRoot();
+    if (terminalRef && root) {
+      terminalRef.sendCommand(`clifcode -w ${JSON.stringify(root)}\n`);
     }
   }
 
@@ -95,6 +98,25 @@ const App: Component = () => {
     document.addEventListener("mouseup", onMouseUp);
   }
 
+  function handleAgentResize(e: MouseEvent) {
+    e.preventDefault();
+    setIsDraggingAgent(true);
+
+    const onMouseMove = (e: MouseEvent) => {
+      const width = window.innerWidth - e.clientX;
+      setAgentWidth(Math.max(280, Math.min(700, width)));
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingAgent(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
   createEffect(async () => {
     const root = projectRoot();
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -145,7 +167,7 @@ const App: Component = () => {
       style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
     >
       {/* Top Bar */}
-      <TopBar onLaunchClaude={handleLaunchClaude} onLaunchClifCode={handleLaunchClifCode} onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
+      <TopBar onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
 
       {/* Main content: Left Panel + Editor (center) + Right Panel */}
       <div class="flex flex-1 min-h-0">
@@ -197,7 +219,7 @@ const App: Component = () => {
         </div>
 
         {/* Right Panel: Sidebar */}
-        <Show when={rightPanel() === "sidebar"}>
+        <Show when={sidebarVisible()}>
           {/* Sidebar Resize Handle */}
           <div
             class="shrink-0 cursor-col-resize"
@@ -232,10 +254,51 @@ const App: Component = () => {
             }} />
           </div>
         </Show>
+
+        {/* Agent Panel (independent, between editor and sidebar) */}
+        <Show when={agentVisible()}>
+          <div
+            class="shrink-0 cursor-col-resize"
+            style={{
+              width: "5px",
+              background: isDraggingAgent() ? "var(--accent-primary)" : "var(--border-default)",
+              transition: isDraggingAgent() ? "none" : "background 0.15s",
+            }}
+            onMouseDown={handleAgentResize}
+            onMouseEnter={(e) => {
+              if (!isDraggingAgent()) {
+                (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isDraggingAgent()) {
+                (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
+              }
+            }}
+          />
+
+          <div
+            style={{ width: `${agentWidth()}px` }}
+            class="h-full shrink-0"
+          >
+            <Suspense
+              fallback={
+                <div
+                  class="flex items-center justify-center h-full"
+                  style={{ color: "var(--text-muted)", background: "var(--bg-surface)" }}
+                >
+                  <span class="text-sm">Loading agent...</span>
+                </div>
+              }
+            >
+              <AgentChatPanel />
+            </Suspense>
+          </div>
+        </Show>
       </div>
 
       {/* Status Bar */}
-      <StatusBar onShowAbout={() => setShowAbout(true)} />
+      <StatusBar onShowAbout={() => setShowAbout(true)} onLaunchClifCode={handleLaunchClifCode} onLaunchClaude={handleLaunchClaude} />
 
       {/* About Modal */}
       <AboutModal open={showAbout()} onClose={() => setShowAbout(false)} />

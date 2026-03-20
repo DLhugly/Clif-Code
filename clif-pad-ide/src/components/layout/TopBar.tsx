@@ -1,5 +1,5 @@
 import { Component, Show, For, createSignal, onCleanup } from "solid-js";
-import { theme, applyTheme, fontSize, setUiFontSize, THEMES, applyLayoutPreset, getCurrentPreset, LAYOUT_PRESETS } from "../../stores/uiStore";
+import { theme, applyTheme, fontSize, setUiFontSize, THEMES, applyLayoutPreset, getCurrentPreset, LAYOUT_PRESETS, toggleSidebar, sidebarVisible } from "../../stores/uiStore";
 import type { Theme, LayoutPreset } from "../../stores/uiStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
@@ -156,6 +156,7 @@ const LayoutIcon = () => (
 
 const PRESET_LABELS: Record<LayoutPreset, { label: string; desc: string }> = {
   "default": { label: "Default", desc: "Terminal | Editor | Files" },
+  "agent-mode": { label: "Agent Mode", desc: "Terminal | Editor | Agent" },
   "terminal-only": { label: "Terminal + Editor", desc: "Terminal | Editor" },
   "sidebar-only": { label: "Editor + Files", desc: "Editor | Files" },
   "zen": { label: "Zen", desc: "Editor only" },
@@ -284,8 +285,6 @@ const GlobeIcon = () => (
 );
 
 const TopBar: Component<{
-  onLaunchClaude: () => void;
-  onLaunchClifCode: () => void;
   onOpenFolder: () => void;
   onOpenBrowser: () => void;
 }> = (props) => {
@@ -355,10 +354,10 @@ const TopBar: Component<{
         style={{ width: "78px", height: "48px", "flex-shrink": "0" }}
       />
 
-      {/* Logo + Project name */}
+      {/* Logo + ClifCode + Project name */}
       <div
-        class="flex items-center gap-2"
-        style={{ "flex-shrink": "0", "padding-left": "2px" }}
+        class="flex items-center gap-3"
+        style={{ "flex-shrink": "0", "padding-left": "2px", "margin-right": "16px" }}
       >
         <svg width="22" height="22" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -372,17 +371,26 @@ const TopBar: Component<{
           <polyline points="384 256 144 512 384 768" fill="none" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span
-          class="text-sm font-medium"
-          style={{
-            color: "var(--text-primary)",
-            "max-width": "160px",
-            overflow: "hidden",
-            "text-overflow": "ellipsis",
-            "white-space": "nowrap",
-          }}
+          class="text-sm font-semibold"
+          style={{ color: "var(--text-primary)", "white-space": "nowrap" }}
         >
-          {getProjectName() || "ClifPad"}
+          ClifCode
         </span>
+        <Show when={getProjectName()}>
+          <div style={{ width: "1px", height: "16px", background: "var(--border-default)", opacity: "0.6" }} />
+          <span
+            class="text-sm"
+            style={{
+              color: "var(--text-muted)",
+              "max-width": "180px",
+              overflow: "hidden",
+              "text-overflow": "ellipsis",
+              "white-space": "nowrap",
+            }}
+          >
+            {getProjectName()}
+          </span>
+        </Show>
       </div>
 
       {/* Spacer — also draggable */}
@@ -436,107 +444,145 @@ const TopBar: Component<{
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
 
-        {/* Theme dropdown */}
-        <span style={{ "font-size": "11px", color: "var(--text-muted)", "font-weight": "500" }}>Themes:</span>
+        {/* Theme picker */}
         <div ref={dropdownRef} style={{ position: "relative" }}>
           <button
-            class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-all duration-150"
+            class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all duration-150"
             style={{
               color: "var(--text-secondary)",
-              background: dropdownOpen() ? "var(--bg-hover)" : "transparent",
-              border: "none",
+              background: dropdownOpen() ? "var(--bg-hover)" : "var(--bg-hover)",
+              border: "1px solid var(--border-default)",
               cursor: "pointer",
             }}
-            onMouseEnter={(e) => {
-              if (!dropdownOpen()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!dropdownOpen()) {
-                (e.currentTarget as HTMLElement).style.background = "transparent";
-              }
-            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = dropdownOpen() ? "var(--bg-hover)" : "var(--bg-hover)"; }}
             onClick={toggleDropdown}
           >
-            {/* Theme swatch */}
+            {/* Paint palette icon */}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="13.5" cy="6.5" r="2.5" />
+              <circle cx="19" cy="13.5" r="2.5" />
+              <circle cx="6" cy="12" r="2.5" />
+              <circle cx="12" cy="19" r="2.5" />
+              <path d="M12 2a10 10 0 0 0-9.95 11.08A10 10 0 0 0 12 22a2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h1a2 2 0 0 0 2-2 10 10 0 0 0-7-12.92" />
+            </svg>
             <div
               style={{
-                width: "12px",
-                height: "12px",
-                "border-radius": "50%",
+                width: "10px", height: "10px", "border-radius": "50%",
                 background: THEMES[theme()].accent,
-                "box-shadow": `0 0 0 2px var(--bg-surface), 0 0 0 3px ${THEMES[theme()].accent}44`,
               }}
             />
-            <span>{THEMES[theme()].label}</span>
+            <span style={{ "font-weight": "500" }}>{THEMES[theme()].label}</span>
             <ChevronIcon />
           </button>
 
-          {/* Dropdown menu */}
           <Show when={dropdownOpen()}>
             <div
               style={{
                 position: "absolute",
-                top: "calc(100% + 4px)",
+                top: "calc(100% + 6px)",
                 right: "0",
                 background: "var(--bg-overlay)",
                 border: "1px solid var(--border-default)",
-                "border-radius": "var(--radius-lg)",
-                "box-shadow": "var(--shadow-lg)",
-                padding: "4px",
-                "min-width": "170px",
-                "max-height": "320px",
-                "overflow-y": "auto",
+                "border-radius": "12px",
+                "box-shadow": "0 12px 40px rgba(0,0,0,0.3)",
+                padding: "12px",
+                width: "420px",
                 "z-index": "200",
-                "backdrop-filter": "blur(20px)",
-                "-webkit-backdrop-filter": "blur(20px)",
+                "backdrop-filter": "blur(24px)",
+                "-webkit-backdrop-filter": "blur(24px)",
               }}
             >
-              <For each={themeKeys}>
-                {(t) => (
-                  <button
-                    class="flex items-center gap-3 w-full rounded-md px-3 py-2 text-sm transition-colors duration-100"
-                    style={{
-                      color: theme() === t ? "var(--text-primary)" : "var(--text-secondary)",
-                      background: theme() === t ? "var(--bg-active)" : "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      "text-align": "left",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (theme() !== t) {
-                        (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (theme() !== t) {
-                        (e.currentTarget as HTMLElement).style.background = "transparent";
-                      }
-                    }}
-                    onClick={() => handleThemeSelect(t)}
-                  >
-                    {/* Color swatch */}
-                    <div
-                      style={{
-                        width: "14px",
-                        height: "14px",
-                        "border-radius": "50%",
-                        background: THEMES[t].accent,
-                        "flex-shrink": "0",
-                        "box-shadow": theme() === t
-                          ? `0 0 0 2px var(--bg-active), 0 0 0 3px ${THEMES[t].accent}`
-                          : "none",
-                      }}
-                    />
-                    <span class="flex-1">{THEMES[t].label}</span>
-                    {/* Checkmark for active */}
-                    <Show when={theme() === t}>
-                      <CheckIcon />
-                    </Show>
-                  </button>
-                )}
-              </For>
+              {/* Dark themes */}
+              <div style={{ "font-size": "10px", "font-weight": "600", color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.05em", "margin-bottom": "6px" }}>
+                Dark
+              </div>
+              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "4px", "margin-bottom": "10px" }}>
+                <For each={themeKeys.filter(t => THEMES[t].isDark)}>
+                  {(t) => {
+                    const meta = THEMES[t];
+                    const isActive = () => theme() === t;
+                    return (
+                      <button
+                        class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all duration-100"
+                        style={{
+                          background: isActive() ? "var(--bg-active)" : "transparent",
+                          border: isActive() ? `1px solid ${meta.accent}66` : "1px solid transparent",
+                          cursor: "pointer",
+                          "text-align": "left",
+                        }}
+                        onMouseEnter={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                        onMouseLeave={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        onClick={() => handleThemeSelect(t)}
+                      >
+                        {/* Mini preview swatch */}
+                        <div
+                          style={{
+                            width: "28px", height: "20px", "border-radius": "4px",
+                            background: meta.bg,
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            display: "flex", "align-items": "center", "justify-content": "center",
+                            "flex-shrink": "0",
+                          }}
+                        >
+                          <div style={{ width: "10px", height: "3px", "border-radius": "1px", background: meta.accent }} />
+                        </div>
+                        <span style={{ "font-size": "12px", color: isActive() ? meta.accent : "var(--text-secondary)", "font-weight": isActive() ? "600" : "400", "white-space": "nowrap" }}>
+                          {meta.label}
+                        </span>
+                        <Show when={isActive()}>
+                          <CheckIcon />
+                        </Show>
+                      </button>
+                    );
+                  }}
+                </For>
+              </div>
+
+              {/* Light themes */}
+              <div style={{ "font-size": "10px", "font-weight": "600", color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.05em", "margin-bottom": "6px" }}>
+                Light
+              </div>
+              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "4px" }}>
+                <For each={themeKeys.filter(t => !THEMES[t].isDark)}>
+                  {(t) => {
+                    const meta = THEMES[t];
+                    const isActive = () => theme() === t;
+                    return (
+                      <button
+                        class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all duration-100"
+                        style={{
+                          background: isActive() ? "var(--bg-active)" : "transparent",
+                          border: isActive() ? `1px solid ${meta.accent}66` : "1px solid transparent",
+                          cursor: "pointer",
+                          "text-align": "left",
+                        }}
+                        onMouseEnter={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                        onMouseLeave={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        onClick={() => handleThemeSelect(t)}
+                      >
+                        <div
+                          style={{
+                            width: "28px", height: "20px", "border-radius": "4px",
+                            background: meta.bg,
+                            border: "1px solid rgba(0,0,0,0.12)",
+                            display: "flex", "align-items": "center", "justify-content": "center",
+                            "flex-shrink": "0",
+                          }}
+                        >
+                          <div style={{ width: "10px", height: "3px", "border-radius": "1px", background: meta.accent }} />
+                        </div>
+                        <span style={{ "font-size": "12px", color: isActive() ? meta.accent : "var(--text-secondary)", "font-weight": isActive() ? "600" : "400", "white-space": "nowrap" }}>
+                          {meta.label}
+                        </span>
+                        <Show when={isActive()}>
+                          <CheckIcon />
+                        </Show>
+                      </button>
+                    );
+                  }}
+                </For>
+              </div>
             </div>
           </Show>
         </div>
@@ -577,73 +623,24 @@ const TopBar: Component<{
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
 
-        {/* Launch ClifCode button */}
+        {/* Files & Git toggle */}
         <button
-          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150"
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150"
           style={{
-            background: hasProject()
-              ? "var(--bg-hover)"
-              : "var(--bg-hover)",
-            color: hasProject() ? "var(--text-primary)" : "var(--text-muted)",
-            border: hasProject() ? "1px solid var(--border-default)" : "none",
-            cursor: hasProject() ? "pointer" : "not-allowed",
-            opacity: hasProject() ? "1" : "0.6",
+            background: sidebarVisible() ? "var(--bg-active)" : "var(--bg-hover)",
+            color: sidebarVisible() ? "var(--text-primary)" : "var(--text-muted)",
+            border: "1px solid var(--border-default)",
+            cursor: "pointer",
           }}
-          onMouseEnter={(e) => {
-            if (hasProject()) {
-              (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
-              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (hasProject()) {
-              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-            }
-          }}
-          onClick={() => {
-            if (hasProject()) props.onLaunchClifCode();
-          }}
-          disabled={!hasProject()}
-          title={hasProject() ? "Launch ClifCode (offline AI) in terminal" : "Open a folder first"}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = sidebarVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+          onClick={() => toggleSidebar()}
+          title={sidebarVisible() ? "Hide Git/Files panel" : "Open Git/Files panel"}
         >
-          <ClifCodeIcon />
-          Launch ClifCode
-        </button>
-
-        {/* Launch Claude button */}
-        <button
-          class="flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-150"
-          style={{
-            background: hasProject()
-              ? `linear-gradient(135deg, var(--accent-primary), var(--accent-purple))`
-              : "var(--bg-hover)",
-            color: hasProject() ? "#fff" : "var(--text-muted)",
-            border: "none",
-            "box-shadow": hasProject() ? `0 2px 8px color-mix(in srgb, var(--accent-primary) 40%, transparent)` : "none",
-            cursor: hasProject() ? "pointer" : "not-allowed",
-            opacity: hasProject() ? "1" : "0.6",
-          }}
-          onMouseEnter={(e) => {
-            if (hasProject()) {
-              (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 16px color-mix(in srgb, var(--accent-primary) 50%, transparent)`;
-              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (hasProject()) {
-              (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 8px color-mix(in srgb, var(--accent-primary) 40%, transparent)`;
-              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-            }
-          }}
-          onClick={() => {
-            if (hasProject()) props.onLaunchClaude();
-          }}
-          disabled={!hasProject()}
-          title={hasProject() ? "Launch Claude Code in terminal" : "Open a folder first"}
-        >
-          <SparkleIcon />
-          Launch Claude
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+          {sidebarVisible() ? "Hide Git/Files" : "Open Git/Files"}
         </button>
       </div>
     </div>
