@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/DLhugly/Clif-Code/compare/v1.27.0...v1.28.0) (2026-03-20)
+
+
+### Features
+
+* agent chat tabs, file tree font scaling, copy button ([bd0633f](https://github.com/DLhugly/Clif-Code/commit/bd0633fb83ec902d447cb5482d3ae31957dcdf43))
+
 # [1.27.0](https://github.com/DLhugly/Clif-Code/compare/v1.26.0...v1.27.0) (2026-03-20)
 
 
