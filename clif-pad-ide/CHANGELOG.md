@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/DLhugly/Clif-Code/compare/v1.26.0...v1.27.0) (2026-03-20)
+
+
+### Features
+
+* show token usage and cost estimate in agent chat ([0f7f13f](https://github.com/DLhugly/Clif-Code/commit/0f7f13fb5f97e80556a5533bfc4345220b927692))
+
 # [1.26.0](https://github.com/DLhugly/Clif-Code/compare/v1.25.4...v1.26.0) (2026-03-20)
 
 
