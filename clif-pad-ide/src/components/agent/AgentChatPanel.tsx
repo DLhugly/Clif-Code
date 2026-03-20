@@ -3,9 +3,13 @@ import {
   agentMessages,
   agentStreaming,
   agentTokens,
+  agentTabs,
+  activeAgentTab,
   sendAgentMessage,
   stopAgent,
   startNewSession,
+  switchAgentTab,
+  removeAgentTab,
   initAgentListeners,
 } from "../../stores/agentStore";
 import { activeFile, projectRoot } from "../../stores/fileStore";
@@ -447,43 +451,89 @@ const AgentChatPanel: Component = () => {
         "font-size": "var(--ui-font-size)",
       }}
     >
-      {/* Header row 1: title + new session */}
+      {/* Header: tabs + new session */}
       <div
-        class="flex items-center justify-between shrink-0 px-3"
+        class="flex items-center shrink-0"
         style={{
           "border-bottom": "1px solid var(--border-muted)",
-          height: "36px",
+          height: "28px",
+          background: "var(--bg-surface)",
         }}
       >
-        <div class="flex items-center gap-2">
-          <SparkleIcon />
-          <span class="font-medium" style={{ color: "var(--text-primary)", "font-size": "13px" }}>
-            Agent
-          </span>
+        <div class="flex items-center flex-1 min-w-0 overflow-x-auto" style={{ "padding-left": "4px" }}>
+          {/* Saved tabs */}
+          <For each={agentTabs}>
+            {(tab) => (
+              <div
+                class="flex items-center shrink-0 cursor-pointer group"
+                style={{
+                  height: "28px",
+                  padding: "0 8px 0 10px",
+                  "font-size": "11px",
+                  color: activeAgentTab() === tab.id ? "var(--text-primary)" : "var(--text-muted)",
+                  background: activeAgentTab() === tab.id ? "var(--bg-base)" : "transparent",
+                  "border-right": "1px solid var(--border-default)",
+                  transition: "color 0.1s, background 0.1s",
+                }}
+                onClick={() => switchAgentTab(tab.id)}
+                title={tab.label}
+              >
+                <span style={{ opacity: activeAgentTab() === tab.id ? "1" : "0.6", "white-space": "nowrap", "max-width": "100px", overflow: "hidden", "text-overflow": "ellipsis", display: "inline-block" }}>
+                  {tab.label}
+                </span>
+                <button
+                  class="flex items-center justify-center"
+                  style={{
+                    width: "16px", height: "16px", "margin-left": "4px",
+                    "border-radius": "3px", border: "none",
+                    background: "transparent", color: "var(--text-muted)",
+                    cursor: "pointer", "font-size": "12px",
+                    opacity: "0", transition: "opacity 0.1s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "0"; e.currentTarget.style.background = "transparent"; }}
+                  onClick={(e) => { e.stopPropagation(); removeAgentTab(tab.id); }}
+                  title="Close tab"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </For>
+
+          {/* Current session indicator */}
+          <div
+            class="flex items-center shrink-0"
+            style={{
+              height: "28px",
+              padding: "0 10px",
+              "font-size": "11px",
+              color: "var(--text-primary)",
+              background: agentTabs.length > 0 ? "var(--bg-base)" : "transparent",
+              "border-right": agentTabs.length > 0 ? "1px solid var(--border-default)" : "none",
+            }}
+          >
+            <SparkleIcon />
+            <span style={{ "margin-left": "5px", "white-space": "nowrap" }}>
+              {agentMessages.length > 0 ? "Current" : "New Chat"}
+            </span>
+          </div>
         </div>
+
+        {/* New session button */}
         <button
-          class="flex items-center justify-center rounded p-1 transition-colors"
+          class="flex items-center justify-center shrink-0"
           style={{
-            color: "var(--text-muted)",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
+            width: "28px", height: "28px",
+            color: "var(--text-muted)", background: "transparent",
+            border: "none", cursor: "pointer", "font-size": "15px",
           }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
           onClick={startNewSession}
-          title="New session"
+          title="New chat"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          +
         </button>
       </div>
 

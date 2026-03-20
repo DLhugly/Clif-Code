@@ -6,11 +6,22 @@ import type { AgentMessage, ToolCall, AgentContext } from "../types/agent";
 import { settings } from "./settingsStore";
 import { projectRoot } from "./fileStore";
 
+interface AgentTab {
+  id: string;
+  label: string;
+  messages: AgentMessage[];
+  tokens: { prompt: number; completion: number; context: number };
+}
+
 const [agentMessages, setAgentMessages] = createStore<AgentMessage[]>([]);
 const [agentStreaming, setAgentStreaming] = createSignal(false);
 const [agentSessionId, setAgentSessionId] = createSignal<string | null>(null);
 const [agentError, setAgentError] = createSignal<string | null>(null);
 const [agentTokens, setAgentTokens] = createSignal({ prompt: 0, completion: 0, context: 0 });
+const [agentTabs, setAgentTabs] = createStore<AgentTab[]>([]);
+const [activeAgentTab, setActiveAgentTab] = createSignal("default");
+
+let tabCounter = 0;
 
 let unlisteners: UnlistenFn[] = [];
 let messageIdCounter = 0;
@@ -236,8 +247,57 @@ function clearAgentMessages() {
   setAgentError(null);
 }
 
+function saveCurrentTab() {
+  const currentId = activeAgentTab();
+  const msgs = [...agentMessages];
+  const tokens = agentTokens();
+  const idx = agentTabs.findIndex((t) => t.id === currentId);
+  if (idx !== -1) {
+    setAgentTabs(idx, "messages", msgs);
+    setAgentTabs(idx, "tokens", { ...tokens });
+  } else if (msgs.length > 0) {
+    const firstUserMsg = msgs.find((m) => m.role === "user");
+    const label = firstUserMsg
+      ? firstUserMsg.content.slice(0, 24) + (firstUserMsg.content.length > 24 ? "..." : "")
+      : `Chat ${agentTabs.length + 1}`;
+    setAgentTabs(produce((tabs) => tabs.push({ id: currentId, label, messages: msgs, tokens: { ...tokens } })));
+  }
+}
+
+function switchAgentTab(tabId: string) {
+  if (agentStreaming()) return;
+  saveCurrentTab();
+  const tab = agentTabs.find((t) => t.id === tabId);
+  if (tab) {
+    setActiveAgentTab(tabId);
+    setAgentMessages(tab.messages);
+    setAgentTokens(tab.tokens);
+    setAgentError(null);
+  }
+}
+
+function removeAgentTab(tabId: string) {
+  if (agentStreaming()) return;
+  setAgentTabs(produce((tabs) => {
+    const idx = tabs.findIndex((t) => t.id === tabId);
+    if (idx !== -1) tabs.splice(idx, 1);
+  }));
+  if (activeAgentTab() === tabId) {
+    const remaining = agentTabs[0];
+    if (remaining) {
+      switchAgentTab(remaining.id);
+    } else {
+      startNewSession();
+    }
+  }
+}
+
 function startNewSession() {
-  clearAgentMessages();
+  saveCurrentTab();
+  const newId = `chat-${++tabCounter}`;
+  setActiveAgentTab(newId);
+  setAgentMessages([]);
+  setAgentError(null);
   setAgentSessionId(null);
   setAgentTokens({ prompt: 0, completion: 0, context: 0 });
 }
@@ -248,9 +308,13 @@ export {
   agentSessionId,
   agentError,
   agentTokens,
+  agentTabs,
+  activeAgentTab,
   initAgentListeners,
   sendAgentMessage,
   stopAgent,
   clearAgentMessages,
   startNewSession,
+  switchAgentTab,
+  removeAgentTab,
 };

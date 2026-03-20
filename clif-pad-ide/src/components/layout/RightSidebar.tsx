@@ -190,7 +190,7 @@ const FileRow: Component<{
             color: getStatusColor(props.file.status),
             width: "14px",
             "text-align": "center",
-            "font-size": "11px",
+            "font-size": "0.85em",
           }}
         >
           {getStatusLabel(props.file.status)}
@@ -208,7 +208,7 @@ const FileRow: Component<{
               background: "var(--bg-base)",
               color: "var(--text-primary)",
               border: "1px solid var(--accent-blue)",
-              "font-size": "12px",
+              "font-size": "inherit",
               height: "20px",
               "font-family": "var(--font-sans)",
             }}
@@ -238,7 +238,7 @@ const FileRow: Component<{
           const stats = fileNumstats().get(props.file.path);
           if (!stats || (stats.insertions < 0 && stats.deletions < 0)) return null;
           return (
-            <span class="shrink-0 flex items-center gap-1 font-mono" style={{ "font-size": "10px" }}>
+            <span class="shrink-0 flex items-center gap-1 font-mono" style={{ "font-size": "0.8em" }}>
               <Show when={stats.insertions > 0}>
                 <span style={{ color: "var(--accent-green)" }}>+{stats.insertions}</span>
               </Show>
@@ -671,7 +671,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                 <input
                   type="text"
                   class="flex-1 min-w-0 outline-none bg-transparent"
-                  style={{ color: "var(--text-primary)", border: "none", "font-size": "12px" }}
+                  style={{ color: "var(--text-primary)", border: "none", "font-size": "inherit" }}
                   placeholder="Search files..."
                   value={searchQuery()}
                   onInput={(e) => setSearchQuery(e.currentTarget.value)}

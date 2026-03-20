@@ -93,7 +93,7 @@ const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: str
                           style={{
                             background: hovered() ? "var(--bg-hover)" : "transparent",
                             color: "var(--text-primary)",
-                            "font-size": "12px",
+                            "font-size": "inherit",
                           }}
                           onMouseEnter={() => setHovered(true)}
                           onMouseLeave={() => setHovered(false)}
@@ -104,7 +104,7 @@ const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: str
                           </svg>
                           <div class="flex flex-col flex-1 min-w-0">
                             <span class="truncate font-medium">{name()}</span>
-                            <span class="truncate" style={{ color: "var(--text-muted)", "font-size": "10px" }}>{folder}</span>
+                            <span class="truncate" style={{ color: "var(--text-muted)", "font-size": "0.85em" }}>{folder}</span>
                           </div>
                           <Show when={hovered()}>
                             <button
@@ -174,7 +174,7 @@ const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: str
                   background: "var(--bg-base)",
                   color: "var(--text-primary)",
                   border: "1px solid var(--accent-blue)",
-                  "font-size": "12px",
+                  "font-size": "inherit",
                   height: "20px",
                   "font-family": "var(--font-sans)",
                 }}
