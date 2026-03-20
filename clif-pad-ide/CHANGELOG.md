@@ -1,3 +1,10 @@
+## [1.25.4](https://github.com/DLhugly/Clif-Code/compare/v1.25.3...v1.25.4) (2026-03-20)
+
+
+### Bug Fixes
+
+* cap tool results to 12K chars to prevent context explosion ([a9a9e83](https://github.com/DLhugly/Clif-Code/commit/a9a9e835d1ea0d232847190963acd861b4573e45))
+
 ## [1.25.3](https://github.com/DLhugly/Clif-Code/compare/v1.25.2...v1.25.3) (2026-03-20)
 
 
