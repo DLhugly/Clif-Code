@@ -1,3 +1,10 @@
+## [1.28.1](https://github.com/DLhugly/Clif-Code/compare/v1.28.0...v1.28.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* agent transparency and safety — show commands, stop between tools, 30s timeout ([929c6a3](https://github.com/DLhugly/Clif-Code/commit/929c6a32bb711527533f76ca5a0d1043122a4acb))
+
 # [1.28.0](https://github.com/DLhugly/Clif-Code/compare/v1.27.0...v1.28.0) (2026-03-20)
 
 
