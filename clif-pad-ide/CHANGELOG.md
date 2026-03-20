@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/DLhugly/Clif-Code/compare/v1.24.0...v1.25.0) (2026-03-20)
+
+
+### Features
+
+* agent sidebar, multi-terminal tabs, 20 themes, and UI overhaul ([4d98e15](https://github.com/DLhugly/Clif-Code/commit/4d98e1594c0e6518325017f16efa08c1265d976c))
+
 # [1.24.0](https://github.com/DLhugly/Clif-Code/compare/v1.23.1...v1.24.0) (2026-03-19)
 
 
