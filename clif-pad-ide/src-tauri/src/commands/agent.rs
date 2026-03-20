@@ -643,6 +643,7 @@ async fn run_agent_loop(
             "messages": conversation,
             "tools": tools,
             "stream": true,
+            "stream_options": { "include_usage": true },
         });
 
         if provider == "openrouter" {
@@ -725,8 +726,10 @@ async fn run_agent_loop(
 
         let mut buffer = String::new();
         let mut assistant_content = String::new();
-        let mut tool_calls_map: HashMap<usize, (String, String, String)> = HashMap::new(); // index -> (id, name, args)
+        let mut tool_calls_map: HashMap<usize, (String, String, String)> = HashMap::new();
         let mut finish_reason = String::new();
+        let mut turn_prompt_tokens: u64 = 0;
+        let mut turn_completion_tokens: u64 = 0;
 
         while let Some(chunk_result) = stream.next().await {
             // Check cancellation between chunks
@@ -753,21 +756,28 @@ async fn run_agent_loop(
                         }
 
                         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
+                            // Extract usage from final chunk
+                            if let Some(usage) = parsed.get("usage") {
+                                if let Some(pt) = usage.get("prompt_tokens").and_then(|v| v.as_u64()) {
+                                    turn_prompt_tokens = pt;
+                                }
+                                if let Some(ct) = usage.get("completion_tokens").and_then(|v| v.as_u64()) {
+                                    turn_completion_tokens = ct;
+                                }
+                            }
+
                             if let Some(choices) = parsed.get("choices").and_then(|c| c.as_array()) {
                                 if let Some(choice) = choices.first() {
-                                    // Check finish_reason
                                     if let Some(fr) = choice.get("finish_reason").and_then(|v| v.as_str()) {
                                         finish_reason = fr.to_string();
                                     }
 
                                     if let Some(delta) = choice.get("delta") {
-                                        // Stream text content
                                         if let Some(content) = delta.get("content").and_then(|c| c.as_str()) {
                                             assistant_content.push_str(content);
                                             let _ = app.emit_to(label, "agent_stream", content);
                                         }
 
-                                        // Accumulate tool calls
                                         if let Some(tcs) = delta.get("tool_calls").and_then(|t| t.as_array()) {
                                             for tc in tcs {
                                                 let index = tc.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
@@ -800,9 +810,18 @@ async fn run_agent_loop(
             }
         }
 
+        // Emit usage for this turn
+        if turn_prompt_tokens > 0 || turn_completion_tokens > 0 {
+            let estimated_ctx = estimate_conversation_tokens(&conversation) as u64;
+            let _ = app.emit_to(label, "agent_usage", json!({
+                "prompt_tokens": turn_prompt_tokens,
+                "completion_tokens": turn_completion_tokens,
+                "estimated_context": estimated_ctx,
+            }));
+        }
+
         // If no tool calls, we're done
         if tool_calls_map.is_empty() || finish_reason != "tool_calls" {
-            // Signal stream done
             let _ = app.emit_to(label, "agent_stream", "[DONE]");
             return Ok(());
         }

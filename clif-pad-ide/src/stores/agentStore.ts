@@ -10,6 +10,7 @@ const [agentMessages, setAgentMessages] = createStore<AgentMessage[]>([]);
 const [agentStreaming, setAgentStreaming] = createSignal(false);
 const [agentSessionId, setAgentSessionId] = createSignal<string | null>(null);
 const [agentError, setAgentError] = createSignal<string | null>(null);
+const [agentTokens, setAgentTokens] = createSignal({ prompt: 0, completion: 0, context: 0 });
 
 let unlisteners: UnlistenFn[] = [];
 let messageIdCounter = 0;
@@ -157,6 +158,17 @@ async function initAgentListeners() {
       );
     })
   );
+
+  unlisteners.push(
+    await listen<{ prompt_tokens: number; completion_tokens: number; estimated_context: number }>("agent_usage", (event) => {
+      const { prompt_tokens, completion_tokens, estimated_context } = event.payload;
+      setAgentTokens((prev) => ({
+        prompt: prev.prompt + prompt_tokens,
+        completion: prev.completion + completion_tokens,
+        context: estimated_context,
+      }));
+    })
+  );
 }
 
 async function sendAgentMessage(content: string, context?: AgentContext) {
@@ -227,6 +239,7 @@ function clearAgentMessages() {
 function startNewSession() {
   clearAgentMessages();
   setAgentSessionId(null);
+  setAgentTokens({ prompt: 0, completion: 0, context: 0 });
 }
 
 export {
@@ -234,6 +247,7 @@ export {
   agentStreaming,
   agentSessionId,
   agentError,
+  agentTokens,
   initAgentListeners,
   sendAgentMessage,
   stopAgent,

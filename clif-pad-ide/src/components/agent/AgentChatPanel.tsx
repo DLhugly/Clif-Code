@@ -2,6 +2,7 @@ import { Component, For, Show, createSignal, createEffect, onMount } from "solid
 import {
   agentMessages,
   agentStreaming,
+  agentTokens,
   sendAgentMessage,
   stopAgent,
   startNewSession,
@@ -787,6 +788,17 @@ const AgentChatPanel: Component = () => {
           style={{ "font-size": `${fontSize() - 4}px`, color: "var(--text-muted)" }}
         >
           <span>Enter to send, Shift+Enter for newline</span>
+          <Show when={agentTokens().prompt > 0}>
+            <span style={{ "font-family": "var(--font-mono, monospace)" }}>
+              {(() => {
+                const t = agentTokens();
+                const total = t.prompt + t.completion;
+                const cost = (t.prompt * 3 + t.completion * 15) / 1_000_000;
+                const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
+                return `${totalStr} tokens · ~$${cost.toFixed(4)}`;
+              })()}
+            </span>
+          </Show>
         </div>
       </div>
 
