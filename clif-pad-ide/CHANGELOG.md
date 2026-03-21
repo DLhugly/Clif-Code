@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/DLhugly/Clif-Code/compare/v1.28.1...v1.29.0) (2026-03-21)
+
+
+### Features
+
+* redesign clifcode.io with premium visual identity and updated content ([c2679ea](https://github.com/DLhugly/Clif-Code/commit/c2679ea2dc58fa17aa0f59c63fa0d640579ab354))
+
 ## [1.28.1](https://github.com/DLhugly/Clif-Code/compare/v1.28.0...v1.28.1) (2026-03-20)
 
 
