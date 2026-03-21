@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ClifPad — ~20MB native code editor with built-in AI agents</title>
-  <meta name="description" content="~20MB native code editor with Monaco, real terminal, git, and built-in AI agents (ClifCode + Claude Code). ClifCode also works standalone: Rust TUI with tool-calling, sessions, any LLM. No Electron. No telemetry.">
-  <meta property="og:title" content="ClifPad — ~20MB native code editor with built-in AI agents">
-  <meta property="og:description" content="~20MB native IDE with Monaco editing, real terminal, git, and AI agents built in. ClifCode + Claude Code integrated. Also ships as a standalone Rust TUI agent. Open source.">
+  <title>ClifCode — AI code editor + terminal agent, built in Rust</title>
+  <meta name="description" content="Native AI code editor with built-in coding agent. Works with any LLM via OpenRouter, OpenAI, Anthropic, or Ollama. 20MB, 20 themes, real terminal, git. Built in Rust.">
+  <meta property="og:title" content="ClifCode — AI code editor + terminal agent, built in Rust">
+  <meta property="og:description" content="Native AI code editor with built-in coding agent. Works with any LLM. 20MB binary, no Electron, no subscription.">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#0a0a0f">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -16,19 +16,18 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0d1117;
-      --bg2: #161b22;
-      --bg3: #1c2129;
-      --text: #e6edf3;
-      --muted: #7d8590;
-      --accent: #3b82f6;
-      --green: #3fb950;
-      --red: #ff6b6b;
-      --yellow: #d29922;
-      --tui-blue: #00afff;
-      --tui-green: #5fff5f;
-      --tui-cyan: #00d7ff;
-      --tui-dim: #6c7086;
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a24;
+      --text: #e8e8ef;
+      --muted: #6b6b80;
+      --accent: #6366f1;
+      --accent2: #a855f7;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --blue: #60a5fa;
+      --radius: 16px;
     }
 
     html { scroll-behavior: smooth; }
@@ -39,334 +38,323 @@
       color: var(--text);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
 
-    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
-    /* NAV */
+    /* ─── NAV ─── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: rgba(13, 17, 23, 0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(10, 10, 15, 0.8);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     nav .container {
       display: flex; align-items: center; justify-content: space-between;
       height: 56px;
     }
-    nav .logo { font-weight: 800; font-size: 20px; letter-spacing: -0.5px; }
-    nav .links { display: flex; gap: 24px; align-items: center; }
-    nav .links a {
-      color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500;
+    .nav-logo {
+      font-weight: 800; font-size: 18px; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
       transition: color 0.15s;
     }
-    nav .links a:hover { color: var(--text); }
-    nav .links .gh {
+    .nav-links a:hover { color: var(--text); }
+    .nav-gh {
       display: flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 8px;
-      color: var(--text); font-weight: 600;
+      background: rgba(255,255,255,0.06); padding: 7px 14px; border-radius: 8px;
+      color: var(--text) !important; font-weight: 600 !important; font-size: 13px !important;
+      border: 1px solid rgba(255,255,255,0.08); transition: background 0.15s;
     }
-    nav .links .gh:hover { background: rgba(255,255,255,0.12); }
+    .nav-gh:hover { background: rgba(255,255,255,0.1); }
+    .nav-gh svg { width: 16px; height: 16px; }
 
-    /* HERO */
+    /* ─── HERO ─── */
     .hero {
-      padding: 140px 0 80px; text-align: center;
+      position: relative; padding: 160px 0 80px; text-align: center;
+      overflow: hidden;
     }
-    .hero .version {
-      display: inline-block; font-family: 'JetBrains Mono', monospace;
-      font-size: 13px; font-weight: 500; color: var(--accent);
-      background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);
-      padding: 4px 14px; border-radius: 20px; margin-bottom: 24px;
+    .hero-orb {
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 800px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.08) 40%, transparent 70%);
+      filter: blur(60px); animation: orb-pulse 8s ease-in-out infinite;
+      pointer-events: none;
     }
+    @keyframes orb-pulse {
+      0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.6; }
+      50% { transform: translateX(-50%) scale(1.15); opacity: 1; }
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;
+      color: var(--accent); background: rgba(99,102,241,0.1);
+      border: 1px solid rgba(99,102,241,0.2); padding: 5px 14px;
+      border-radius: 20px; margin-bottom: 28px;
+    }
+    .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
     .hero h1 {
-      font-size: clamp(48px, 8vw, 80px); font-weight: 900;
-      letter-spacing: -2px; line-height: 1.05; margin-bottom: 20px;
+      font-size: clamp(44px, 7vw, 76px); font-weight: 900;
+      letter-spacing: -2.5px; line-height: 1.05; margin-bottom: 20px;
     }
-    .hero h1 .thin { font-weight: 400; color: var(--muted); }
-    .hero p.tagline {
-      font-size: 18px; color: var(--muted); max-width: 540px;
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent), var(--accent2), #ec4899);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero .tagline {
+      font-size: 17px; color: var(--muted); max-width: 520px;
       margin: 0 auto 40px; line-height: 1.7;
     }
 
-    /* DUAL CTAs */
-    .dual-ctas { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
-    .dl-btn {
-      display: inline-flex; align-items: center; gap: 10px;
-      background: var(--text); color: var(--bg); font-weight: 700; font-size: 15px;
-      padding: 14px 28px; border-radius: 12px; text-decoration: none;
-      transition: transform 0.15s, box-shadow 0.15s;
+    /* ─── CTAs ─── */
+    .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-weight: 700; font-size: 14px; padding: 13px 26px;
+      border-radius: 10px; text-decoration: none; transition: all 0.2s;
     }
-    .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59,130,246,0.2); }
-    .dl-btn.secondary {
-      background: rgba(255,255,255,0.08); color: var(--text);
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.4); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06); color: var(--text);
       border: 1px solid rgba(255,255,255,0.1);
     }
-    .dl-btn.secondary:hover { background: rgba(255,255,255,0.12); }
-    .dl-btn svg { width: 18px; height: 18px; }
-    .dl-btn .mono { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+    .btn .mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+    .btn svg { width: 16px; height: 16px; }
 
-    /* PLATFORM DOWNLOADS ROW */
-    .platform-downloads {
-      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;
+    .platforms { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .plat-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.04); color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.06); font-size: 12px; font-weight: 600;
+      padding: 8px 14px; border-radius: 8px; text-decoration: none; transition: all 0.15s;
     }
-    .platform-btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: rgba(255,255,255,0.06); color: var(--text);
+    .plat-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .plat-btn svg { width: 14px; height: 14px; }
+
+    .dl-note { font-size: 12px; color: var(--muted); margin-bottom: 60px; }
+    .dl-note a { color: var(--accent); text-decoration: none; }
+
+    /* ─── SCREENSHOT ─── */
+    .screenshot-wrap {
+      max-width: 920px; margin: 0 auto 120px; position: relative;
+    }
+    .screenshot-glow {
+      position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
+      width: 80%; height: 200px;
+      background: radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%);
+      filter: blur(40px); pointer-events: none;
+    }
+    .screenshot-frame {
+      border-radius: 12px; overflow: hidden;
       border: 1px solid rgba(255,255,255,0.08);
-      font-weight: 600; font-size: 13px;
-      padding: 10px 18px; border-radius: 10px; text-decoration: none;
-      transition: background 0.15s;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+      position: relative;
     }
-    .platform-btn:hover { background: rgba(255,255,255,0.1); }
-    .platform-btn svg { width: 16px; height: 16px; }
+    .screenshot-frame img { width: 100%; display: block; }
 
-    .dl-sub { font-size: 13px; color: var(--muted); margin-bottom: 60px; }
-    .dl-sub a { color: var(--accent); text-decoration: none; }
-    .dl-sub a:hover { text-decoration: underline; }
-
-    /* SCREENSHOT */
-    .screenshot {
-      max-width: 880px; margin: 0 auto 100px; border-radius: 12px;
-      overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    /* ─── SECTIONS ─── */
+    .section { padding: 100px 0; }
+    .section-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+      color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;
+      text-align: center; margin-bottom: 12px;
     }
-    .screenshot img { width: 100%; display: block; }
-
-    /* SECTION SHARED */
-    .section { padding: 80px 0; }
     .section h2 {
-      font-size: 40px; font-weight: 800; letter-spacing: -1px;
+      font-size: clamp(32px, 5vw, 44px); font-weight: 800; letter-spacing: -1px;
       margin-bottom: 12px; text-align: center;
     }
-    .section .sub { color: var(--muted); font-size: 16px; margin-bottom: 48px; text-align: center; }
+    .section .sub {
+      color: var(--muted); font-size: 16px; margin-bottom: 48px;
+      text-align: center; max-width: 540px; margin-left: auto; margin-right: auto;
+    }
 
-    /* FEATURES GRID (ClifPad) */
-    .feat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; }
+    /* ─── FEATURE GRID ─── */
+    .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; border-radius: var(--radius); overflow: hidden; }
     .feat {
-      padding: 32px; background: var(--bg2); border-radius: 2px;
+      padding: 32px; background: var(--bg2);
+      transition: background 0.2s;
     }
-    .feat:first-child { border-radius: 16px 2px 2px 2px; }
-    .feat:nth-child(2) { border-radius: 2px 16px 2px 2px; }
-    .feat:nth-last-child(2) { border-radius: 2px 2px 2px 16px; }
-    .feat:last-child { border-radius: 2px 2px 16px 2px; }
-    .feat h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .feat p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-    .feat .tag {
-      display: inline-block; font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: var(--green); background: rgba(63, 185, 80, 0.1);
-      padding: 2px 8px; border-radius: 4px; margin-bottom: 12px;
+    .feat:hover { background: var(--bg3); }
+    .feat-icon {
+      width: 36px; height: 36px; border-radius: 10px; margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(99,102,241,0.1); color: var(--accent);
     }
+    .feat h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feat p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
-    /* SIZE FLEX */
+    /* ─── THEME SHOWCASE ─── */
+    .theme-section { padding: 100px 0; }
+    .theme-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+    .theme-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px;
+      margin-bottom: 24px;
+    }
+    .theme-swatch {
+      aspect-ratio: 1.4; border-radius: 8px; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 6px 8px; cursor: default; position: relative;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .theme-swatch:hover { transform: scale(1.08); box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 1; }
+    .theme-swatch .accent-bar {
+      width: 24px; height: 3px; border-radius: 2px; margin-bottom: 4px;
+    }
+    .theme-swatch .name { font-size: 9px; font-weight: 600; opacity: 0.8; }
+
+    /* ─── SIZE COMPARISON ─── */
     .size-grid {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
-      background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
-      margin-bottom: 32px;
+      border-radius: var(--radius); overflow: hidden; margin-bottom: 24px;
     }
     .size-card { padding: 32px 16px; background: var(--bg2); text-align: center; }
-    .size-card.highlight { background: var(--bg3); }
-    .size-card .name { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
-    .size-card.highlight .name { color: var(--accent); }
-    .size-card .stat { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; }
-    .size-card.highlight .stat { color: var(--green); }
-    .size-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    .size-card .stat.bad { color: var(--red); font-size: 22px; }
+    .size-card .label { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+    .size-card .num {
+      font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700;
+    }
+    .size-card .unit { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .size-card.hl { background: var(--bg3); }
+    .size-card.hl .label { color: var(--accent); }
+    .size-card.hl .num { color: var(--green); }
 
-    /* METRICS ROW */
     .metrics {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
-      background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
+      border-radius: var(--radius); overflow: hidden;
     }
-    .metric {
-      padding: 40px 24px; background: var(--bg2); text-align: center;
-    }
+    .metric { padding: 36px 20px; background: var(--bg2); text-align: center; }
     .metric .num {
-      font-family: 'JetBrains Mono', monospace; font-size: 48px;
+      font-family: 'JetBrains Mono', monospace; font-size: 40px;
       font-weight: 700; color: var(--accent); line-height: 1;
     }
-    .metric .unit { font-size: 14px; color: var(--muted); margin-top: 8px; }
+    .metric .desc { font-size: 13px; color: var(--muted); margin-top: 8px; }
 
-    /* TUI MOCKUP */
-    .tui-mockup {
-      background: #0c0c0c;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      overflow: hidden;
-      max-width: 680px;
-      margin: 0 auto 40px;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    /* ─── TUI MOCKUP ─── */
+    .tui-wrap { max-width: 700px; margin: 0 auto 40px; }
+    .tui {
+      background: #0c0c0c; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
     }
-    .tui-titlebar {
-      background: #1a1a2e;
-      padding: 10px 16px;
+    .tui-bar {
+      background: #1a1a2e; padding: 10px 16px;
       display: flex; align-items: center; gap: 8px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
-    .tui-dot {
-      width: 12px; height: 12px; border-radius: 50%;
-    }
+    .tui-dot { width: 12px; height: 12px; border-radius: 50%; }
     .tui-dot.r { background: #ff5f56; }
     .tui-dot.y { background: #ffbd2e; }
     .tui-dot.g { background: #27c93f; }
-    .tui-titlebar span {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px; color: var(--muted); margin-left: 8px;
-    }
+    .tui-bar span { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); margin-left: 8px; }
     .tui-body {
-      padding: 20px 24px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      line-height: 1.7;
-      color: #c0c0c0;
-      overflow-x: auto;
+      padding: 20px 24px; font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 1.7; color: #c0c0c0;
     }
-    .tui-body .tui-blue { color: var(--tui-blue); }
-    .tui-body .tui-green { color: var(--tui-green); }
-    .tui-body .tui-cyan { color: var(--tui-cyan); }
-    .tui-body .tui-dim { color: var(--tui-dim); }
-    .tui-body .tui-white { color: #ffffff; font-weight: 700; }
-    .tui-body .tui-yellow { color: #ffff5f; }
+    .t-b { color: #60a5fa; }
+    .t-g { color: #5fff5f; }
+    .t-c { color: #00d7ff; }
+    .t-d { color: #6c7086; }
+    .t-w { color: #fff; font-weight: 700; }
+    .t-y { color: #ffff5f; }
 
-    /* CLIFCODE SECTION */
-    .clifcode-section {
-      padding: 80px 0; text-align: center;
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    .clifcode-section h2 {
-      font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px;
-    }
-    .clifcode-section .sub { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
-    .clifcode-install {
+    .install-block {
       display: inline-block; text-align: left; background: var(--bg2);
       border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
-      padding: 16px 24px; font-family: 'JetBrains Mono', monospace; font-size: 15px;
-      line-height: 1.8; margin-bottom: 40px;
-    }
-    .clifcode-features {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
-      background: rgba(255,255,255,0.04); border-radius: 16px; overflow: hidden;
-      margin-top: 40px; margin-bottom: 40px;
-    }
-    .clifcode-feat {
-      padding: 28px 20px; background: var(--bg2); text-align: center;
-    }
-    .clifcode-feat h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-    .clifcode-feat p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-    .clifcode-feat .tag {
-      display: inline-block; font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: var(--tui-blue); background: rgba(0, 175, 255, 0.1);
-      padding: 2px 8px; border-radius: 4px; margin-bottom: 10px;
+      padding: 16px 24px; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+      line-height: 2; margin-bottom: 40px;
     }
 
-    /* USAGE CODE BLOCK */
-    .usage-block {
+    /* ─── TUI FEATURES ─── */
+    .tui-feats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+      border-radius: var(--radius); overflow: hidden; margin: 40px 0;
+    }
+    .tui-feat { padding: 24px 20px; background: var(--bg2); }
+    .tui-feat h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .tui-feat p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ─── COMPARISON TABLE ─── */
+    .cmp {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: var(--bg2); border-radius: 12px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06); font-size: 13px; text-align: center;
+      margin: 40px 0;
+    }
+    .cmp th { padding: 12px; font-weight: 700; background: var(--bg3); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .cmp th:first-child { text-align: left; }
+    .cmp td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .cmp td:first-child { text-align: left; font-weight: 600; }
+    .cmp tr:last-child td { border-bottom: none; }
+    .cmp .y { color: var(--green); }
+    .cmp .n { color: var(--muted); }
+    .cmp .hl { background: rgba(99,102,241,0.04); }
+
+    /* ─── BUILD ─── */
+    .build-block {
       display: inline-block; text-align: left; background: var(--bg2);
       border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
       padding: 20px 28px; font-family: 'JetBrains Mono', monospace; font-size: 13px;
-      line-height: 1.8; max-width: 620px; width: 100%;
+      line-height: 2;
     }
+    .build-block .dim { color: var(--muted); }
+    .build-block .cmd { color: var(--green); }
 
-    /* COMPARISON TABLE */
-    .compare-table {
-      width: 100%; border-collapse: separate; border-spacing: 0;
-      background: var(--bg2); border-radius: 12px; overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.06); margin-top: 40px;
-      font-size: 14px; text-align: center;
-    }
-    .compare-table th {
-      padding: 14px 16px; font-weight: 700; font-size: 13px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      background: var(--bg3);
-    }
-    .compare-table th:first-child { text-align: left; }
-    .compare-table td {
-      padding: 10px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-    }
-    .compare-table td:first-child { text-align: left; font-weight: 600; font-size: 13px; }
-    .compare-table tr:last-child td { border-bottom: none; }
-    .compare-table .yes { color: var(--green); }
-    .compare-table .no { color: var(--muted); }
-    .compare-table .highlight-col { background: rgba(59, 130, 246, 0.05); }
-
-    /* OPEN SOURCE / SOURCE */
-    .source {
-      padding: 60px 0 80px; text-align: center;
-    }
-    .source h2 { font-size: 32px; font-weight: 800; margin-bottom: 16px; }
-    .source p { color: var(--muted); margin-bottom: 24px; }
-    .source .note { font-size: 13px; color: var(--muted); margin-top: 20px; }
-    .source .note code {
-      background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace; font-size: 12px;
-    }
-    .code-block {
-      display: inline-block; text-align: left; background: var(--bg2);
-      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
-      padding: 20px 28px; font-family: 'JetBrains Mono', monospace; font-size: 14px;
-      line-height: 1.8;
-    }
-    .code-block .dim { color: var(--muted); }
-    .code-block .cmd { color: var(--green); }
-
-    /* FAQ */
-    .faq-section { padding: 40px 0 80px; }
-    .faq-section h2 {
-      font-size: 40px; font-weight: 800; letter-spacing: -1px;
-      margin-bottom: 48px; text-align: center;
-    }
-    .faq-grid { display: grid; grid-template-columns: 1fr; gap: 2px; }
-    .faq-item {
-      padding: 32px; background: var(--bg2); border-radius: 2px;
-    }
-    .faq-item:first-child { border-radius: 16px 16px 2px 2px; }
-    .faq-item:last-child { border-radius: 2px 2px 16px 16px; }
-    .faq-item h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .faq-item p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-    .faq-item code {
-      background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace; font-size: 12px;
-    }
-
-    /* FOOTER */
+    /* ─── FOOTER ─── */
     footer {
-      padding: 40px 0; text-align: center;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 48px 0; text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
     }
-    footer p { font-size: 13px; color: var(--muted); }
+    footer .tagline { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    footer p { font-size: 12px; color: var(--muted); }
     footer a { color: var(--accent); text-decoration: none; }
-    footer .tagline {
-      font-size: 16px; font-weight: 700; color: var(--text);
-      margin-bottom: 8px;
-    }
 
-    /* RESPONSIVE */
-    @media (max-width: 640px) {
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 768px) {
+      .feat-grid { grid-template-columns: 1fr; }
       .size-grid { grid-template-columns: repeat(2, 1fr); }
       .metrics { grid-template-columns: 1fr; }
-      .feat-grid { grid-template-columns: 1fr; }
-      .feat { border-radius: 2px !important; }
-      .feat:first-child { border-radius: 16px 16px 2px 2px !important; }
-      .feat:last-child { border-radius: 2px 2px 16px 16px !important; }
-      .dual-ctas { flex-direction: column; align-items: center; }
-      .platform-downloads { flex-direction: column; align-items: center; }
-      .clifcode-features { grid-template-columns: 1fr; }
-      .tui-body { font-size: 11px; padding: 16px; }
+      .tui-feats { grid-template-columns: 1fr; }
+      .ctas { flex-direction: column; align-items: center; }
+      .platforms { flex-direction: column; align-items: center; }
+      .nav-links a:not(.nav-gh) { display: none; }
+      .theme-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
     }
+
+    /* ─── FADE IN ─── */
+    .fade-in {
+      opacity: 0; transform: translateY(20px);
+      animation: fadeUp 0.6s ease forwards;
+    }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
   </style>
 </head>
 <body>
 
-  <!-- NAV -->
   <nav>
     <div class="container">
-      <div class="logo">Clif</div>
-      <div class="links">
-        <a href="#clifpad">ClifPad</a>
-        <a href="#clifcode">ClifCode</a>
-        <a href="#open-source">Open Source</a>
-        <a href="#faq">FAQ</a>
-        <a href="https://github.com/DLhugly/Clif-Code" class="gh">
+      <div class="nav-logo">ClifCode</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#themes">Themes</a>
+        <a href="#agent">Agent</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/DLhugly/Clif-Code" class="nav-gh">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           GitHub
         </a>
@@ -376,354 +364,252 @@
 
   <!-- HERO -->
   <section class="hero" id="download">
-    <div class="container">
-      <div class="version">v1.28.1</div>
-      <h1>Code editor.<br>AI built in.<br><span class="thin">~20MB. Native. Open source.</span></h1>
-      <p class="tagline">~20MB desktop IDE with Monaco editing, real terminal, and git. AI-powered by ClifCode and Claude Code — both integrated, both optional. No Electron. No telemetry.</p>
+    <div class="hero-orb"></div>
+    <div class="container hero-content">
+      <div class="hero-badge fade-in"><span class="dot"></span> Built in Rust</div>
+      <h1 class="fade-in delay-1">Code with <span class="gradient">AI.</span><br>Ship fast.</h1>
+      <p class="tagline fade-in delay-2">Native code editor + terminal coding agent. Works with any LLM. 20MB binary, 20 themes, real terminal, git, agent sidebar with tool calling.</p>
 
-      <!-- Dual CTAs -->
-      <div class="dual-ctas">
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.28.1/ClifPad_1.28.1_aarch64.dmg" class="dl-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+      <div class="ctas fade-in delay-3">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Download ClifPad
         </a>
-        <a href="#clifcode" class="dl-btn secondary">
+        <a href="#agent" class="btn btn-secondary">
           <span class="mono">cargo install clifcode</span>
         </a>
       </div>
 
-      <!-- Platform downloads -->
-      <div class="platform-downloads">
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.28.1/ClifPad_1.28.1_x64.dmg" class="platform-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
-          Intel Mac
-        </a>
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.28.1/ClifPad_1.28.1_x64-setup.exe" class="platform-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-          Windows
-        </a>
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.28.1/ClifPad_1.28.1_amd64.deb" class="platform-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12.504 0c-.155 0-.311.015-.466.046C9.39.571 7.907 3.04 7.907 5.7c0 .753.156 1.48.44 2.14-.558.123-1.092.31-1.592.558C4.36 9.573 2.673 12.29 2.673 15.386c0 1.606.493 3.077 1.33 4.297-1.018.965-1.665 2.318-1.665 3.817 0 .346.037.684.107 1.01C.628 23.137 0 21.27 0 19.295c0-3.67 1.86-6.9 4.693-8.8.37-.245.772-.46 1.19-.64-.28-.71-.437-1.482-.437-2.286 0-3.57 2.882-6.5 6.46-6.5.133 0 .265.005.396.015-.354-.35-.766-.636-1.22-.836C9.73.248 8.5 0 7.3 0c-1.2 0-2.323.25-3.296.696C1.6 1.845 0 4.38 0 7.347c0 1.505.467 2.898 1.262 4.05.108-.14.225-.275.35-.404-.93-1.23-1.497-2.755-1.497-4.423 0-3.92 3.04-7.108 6.866-7.345.075-.004.15-.006.226-.006.26 0 .515.018.765.053-.19-.13-.395-.243-.61-.336C5.843.338 4.28 0 2.7 0H12.504z"/></svg>
-          Linux .deb
-        </a>
-        <a href="https://github.com/DLhugly/Clif-Code/releases/download/v1.28.1/ClifPad_1.28.1_amd64.AppImage" class="platform-btn">
-          AppImage
-        </a>
+      <div class="platforms fade-in delay-3">
+        <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="plat-btn">macOS ARM</a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="plat-btn">macOS Intel</a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="plat-btn">Windows</a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="plat-btn">Linux .deb</a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="plat-btn">npm i -g clifcode</a>
       </div>
 
-      <p class="dl-sub">
-        <a href="https://github.com/DLhugly/Clif-Code/releases">All releases & checksums</a>
-      </p>
+      <p class="dl-note"><a href="https://github.com/DLhugly/Clif-Code/releases">All releases &amp; checksums</a></p>
 
-      <div class="screenshot">
-        <img src="https://raw.githubusercontent.com/DLhugly/Clif-Code/main/SplashScreen.png" alt="ClifPad editor screenshot">
+      <div class="screenshot-wrap">
+        <div class="screenshot-glow"></div>
+        <div class="screenshot-frame">
+          <img src="https://raw.githubusercontent.com/DLhugly/Clif-Code/main/SplashScreen.png" alt="ClifPad editor" loading="lazy">
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- CLIFPAD FEATURES -->
-  <section class="section" id="clifpad">
+  <!-- FEATURES -->
+  <section class="section" id="features">
     <div class="container">
-      <h2>Everything you need.</h2>
-      <p class="sub">A full IDE in ~20MB. Monaco editing, real terminal, git, and AI agents — all native.</p>
+      <div class="section-label">ClifPad</div>
+      <h2>Everything. 20MB.</h2>
+      <p class="sub">Full IDE with Monaco editing, multi-terminal, git, and an AI agent sidebar. All native Rust.</p>
+
       <div class="feat-grid">
         <div class="feat">
-          <div class="tag">Monaco</div>
-          <h3>VS Code-quality editing</h3>
-          <p>70+ languages, IntelliSense, multi-cursor, minimap, bracket matching, code folding. Same engine, fraction of the size.</p>
+          <div class="feat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+          <h3>Monaco Editor</h3>
+          <p>70+ languages, IntelliSense, multi-cursor, minimap. Same engine as VS Code, fraction of the size.</p>
         </div>
         <div class="feat">
-          <div class="tag">PTY</div>
-          <h3>Real terminal</h3>
-          <p>Native PTY sessions via Rust. Your actual shell with 256-color, resize, 10K scrollback. Not a web simulation.</p>
+          <div class="feat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+          <h3>Multi-Terminal</h3>
+          <p>Native PTY via Rust. Multiple tabs, kill, clear. Launch ClifCode or Claude Code with one click.</p>
         </div>
         <div class="feat">
-          <div class="tag">Rust</div>
-          <h3>Git built in</h3>
-          <p>Branch, stage, commit, per-file diff stats, visual commit graph. Powered by Rust, not shell commands from the frontend.</p>
+          <div class="feat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
+          <h3>Git Built In</h3>
+          <p>Branch, stage, commit, push/pull, per-file diff stats, visual commit graph. All Rust, no shell wrappers.</p>
         </div>
         <div class="feat">
-          <div class="tag">iframe</div>
-          <h3>Dev preview</h3>
-          <p>One-click dev server, auto-detects localhost URLs, live browser preview. Run and see your app without leaving the editor.</p>
+          <div class="feat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <h3>Agent Sidebar</h3>
+          <p>Built-in chat agent with 9 tools. Reads files, writes code, runs commands. Context compaction for long tasks.</p>
         </div>
         <div class="feat">
-          <div class="tag">agents</div>
-          <h3>AI agents built in</h3>
-          <p>ClifCode and Claude Code integrated as AI backends. Plus OpenRouter (100+ models) and Ollama for local inference. All optional.</p>
+          <div class="feat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></div>
+          <h3>20 Themes</h3>
+          <p>Nord, Dracula, Tokyo Night, Catppuccin, Rosé Pine, and 15 more. Editor, terminal, and UI all coordinated.</p>
         </div>
         <div class="feat">
-          <div class="tag">0 tracking</div>
-          <h3>Privacy first</h3>
-          <p>No telemetry. No cloud sync. No account. No subscription. Your code stays on your machine. Period.</p>
+          <div class="feat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg></div>
+          <h3>Any LLM</h3>
+          <p>OpenRouter (100+ models), OpenAI, Anthropic, Ollama (fully local). Bring your own key, pick your model.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- SIZE COMPARISON -->
+  <!-- THEMES -->
+  <section class="theme-section" id="themes">
+    <div class="container">
+      <div class="section-label">Themes</div>
+      <h2>20 themes. All coordinated.</h2>
+      <p class="sub">Editor, terminal, sidebar, and agent chat all switch together. Dark and light.</p>
+
+      <div class="theme-label">Dark</div>
+      <div class="theme-grid">
+        <div class="theme-swatch" style="background:#0d1117"><div class="accent-bar" style="background:#3b82f6"></div><div class="name" style="color:#e6edf3">Midnight</div></div>
+        <div class="theme-swatch" style="background:#1c1c1e"><div class="accent-bar" style="background:#f0883e"></div><div class="name" style="color:#f5f5f7">Graphite</div></div>
+        <div class="theme-swatch" style="background:#1a1625"><div class="accent-bar" style="background:#a855f7"></div><div class="name" style="color:#ede9fe">Dusk</div></div>
+        <div class="theme-swatch" style="background:#0d0015"><div class="accent-bar" style="background:#ff0090"></div><div class="name" style="color:#e0d0ff">Cyberpunk</div></div>
+        <div class="theme-swatch" style="background:#1a1210"><div class="accent-bar" style="background:#f97316"></div><div class="name" style="color:#f0e0d6">Ember</div></div>
+        <div class="theme-swatch" style="background:#0f1a0f"><div class="accent-bar" style="background:#22c55e"></div><div class="name" style="color:#d4e8d0">Forest</div></div>
+        <div class="theme-swatch" style="background:#002b36"><div class="accent-bar" style="background:#268bd2"></div><div class="name" style="color:#839496">Solarized</div></div>
+        <div class="theme-swatch" style="background:#272822"><div class="accent-bar" style="background:#a6e22e"></div><div class="name" style="color:#f8f8f2">Monokai</div></div>
+        <div class="theme-swatch" style="background:#2e3440"><div class="accent-bar" style="background:#88c0d0"></div><div class="name" style="color:#d8dee9">Nord</div></div>
+        <div class="theme-swatch" style="background:#282a36"><div class="accent-bar" style="background:#bd93f9"></div><div class="name" style="color:#f8f8f2">Dracula</div></div>
+        <div class="theme-swatch" style="background:#282c34"><div class="accent-bar" style="background:#61afef"></div><div class="name" style="color:#abb2bf">One Dark</div></div>
+        <div class="theme-swatch" style="background:#1a1b26"><div class="accent-bar" style="background:#7aa2f7"></div><div class="name" style="color:#c0caf5">Tokyo Night</div></div>
+        <div class="theme-swatch" style="background:#1e1e2e"><div class="accent-bar" style="background:#cba6f7"></div><div class="name" style="color:#cdd6f4">Catppuccin</div></div>
+        <div class="theme-swatch" style="background:#191724"><div class="accent-bar" style="background:#ebbcba"></div><div class="name" style="color:#e0def4">Rosé Pine</div></div>
+        <div class="theme-swatch" style="background:#0a0e14"><div class="accent-bar" style="background:#ffb454"></div><div class="name" style="color:#bfbdb6">Ayu Dark</div></div>
+        <div class="theme-swatch" style="background:#101010"><div class="accent-bar" style="background:#ffc799"></div><div class="name" style="color:#d4d4d4">Vesper</div></div>
+        <div class="theme-swatch" style="background:#1b1e28"><div class="accent-bar" style="background:#a6accd"></div><div class="name" style="color:#e4f0fb">Poimandres</div></div>
+      </div>
+
+      <div class="theme-label">Light</div>
+      <div class="theme-grid">
+        <div class="theme-swatch" style="background:#ffffff; border-color: #d0d7de"><div class="accent-bar" style="background:#0066cc"></div><div class="name" style="color:#1f2328">Dawn</div></div>
+        <div class="theme-swatch" style="background:#f0f4f8; border-color: #cbd5e1"><div class="accent-bar" style="background:#0284c7"></div><div class="name" style="color:#0f172a">Arctic</div></div>
+        <div class="theme-swatch" style="background:#faf4ed; border-color: #dfdad9"><div class="accent-bar" style="background:#b4637a"></div><div class="name" style="color:#575279">Pale Fire</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIZE -->
   <section class="section">
     <div class="container">
-      <h2>Size matters.</h2>
-      <p class="sub">Smaller binary. Smaller runtime. Smaller footprint. Faster everything.</p>
+      <div class="section-label">Performance</div>
+      <h2>Smaller. Faster. Lighter.</h2>
+      <p class="sub">No Electron. Tauri 2 + SolidJS + Rust. Every byte earned.</p>
 
       <div class="size-grid">
-        <div class="size-card highlight">
-          <div class="name">Clif</div>
-          <div class="stat">~20MB</div>
-          <div class="label">binary</div>
+        <div class="size-card hl">
+          <div class="label">ClifPad</div>
+          <div class="num">20MB</div>
+          <div class="unit">installed</div>
         </div>
         <div class="size-card">
-          <div class="name">Cursor</div>
-          <div class="stat bad">~400MB</div>
-          <div class="label">binary</div>
+          <div class="label">Cursor</div>
+          <div class="num" style="color:var(--red)">400MB</div>
+          <div class="unit">installed</div>
         </div>
         <div class="size-card">
-          <div class="name">VS Code</div>
-          <div class="stat bad">~350MB</div>
-          <div class="label">binary</div>
+          <div class="label">VS Code</div>
+          <div class="num" style="color:var(--red)">350MB</div>
+          <div class="unit">installed</div>
         </div>
         <div class="size-card">
-          <div class="name">Zed</div>
-          <div class="stat" style="color: var(--yellow);">~100MB</div>
-          <div class="label">binary</div>
+          <div class="label">Zed</div>
+          <div class="num" style="color:var(--yellow)">100MB</div>
+          <div class="unit">installed</div>
         </div>
       </div>
 
       <div class="metrics">
         <div class="metric">
           <div class="num">7KB</div>
-          <div class="unit">UI runtime (SolidJS)</div>
+          <div class="desc">UI runtime (SolidJS)</div>
         </div>
         <div class="metric">
           <div class="num">~80MB</div>
-          <div class="unit">RAM at idle</div>
+          <div class="desc">RAM at idle</div>
         </div>
         <div class="metric">
-          <div class="num">0</div>
-          <div class="unit">bytes of telemetry</div>
+          <div class="num">&lt;1s</div>
+          <div class="desc">Launch time</div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- CLIFCODE TUI -->
-  <section class="clifcode-section" id="clifcode">
-    <div class="container">
-      <h2>ClifCode</h2>
-      <p class="sub">The AI agent behind ClifPad — also a standalone terminal tool. 9 built-in tools, any LLM, session persistence, git auto-commit.</p>
+  <section class="section" id="agent" style="border-top: 1px solid rgba(255,255,255,0.05);">
+    <div class="container" style="text-align: center;">
+      <div class="section-label">ClifCode TUI</div>
+      <h2>AI agent for your terminal.</h2>
+      <p class="sub">Like Claude Code, but works with any LLM. 9 tools, context compaction, session persistence. Pure Rust.</p>
 
-      <!-- Terminal Mockup -->
-      <div class="tui-mockup">
-        <div class="tui-titlebar">
-          <div class="tui-dot r"></div>
-          <div class="tui-dot y"></div>
-          <div class="tui-dot g"></div>
-          <span>clifcode</span>
-        </div>
-        <div class="tui-body">
-          <span class="tui-blue">  ◆ Model</span>  <span class="tui-white">anthropic/claude-sonnet-4</span>    <span class="tui-blue">◆ Mode</span>  <span class="tui-white">auto-edit</span><br>
-          <span class="tui-blue">  ◆ Path</span>   <span class="tui-dim">~/projects/my-app</span><br>
-          <br>
-          <span class="tui-dim">  ─────────────────────────────────────────────</span><br>
-          <br>
-          <span class="tui-white">  ❯ refactor the auth module to use JWT tokens</span><br>
-          <br>
-          <span class="tui-dim">  [1/7] ••• thinking</span><br>
-          <span class="tui-cyan">    ▶ read</span>  <span class="tui-dim">src/auth/mod.rs</span><br>
-          <span class="tui-cyan">    ▶ read</span>  <span class="tui-dim">src/auth/session.rs</span><br>
-          <span class="tui-yellow">    ◇ find</span>  <span class="tui-dim">config.toml</span><br>
-          <span class="tui-green">    ✎ edit</span>  <span class="tui-dim">src/auth/mod.rs</span>  <span class="tui-green">+42 -18</span><br>
-          <span class="tui-green">    ✎ edit</span>  <span class="tui-dim">src/auth/session.rs</span>  <span class="tui-green">+15 -8</span><br>
-          <span class="tui-blue">    ▸ run</span>   <span class="tui-dim">cargo test</span><br>
-          <span class="tui-green">    ✓ All 23 tests passed</span><br>
-          <br>
-          <span class="tui-blue">  ✦ ClifCode</span>  Refactored auth module to use JWT tokens.<br>
-          <span class="tui-dim">              Replaced session-based auth with stateless JWT</span><br>
-          <span class="tui-dim">              verification. Added token expiry and refresh logic.</span><br>
-          <br>
-          <span class="tui-dim">  ∙ 2.1k tokens  ∙ ~$0.0312</span>
+      <div class="tui-wrap">
+        <div class="tui">
+          <div class="tui-bar">
+            <div class="tui-dot r"></div><div class="tui-dot y"></div><div class="tui-dot g"></div>
+            <span>clifcode</span>
+          </div>
+          <div class="tui-body">
+<span class="t-b">  ◆ Model</span>  <span class="t-w">claude-sonnet-4</span>    <span class="t-b">◆ Mode</span>  <span class="t-w">auto-edit</span><br>
+<span class="t-b">  ◆ Path</span>   <span class="t-d">~/projects/my-app</span><br><br>
+<span class="t-w">  ❯ refactor auth to use JWT tokens</span><br><br>
+<span class="t-c">    ▶ read</span>  <span class="t-d">src/auth/mod.rs</span><br>
+<span class="t-c">    ▶ read</span>  <span class="t-d">src/auth/session.rs</span><br>
+<span class="t-g">    ✎ edit</span>  <span class="t-d">src/auth/mod.rs</span>  <span class="t-g">+42 -18</span><br>
+<span class="t-g">    ✎ edit</span>  <span class="t-d">src/auth/session.rs</span>  <span class="t-g">+15 -8</span><br>
+<span class="t-b">    ▸ run</span>   <span class="t-d">cargo test</span>  <span class="t-g">✓ 23 passed</span><br><br>
+<span class="t-b">  ✦ ClifCode</span>  Refactored to JWT. Added expiry + refresh.<br>
+<span class="t-d">  ∙ 2.1k tokens  ∙ ~$0.03</span>
+          </div>
         </div>
       </div>
 
-      <div class="clifcode-install">
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">cargo install clifcode</span><br>
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">npm i -g clifcode</span>
+      <div class="install-block">
+        <span style="color:var(--muted)">$</span> <span style="color:var(--green)">cargo install clifcode</span><br>
+        <span style="color:var(--muted)">$</span> <span style="color:var(--green)">npm i -g clifcode</span>
       </div>
 
-      <!-- 9 Feature Cards -->
-      <div class="clifcode-features">
-        <div class="clifcode-feat">
-          <div class="tag">agent</div>
-          <h4>9 tools, 7 turns</h4>
-          <p>Read, write, edit, find, search, list, run, cd, submit — chained automatically per task</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">api</div>
-          <h4>Any LLM provider</h4>
-          <p>OpenRouter (100+ models), OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">modes</div>
-          <h4>3 autonomy modes</h4>
-          <p>suggest — confirm writes. auto-edit — apply with diffs. full-auto — hands-off</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">persist</div>
-          <h4>Session persistence</h4>
-          <p>Auto-saves every conversation. Resume any session by ID. Per-turn cost tracking</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">git</div>
-          <h4>Git auto-commit</h4>
-          <p>Commits on task completion. Undo with /undo (soft reset). Author: ClifCode</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">context</div>
-          <h4>Repo mapping</h4>
-          <p>Auto-reads README, Cargo.toml, package.json, Dockerfile. Generates directory tree for context</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">smart</div>
-          <h4>Context compaction</h4>
-          <p>3-tier system: truncate large results, stub old ones, drop old turns. Stays within token limits</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">threads</div>
-          <h4>Parallel tools</h4>
-          <p>Read-only calls execute concurrently on threads for faster turnaround</p>
-        </div>
-        <div class="clifcode-feat">
-          <div class="tag">$$$</div>
-          <h4>Cost tracking</h4>
-          <p>Per-turn token usage and estimated cost displayed inline. Session totals via /cost</p>
-        </div>
+      <div class="tui-feats">
+        <div class="tui-feat"><h4>9 Tools</h4><p>read, write, edit, find, search, list, run, cd, submit</p></div>
+        <div class="tui-feat"><h4>Any LLM</h4><p>OpenRouter, OpenAI, Anthropic, Ollama, or any compatible endpoint</p></div>
+        <div class="tui-feat"><h4>Auto-Compaction</h4><p>3-tier context management. Runs indefinitely without hitting limits</p></div>
+        <div class="tui-feat"><h4>Sessions</h4><p>Auto-saves every conversation. Resume any session by ID</p></div>
+        <div class="tui-feat"><h4>Git Integration</h4><p>Commits on completion with user confirmation. Undo with /undo</p></div>
+        <div class="tui-feat"><h4>Auto-Update</h4><p>Background version check. /update self-replaces the binary</p></div>
+        <div class="tui-feat"><h4>3 Modes</h4><p>suggest (confirm), auto-edit (diff), full-auto (hands-off)</p></div>
+        <div class="tui-feat"><h4>Cost Tracking</h4><p>Per-turn tokens and estimated cost displayed inline</p></div>
+        <div class="tui-feat"><h4>~3MB Binary</h4><p>Pure Rust. No runtime. Runs on macOS, Linux, Windows</p></div>
       </div>
 
-      <!-- Usage Examples -->
-      <div class="usage-block">
-        <span style="color: var(--muted);"># Interactive mode</span><br>
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode</span><br>
-        <br>
-        <span style="color: var(--muted);"># Non-interactive</span><br>
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode -p "explain this codebase"</span><br>
-        <br>
-        <span style="color: var(--muted);"># Local models via Ollama</span><br>
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode --backend ollama</span><br>
-        <br>
-        <span style="color: var(--muted);"># Resume last session</span><br>
-        <span style="color: var(--muted);">$</span> <span style="color: var(--tui-green);">clifcode --resume</span>
-      </div>
-
-      <!-- Why ClifCode Comparison -->
-      <h3 style="font-size: 24px; font-weight: 800; margin-top: 56px; margin-bottom: 8px;">Why ClifCode?</h3>
-      <p style="font-size: 14px; color: var(--muted); margin-bottom: 24px;">Agentic tool-calling of Claude Code + provider freedom of Aider — in a native Rust binary.</p>
-      <table class="compare-table">
-        <tr>
-          <th></th>
-          <th class="highlight-col">ClifCode</th>
-          <th>Claude Code</th>
-          <th>Aider</th>
-        </tr>
-        <tr>
-          <td>Any LLM provider</td>
-          <td class="highlight-col"><span class="yes">100+ via OpenRouter</span></td>
-          <td><span class="no">Anthropic only</span></td>
-          <td><span class="yes">Multi-provider</span></td>
-        </tr>
-        <tr>
-          <td>Local models</td>
-          <td class="highlight-col"><span class="yes">Ollama</span></td>
-          <td><span class="no">No</span></td>
-          <td><span class="yes">Ollama</span></td>
-        </tr>
-        <tr>
-          <td>Tool-calling agent</td>
-          <td class="highlight-col"><span class="yes">9 tools</span></td>
-          <td><span class="yes">Yes</span></td>
-          <td><span class="no">Diff-based</span></td>
-        </tr>
-        <tr>
-          <td>Session persistence</td>
-          <td class="highlight-col"><span class="yes">Resume any</span></td>
-          <td><span class="yes">Yes</span></td>
-          <td><span class="no">No</span></td>
-        </tr>
-        <tr>
-          <td>Git auto-commit</td>
-          <td class="highlight-col"><span class="yes">Yes</span></td>
-          <td><span class="yes">Yes</span></td>
-          <td><span class="yes">Yes</span></td>
-        </tr>
-        <tr>
-          <td>Runtime</td>
-          <td class="highlight-col"><span class="yes">Rust (native)</span></td>
-          <td><span class="no">Node.js</span></td>
-          <td><span class="no">Python</span></td>
-        </tr>
-        <tr>
-          <td>Open source</td>
-          <td class="highlight-col"><span class="yes">MIT</span></td>
-          <td><span class="yes">Apache-2.0</span></td>
-          <td><span class="yes">Apache-2.0</span></td>
-        </tr>
+      <table class="cmp">
+        <tr><th></th><th class="hl">ClifCode</th><th>Claude Code</th><th>Aider</th></tr>
+        <tr><td>Any LLM</td><td class="hl"><span class="y">100+ models</span></td><td><span class="n">Anthropic only</span></td><td><span class="y">Multi-provider</span></td></tr>
+        <tr><td>Local models</td><td class="hl"><span class="y">Ollama</span></td><td><span class="n">No</span></td><td><span class="y">Ollama</span></td></tr>
+        <tr><td>Tool-calling agent</td><td class="hl"><span class="y">9 tools</span></td><td><span class="y">Yes</span></td><td><span class="n">Diff-based</span></td></tr>
+        <tr><td>Context compaction</td><td class="hl"><span class="y">3-tier auto</span></td><td><span class="y">Yes</span></td><td><span class="n">Manual</span></td></tr>
+        <tr><td>Session persistence</td><td class="hl"><span class="y">Resume any</span></td><td><span class="y">Yes</span></td><td><span class="n">No</span></td></tr>
+        <tr><td>Runtime</td><td class="hl"><span class="y">Rust (native)</span></td><td><span class="n">Node.js</span></td><td><span class="n">Python</span></td></tr>
+        <tr><td>License</td><td class="hl"><span class="y">FSL-1.1</span></td><td>Apache-2.0</td><td>Apache-2.0</td></tr>
       </table>
     </div>
   </section>
 
-  <!-- OPEN SOURCE -->
-  <section class="source" id="open-source">
+  <!-- BUILD -->
+  <section class="section" style="text-align: center;">
     <div class="container">
+      <div class="section-label">Open Source</div>
       <h2>Build it yourself.</h2>
-      <p>Clone the monorepo and pick your product.</p>
-      <div class="code-block">
-        <span class="dim"># Clone</span><br>
-        <span class="dim">$</span> <span class="cmd">git clone https://github.com/DLhugly/Clif-Code.git && cd Clif-Code</span><br>
-        <br>
+      <p class="sub">Clone the monorepo and run either product in under a minute.</p>
+      <div class="build-block">
         <span class="dim"># ClifPad (desktop IDE)</span><br>
-        <span class="dim">$</span> <span class="cmd">cd clif-pad-ide && npm install && npm run tauri dev</span><br>
-        <br>
+        <span class="dim">$</span> <span class="cmd">cd clif-pad-ide && npm install && npm run tauri dev</span><br><br>
         <span class="dim"># ClifCode (terminal agent)</span><br>
         <span class="dim">$</span> <span class="cmd">cd clif-code-tui && cargo run --release</span>
       </div>
-      <p class="note">macOS: If ClifPad shows "App can't be opened", run <code>xattr -cr /Applications/ClifPad.app</code> — this removes the quarantine flag on unsigned apps.</p>
+      <p style="font-size: 12px; color: var(--muted); margin-top: 16px;">
+        macOS: if ClifPad says "App can't be opened", run <code style="background:rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px;">xattr -cr /Applications/ClifPad.app</code>
+      </p>
     </div>
   </section>
 
-  <!-- FAQ -->
-  <section class="faq-section" id="faq">
-    <div class="container">
-      <h2>FAQ</h2>
-      <div class="faq-grid">
-        <div class="faq-item">
-          <h3>Why does macOS say "App can't be opened"?</h3>
-          <p>macOS Gatekeeper blocks apps that aren't signed with a $99/year Apple Developer certificate. ClifPad is open source and safe. Run <code>xattr -cr /Applications/ClifPad.app</code> in Terminal to remove the quarantine flag, then open normally.</p>
-        </div>
-        <div class="faq-item">
-          <h3>Is Clif safe?</h3>
-          <p>100% open source. Read every line on <a href="https://github.com/DLhugly/Clif-Code" style="color: var(--accent);">GitHub</a>. No telemetry, no network calls unless you enable AI. The <code>xattr</code> command just removes Apple's download flag — it doesn't disable any security.</p>
-        </div>
-        <div class="faq-item">
-          <h3>Why isn't it signed?</h3>
-          <p>Apple charges $99/year for a Developer certificate. Clif is free and open source — proper code signing + notarization is on the roadmap.</p>
-        </div>
-        <div class="faq-item">
-          <h3>Does it work offline?</h3>
-          <p>ClifPad: Yes — AI features are opt-in. Without API keys, it's a fully offline editor with terminal and git. ClifCode: Needs an API provider (but Ollama runs fully local with no internet).</p>
-        </div>
-        <div class="faq-item">
-          <h3>How does ClifCode compare to Claude Code / Aider?</h3>
-          <p>ClifCode is a tool-calling agent (like Claude Code) that works with any LLM provider (like Aider). It combines agentic tool-calling with provider flexibility in a single native Rust binary — no Node.js or Python runtime required. It also adds session persistence, git auto-commit, repo mapping, and 3 autonomy modes.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
   <footer>
     <div class="container">
-      <p class="tagline">20MB. Native. Private. Fast.</p>
-      <p><a href="https://github.com/DLhugly/Clif-Code">GitHub</a> &middot; <a href="https://github.com/DLhugly/Clif-Code/releases">Releases</a> &middot; MIT License</p>
+      <p class="tagline">Code with AI. Built in Rust.</p>
+      <p>
+        <a href="https://github.com/DLhugly/Clif-Code">GitHub</a> · 
+        <a href="https://github.com/DLhugly/Clif-Code/releases">Releases</a> · 
+        <a href="https://github.com/DLhugly/Clif-Code/blob/main/LICENSE">FSL-1.1-ALv2</a>
+      </p>
+      <p style="margin-top: 8px;">Built by <a href="https://github.com/DLhugly">James Lawrence</a></p>
     </div>
   </footer>
 
