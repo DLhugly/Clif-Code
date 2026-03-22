@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal, createEffect, onMount } from "solid-js";
+import { Component, For, Show, createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import {
   agentMessages,
   agentStreaming,
@@ -76,16 +76,93 @@ const POPULAR_MODELS: Record<string, { value: string; label: string }[]> = {
   ],
 };
 
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  description?: string;
+  context_length?: number;
+  pricing?: { prompt: string; completion: string };
+  architecture?: { input_modalities?: string[] };
+  supported_parameters?: string[];
+}
+
+function formatPrice(priceStr: string): string {
+  const n = parseFloat(priceStr);
+  if (!n || isNaN(n)) return "free";
+  const per1M = n * 1_000_000;
+  return per1M < 1 ? `$${per1M.toFixed(2)}` : `$${per1M.toFixed(0)}`;
+}
+
+function modelProviderLabel(id: string): string {
+  const [vendor] = id.split("/");
+  const map: Record<string, string> = {
+    anthropic: "Anthropic", openai: "OpenAI", google: "Google",
+    meta: "Meta", deepseek: "DeepSeek", mistralai: "Mistral",
+    cohere: "Cohere", "x-ai": "xAI", qwen: "Qwen",
+    "nvidia": "NVIDIA", "perplexity": "Perplexity",
+  };
+  return map[vendor] || vendor?.charAt(0).toUpperCase() + vendor?.slice(1) || "Other";
+}
+
 const AgentChatPanel: Component = () => {
   let messagesEndRef: HTMLDivElement | undefined;
   let inputRef: HTMLTextAreaElement | undefined;
+  // model browser state is held in signals below
   const [inputValue, setInputValue] = createSignal("");
   const [contextFiles, setContextFiles] = createSignal<string[]>([]);
   const [initialized, setInitialized] = createSignal(false);
-  const [hasApiKey, setHasApiKey] = createSignal<boolean | null>(null); // null = loading
+  const [hasApiKey, setHasApiKey] = createSignal<boolean | null>(null);
   const [apiKeyInput, setApiKeyInput] = createSignal("");
   const [showSettings, setShowSettings] = createSignal(false);
   const [savingKey, setSavingKey] = createSignal(false);
+  const [modelDropdownOpen, setModelDropdownOpen] = createSignal(false);
+  const [openRouterModels, setOpenRouterModels] = createSignal<OpenRouterModel[]>([]);
+  const [modelSearch, setModelSearch] = createSignal("");
+  const [fetchingModels, setFetchingModels] = createSignal(false);
+  const [modelSort, setModelSort] = createSignal<"name" | "price-asc" | "price-desc" | "ctx">("name");
+  const [modelProviderFilter, setModelProviderFilter] = createSignal("all");
+  const [hoveredModel, setHoveredModel] = createSignal<string | null>(null);
+
+  async function fetchOpenRouterModels() {
+    if (openRouterModels().length > 0) return;
+    setFetchingModels(true);
+    try {
+      const resp = await fetch("https://openrouter.ai/api/v1/models?supported_parameters=tools&output_modalities=text");
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const models: OpenRouterModel[] = (data.data || [])
+        .filter((m: OpenRouterModel) => m.id && !m.id.includes(":free"));
+      setOpenRouterModels(models);
+    } catch {
+      // fall back to static list
+    } finally {
+      setFetchingModels(false);
+    }
+  }
+
+  const filteredModels = () => {
+    const q = modelSearch().toLowerCase();
+    const pf = modelProviderFilter();
+    let models = openRouterModels().length > 0
+      ? openRouterModels()
+      : (POPULAR_MODELS.openrouter || []).map(m => ({ id: m.value, name: m.label }));
+
+    if (q) models = models.filter((m: OpenRouterModel) =>
+      m.id.toLowerCase().includes(q) || (m.name || "").toLowerCase().includes(q)
+    );
+    if (pf !== "all") models = models.filter((m: OpenRouterModel) =>
+      m.id.startsWith(pf + "/")
+    );
+
+    const sort = modelSort();
+    return [...models].sort((a: OpenRouterModel, b: OpenRouterModel) => {
+      if (sort === "name") return (a.name || a.id).localeCompare(b.name || b.id);
+      if (sort === "price-asc") return parseFloat(a.pricing?.prompt || "0") - parseFloat(b.pricing?.prompt || "0");
+      if (sort === "price-desc") return parseFloat(b.pricing?.prompt || "0") - parseFloat(a.pricing?.prompt || "0");
+      if (sort === "ctx") return (b.context_length || 0) - (a.context_length || 0);
+      return 0;
+    });
+  };
 
   onMount(async () => {
     await initAgentListeners();
@@ -449,6 +526,7 @@ const AgentChatPanel: Component = () => {
       style={{
         background: "var(--bg-surface)",
         "font-size": "var(--ui-font-size)",
+        position: "relative",
       }}
     >
       {/* Header: tabs + new session */}
@@ -565,24 +643,40 @@ const AgentChatPanel: Component = () => {
           </For>
         </div>
 
-        {/* Model dropdown */}
-        <select
-          class="flex-1 min-w-0 rounded-md px-1.5 py-1 outline-none truncate"
+        {/* Model selector — opens full-panel browser */}
+        <button
+          class="flex items-center gap-1.5 flex-1 min-w-0 rounded-md px-2 py-1 transition-colors group"
           style={{
-            background: "var(--bg-base)",
+            background: modelDropdownOpen() ? "var(--bg-active)" : "var(--bg-hover)",
             color: "var(--text-primary)",
-            border: "1px solid var(--border-muted)",
+            border: "1px solid var(--border-default)",
             "font-size": "11px",
             cursor: "pointer",
             "font-family": "var(--font-mono, monospace)",
+            "text-align": "left",
           }}
-          value={settings().aiModel}
-          onChange={(e) => handleModelChange(e.currentTarget.value)}
+          onClick={() => {
+            const next = !modelDropdownOpen();
+            setModelDropdownOpen(next);
+            if (next && settings().aiProvider === "openrouter") fetchOpenRouterModels();
+          }}
+          title="Browse and select a model"
         >
-          <For each={POPULAR_MODELS[settings().aiProvider] || []}>
-            {(m) => <option value={m.value}>{m.label}</option>}
-          </For>
-        </select>
+          {/* Grid icon to signal "opens browser" */}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{ "flex-shrink": "0", color: "var(--text-muted)" }}>
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+          </svg>
+          <span class="flex-1 truncate" style={{ "min-width": "0" }}>
+            {(() => {
+              const current = settings().aiModel;
+              const live = openRouterModels().find(m => m.id === current);
+              const name = live?.name || (POPULAR_MODELS[settings().aiProvider] || []).find(m => m.value === current)?.label || current;
+              // Strip provider prefix like "Anthropic: " or "OpenAI: "
+              return name.replace(/^[^:]+:\s*/, "");
+            })()}
+          </span>
+          <span style={{ "font-size": "9px", color: "var(--text-muted)", "flex-shrink": "0", "font-family": "var(--font-sans)" }}>Browse</span>
+        </button>
 
         {/* API key indicator / button */}
         <Show when={settings().aiProvider !== "ollama"}>
@@ -647,6 +741,232 @@ const AgentChatPanel: Component = () => {
           >
             {savingKey() ? "..." : "Save"}
           </button>
+        </div>
+      </Show>
+
+      {/* Model browser — full overlay over chat when open */}
+      <Show when={modelDropdownOpen()}>
+        <div
+          style={{
+            position: "absolute", inset: "0",
+            background: "var(--bg-surface)",
+            "z-index": "50",
+            display: "flex", "flex-direction": "column",
+          }}
+        >
+          {/* Browser header */}
+          <div style={{ padding: "10px 12px", "border-bottom": "1px solid var(--border-default)", display: "flex", "align-items": "center", gap: "8px" }}>
+            <button
+              onClick={() => { setModelDropdownOpen(false); setModelSearch(""); }}
+              style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", "font-size": "18px", "line-height": "1", padding: "0 4px", "flex-shrink": "0" }}
+            >←</button>
+            <input
+              type="text"
+              placeholder={fetchingModels() ? "Loading models from OpenRouter..." : "Search models..."}
+              value={modelSearch()}
+              onInput={(e) => setModelSearch(e.currentTarget.value)}
+              autofocus
+              style={{
+                flex: "1", background: "var(--bg-base)", color: "var(--text-primary)",
+                border: "1px solid var(--border-muted)", "border-radius": "6px",
+                padding: "5px 8px", "font-size": "12px", outline: "none", "font-family": "inherit",
+              }}
+            />
+          </div>
+
+          {/* Sort + filter bar */}
+          <Show when={settings().aiProvider === "openrouter"}>
+            <div style={{ padding: "6px 10px", "border-bottom": "1px solid var(--border-muted)", display: "flex", gap: "6px", "align-items": "center", "flex-wrap": "wrap" }}>
+              {/* Sort */}
+              <div class="flex items-center gap-1" style={{ "font-size": "10px", color: "var(--text-muted)" }}>
+                <span>Sort:</span>
+                <For each={[
+                  { v: "name" as const, label: "A–Z" },
+                  { v: "price-asc" as const, label: "Cheapest" },
+                  { v: "price-desc" as const, label: "Priciest" },
+                  { v: "ctx" as const, label: "Context" },
+                ]}>
+                  {(s) => (
+                    <button
+                      onClick={() => setModelSort(s.v)}
+                      style={{
+                        background: modelSort() === s.v ? "var(--accent-primary)" : "var(--bg-hover)",
+                        color: modelSort() === s.v ? "#fff" : "var(--text-muted)",
+                        border: "none", cursor: "pointer", "font-size": "10px", "font-weight": "600",
+                        padding: "2px 7px", "border-radius": "4px",
+                      }}
+                    >{s.label}</button>
+                  )}
+                </For>
+              </div>
+
+              {/* Provider filter */}
+              <div class="flex items-center gap-1 ml-2" style={{ "font-size": "10px", color: "var(--text-muted)" }}>
+                <For each={[
+                  { v: "all", label: "All" },
+                  { v: "anthropic", label: "Anthropic" },
+                  { v: "openai", label: "OpenAI" },
+                  { v: "google", label: "Google" },
+                  { v: "meta-llama", label: "Meta" },
+                  { v: "deepseek", label: "DeepSeek" },
+                  { v: "mistralai", label: "Mistral" },
+                ]}>
+                  {(p) => (
+                    <button
+                      onClick={() => setModelProviderFilter(p.v)}
+                      style={{
+                        background: modelProviderFilter() === p.v ? "var(--bg-active)" : "transparent",
+                        color: modelProviderFilter() === p.v ? "var(--text-primary)" : "var(--text-muted)",
+                        border: modelProviderFilter() === p.v ? "1px solid var(--border-default)" : "1px solid transparent",
+                        cursor: "pointer", "font-size": "10px", "font-weight": "500",
+                        padding: "2px 6px", "border-radius": "4px",
+                      }}
+                    >{p.label}</button>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
+
+          {/* Model list */}
+          <div style={{ "overflow-y": "auto", flex: "1", padding: "6px 8px" }}>
+            <Show when={settings().aiProvider === "ollama"}>
+              <For each={POPULAR_MODELS.ollama}>
+                {(m) => {
+                  const isActive = () => settings().aiModel === m.value;
+                  return (
+                    <button
+                      class="flex items-center justify-between w-full rounded-lg px-3 py-2.5 transition-colors"
+                      style={{
+                        background: isActive() ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
+                        border: isActive() ? "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)" : "1px solid transparent",
+                        cursor: "pointer", "text-align": "left", "margin-bottom": "2px",
+                      }}
+                      onMouseEnter={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                      onMouseLeave={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      onClick={() => { handleModelChange(m.value); setModelDropdownOpen(false); setModelSearch(""); }}
+                    >
+                      <span style={{ "font-size": "13px", "font-weight": "500", color: isActive() ? "var(--accent-primary)" : "var(--text-primary)" }}>{m.label}</span>
+                      <Show when={isActive()}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </Show>
+                    </button>
+                  );
+                }}
+              </For>
+            </Show>
+
+            <Show when={settings().aiProvider === "openrouter"}>
+              <Show when={filteredModels().length === 0 && !fetchingModels()}>
+                <div style={{ padding: "32px", "text-align": "center", color: "var(--text-muted)", "font-size": "13px" }}>No models found</div>
+              </Show>
+              <Show when={fetchingModels()}>
+                <div style={{ padding: "32px", "text-align": "center", color: "var(--text-muted)", "font-size": "12px" }}>Loading models from OpenRouter...</div>
+              </Show>
+              <For each={filteredModels()}>
+                {(m: OpenRouterModel) => {
+                  const priceIn = m.pricing ? formatPrice(m.pricing.prompt) : null;
+                  const priceOut = m.pricing ? formatPrice(m.pricing.completion) : null;
+                  const isFree = !parseFloat(m.pricing?.prompt || "0");
+                  const ctxK = m.context_length ? (m.context_length >= 1_000_000 ? `${(m.context_length/1_000_000).toFixed(0)}M` : `${Math.round(m.context_length/1000)}K`) : null;
+                  const provider = modelProviderLabel(m.id);
+                  const shortName = (m.name || m.id).replace(/^[^:]+:\s*/, "");
+                  const hasVision = m.architecture?.input_modalities?.includes("image");
+                  const hasThinking = m.supported_parameters?.includes("reasoning") || m.id.includes("thinking") || m.id.includes("r1") || m.id.includes("deepseek-r");
+                  const hasTools = m.supported_parameters?.includes("tools");
+                  const hasStructured = m.supported_parameters?.includes("structured_outputs");
+                  const isLongCtx = (m.context_length || 0) >= 128_000;
+                  const isActive = () => settings().aiModel === m.id;
+                  const isHovered = () => hoveredModel() === m.id;
+                  // Short desc for collapsed, full for hovered
+                  const shortDesc = m.description ? m.description.replace(/\n+/g, " ").slice(0, 100) + (m.description.length > 100 ? "…" : "") : "";
+                  const fullDesc = m.description ? m.description.replace(/\n+/g, " ") : "";
+
+                  return (
+                    <button
+                      class="w-full rounded-lg px-3 py-2.5"
+                      style={{
+                        background: isActive()
+                          ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
+                          : isHovered() ? "var(--bg-hover)" : "var(--bg-base)",
+                        border: isActive()
+                          ? "1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent)"
+                          : isHovered() ? "1px solid var(--border-default)" : "1px solid var(--border-muted)",
+                        cursor: "pointer", "text-align": "left", "margin-bottom": "4px",
+                        display: "block", transition: "background 0.1s, border-color 0.1s",
+                      }}
+                      onMouseEnter={() => setHoveredModel(m.id)}
+                      onMouseLeave={() => setHoveredModel(null)}
+                      onClick={() => { handleModelChange(m.id); setModelDropdownOpen(false); setModelSearch(""); }}
+                    >
+                      {/* Row 1: name + badges + price */}
+                      <div class="flex items-center gap-2" style={{ "margin-bottom": "3px" }}>
+                        <span style={{
+                          "font-size": `${fontSize()}px`, "font-weight": "700",
+                          color: isActive() ? "var(--accent-primary)" : "var(--text-primary)",
+                          flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap",
+                        }}>
+                          {shortName}
+                        </span>
+                        {/* Capability badges */}
+                        <Show when={hasThinking}>
+                          <span title="Reasoning / thinking mode" style={{ "font-size": `${fontSize()}px`, "line-height": "1", "flex-shrink": "0" }}>🧠</span>
+                        </Show>
+                        <Show when={hasVision}>
+                          <span title="Accepts image inputs" style={{ "font-size": `${fontSize()}px`, "line-height": "1", "flex-shrink": "0" }}>📷</span>
+                        </Show>
+                        <Show when={isFree}>
+                          <span title="Free to use" style={{ "font-size": `${fontSize()}px`, "line-height": "1", "flex-shrink": "0" }}>🆓</span>
+                        </Show>
+                        {/* Price */}
+                        <span style={{
+                          "font-size": `${fontSize() - 1}px`, "font-family": "var(--font-mono, monospace)",
+                          "font-weight": "600", "flex-shrink": "0",
+                          color: isFree ? "var(--accent-green)" : "var(--text-secondary)",
+                        }}>
+                          {isFree ? "free" : `${priceIn} / ${priceOut}`}
+                        </span>
+                      </div>
+
+                      {/* Row 2: provider · context · short desc (or full on hover) */}
+                      <div style={{ "font-size": `${fontSize() - 2}px`, color: "var(--text-muted)", display: "flex", "flex-wrap": "wrap", gap: "4px", "align-items": "center" }}>
+                        <span style={{ "flex-shrink": "0" }}>{provider}</span>
+                        <Show when={ctxK}>
+                          <span style={{ "flex-shrink": "0", opacity: "0.5" }}>·</span>
+                          <span style={{ "flex-shrink": "0", color: (m.context_length || 0) >= 200_000 ? "var(--accent-blue)" : "var(--text-muted)" }}>
+                            {(m.context_length || 0) >= 1_000_000 ? "🔮 " : ""}{ctxK} ctx
+                          </span>
+                        </Show>
+                        <Show when={!isFree && priceIn && priceOut && isHovered()}>
+                          <span style={{ "flex-shrink": "0", opacity: "0.5" }}>·</span>
+                          <span style={{ "flex-shrink": "0", color: "var(--text-muted)" }}>in: {priceIn} / out: {priceOut} per 1M tokens</span>
+                        </Show>
+                      </div>
+
+                      {/* Full description on hover */}
+                      <Show when={isHovered() && fullDesc}>
+                        <div style={{
+                          "font-size": `${fontSize() - 2}px`, color: "var(--text-muted)",
+                          "line-height": "1.5", "margin-top": "6px",
+                          "padding-top": "6px", "border-top": "1px solid var(--border-muted)",
+                        }}>
+                          {fullDesc}
+                        </div>
+                      </Show>
+                    </button>
+                  );
+                }}
+              </For>
+            </Show>
+          </div>
+
+          {/* Footer count */}
+          <div style={{ padding: "5px 12px", "border-top": "1px solid var(--border-muted)", "font-size": "10px", color: "var(--text-muted)", display: "flex", "justify-content": "space-between" }}>
+            <span>{filteredModels().length} models</span>
+            <Show when={settings().aiProvider === "openrouter" && openRouterModels().length > 0}>
+              <span>per 1M tokens · live from openrouter.ai</span>
+            </Show>
+          </div>
         </div>
       </Show>
 
@@ -737,33 +1057,49 @@ const AgentChatPanel: Component = () => {
         </div>
       </Show>
 
-      {/* Persistent stop banner — visible whenever agent is active */}
+      {/* Agent status bar — visible when agent loop is active */}
       <Show when={agentStreaming()}>
         <div
-          class="shrink-0 flex items-center justify-between px-3 py-1.5"
+          class="shrink-0 flex items-center justify-between px-3 py-1"
           style={{
-            background: "color-mix(in srgb, var(--accent-red) 8%, transparent)",
-            "border-top": "1px solid color-mix(in srgb, var(--accent-red) 20%, transparent)",
+            background: "var(--bg-hover)",
+            "border-top": "1px solid var(--border-muted)",
           }}
         >
-          <span style={{ "font-size": "11px", color: "var(--accent-red)", "font-weight": "500" }}>
-            Agent is working...
-          </span>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="inline-block animate-pulse"
+              style={{ width: "6px", height: "6px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
+            />
+            <span style={{ "font-size": "11px", color: "var(--text-muted)" }}>
+              Agent running
+            </span>
+          </div>
           <button
-            class="flex items-center gap-1.5 rounded-md px-3 py-1"
+            class="flex items-center gap-1 rounded px-2 py-0.5 transition-colors"
             style={{
-              background: "var(--accent-red)",
-              color: "#fff",
-              border: "none",
+              background: "transparent",
+              color: "var(--text-muted)",
+              border: "1px solid var(--border-default)",
               cursor: "pointer",
-              "font-size": "11px",
-              "font-weight": "700",
+              "font-size": "10px",
+              "font-weight": "600",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 12%, transparent)";
+              (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
+              (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 30%, transparent)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
             }}
             onClick={stopAgent}
-            title="Stop all agent tasks immediately"
+            title="Stop all agent tasks"
           >
             <StopIcon />
-            Stop
+            Stop all
           </button>
         </div>
       </Show>
@@ -827,20 +1163,20 @@ const AgentChatPanel: Component = () => {
             disabled={agentStreaming()}
           />
 
-          {/* Send / Stop button */}
+          {/* Send / Stop streaming button */}
           <Show
             when={!agentStreaming()}
             fallback={
               <button
                 class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
                 style={{
-                  background: "var(--accent-red)",
-                  color: "#fff",
-                  border: "none",
+                  background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
+                  color: "var(--accent-red)",
+                  border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
                   cursor: "pointer",
                 }}
                 onClick={stopAgent}
-                title="Stop"
+                title="Stop streaming response"
               >
                 <StopIcon />
               </button>
