@@ -1,3 +1,10 @@
+## [1.31.2](https://github.com/DLhugly/Clif-Code/compare/v1.31.1...v1.31.2) (2026-03-22)
+
+
+### Bug Fixes
+
+* move agent status bar into input area, add table CSS, fix all theme contrast ratios ([ecb2a2e](https://github.com/DLhugly/Clif-Code/commit/ecb2a2ebb5f61ccbf3140055705007933bf1915a))
+
 ## [1.31.1](https://github.com/DLhugly/Clif-Code/compare/v1.31.0...v1.31.1) (2026-03-22)
 
 
