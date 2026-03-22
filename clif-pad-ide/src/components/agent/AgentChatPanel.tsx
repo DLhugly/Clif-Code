@@ -1117,7 +1117,7 @@ const AgentChatPanel: Component = () => {
                 <button
                   class="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
                   style={{
-                    background: "var(--accent-primary)", color: "#fff", border: "none", cursor: "pointer",
+                    background: "var(--accent-primary)", color: "var(--accent-text)", border: "none", cursor: "pointer",
                     "font-size": "13px", "font-weight": "700",
                   }}
                   onClick={async () => {
@@ -1155,58 +1155,46 @@ const AgentChatPanel: Component = () => {
         )}
       </Show>
 
-      {/* Agent status bar — visible when agent loop is active */}
-      <Show when={agentStreaming()}>
-        <div
-          class="shrink-0 flex items-center justify-between px-3 py-1"
-          style={{
-            background: "var(--bg-hover)",
-            "border-top": "1px solid var(--border-muted)",
-          }}
-        >
-          <div class="flex items-center gap-1.5">
-            <span
-              class="inline-block animate-pulse"
-              style={{ width: "6px", height: "6px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
-            />
-            <span style={{ "font-size": "11px", color: "var(--text-muted)" }}>
-              Agent running
-            </span>
-          </div>
-          <button
-            class="flex items-center gap-1 rounded px-2 py-0.5 transition-colors"
-            style={{
-              background: "transparent",
-              color: "var(--text-muted)",
-              border: "1px solid var(--border-default)",
-              cursor: "pointer",
-              "font-size": "10px",
-              "font-weight": "600",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 12%, transparent)";
-              (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
-              (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 30%, transparent)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
-            }}
-            onClick={stopAgent}
-            title="Stop all agent tasks"
-          >
-            <StopIcon />
-            Stop all
-          </button>
-        </div>
-      </Show>
-
       {/* Input area */}
       <div
         class="shrink-0 px-3 py-2"
         style={{ "border-top": "1px solid var(--border-default)" }}
       >
+        {/* Thin agent-running indicator inside the input area, above the textarea */}
+        <Show when={agentStreaming()}>
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-1.5">
+              <span
+                class="inline-block animate-pulse"
+                style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
+              />
+              <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>Agent running</span>
+            </div>
+            <button
+              class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors"
+              style={{
+                background: "transparent", color: "var(--text-muted)",
+                border: "1px solid var(--border-default)", cursor: "pointer",
+                "font-size": "10px", "font-weight": "600",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 10%, transparent)";
+                (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
+                (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 25%, transparent)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+              }}
+              onClick={stopAgent}
+              title="Stop all agent tasks"
+            >
+              <StopIcon />
+              Stop
+            </button>
+          </div>
+        </Show>
         <div
           class="flex items-end gap-2 rounded-xl px-3 py-2"
           style={{
@@ -1327,6 +1315,31 @@ const AgentChatPanel: Component = () => {
           font-size: 0.85em;
           padding: 0.15em 0.35em;
           border-radius: 4px;
+          background: var(--bg-hover);
+        }
+        .agent-markdown table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 0.6em 0;
+          font-size: 0.9em;
+          overflow-x: auto;
+          display: block;
+        }
+        .agent-markdown th, .agent-markdown td {
+          border: 1px solid var(--border-default);
+          padding: 6px 10px;
+          text-align: left;
+          white-space: nowrap;
+        }
+        .agent-markdown th {
+          background: var(--bg-hover);
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+        .agent-markdown tr:nth-child(even) td {
+          background: color-mix(in srgb, var(--bg-hover) 50%, transparent);
+        }
+        .agent-markdown tr:hover td {
           background: var(--bg-hover);
         }
         .agent-markdown pre {

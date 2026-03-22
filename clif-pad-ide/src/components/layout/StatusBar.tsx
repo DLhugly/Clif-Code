@@ -340,7 +340,7 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
             background: agentVisible()
               ? "var(--accent-primary)"
               : "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-            color: agentVisible() ? "#fff" : "var(--accent-primary)",
+            color: agentVisible() ? "var(--accent-text)" : "var(--accent-primary)",
             border: agentVisible()
               ? "1px solid var(--accent-primary)"
               : "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)",
