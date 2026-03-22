@@ -3,6 +3,8 @@ import { relaunch } from "@tauri-apps/plugin-process";
 
 export type UpdateStatus =
   | { state: "idle" }
+  | { state: "checking" }
+  | { state: "up-to-date" }
   | { state: "available"; version: string; update: Update }
   | { state: "downloading"; progress: number }
   | { state: "installing" }

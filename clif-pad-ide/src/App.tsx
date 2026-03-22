@@ -104,7 +104,7 @@ const App: Component = () => {
 
     const onMouseMove = (e: MouseEvent) => {
       const width = window.innerWidth - e.clientX;
-      setAgentWidth(Math.max(280, Math.min(700, width)));
+      setAgentWidth(Math.max(280, Math.min(window.innerWidth - 100, width)));
     };
 
     const onMouseUp = () => {

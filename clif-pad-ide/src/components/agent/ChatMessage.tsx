@@ -251,7 +251,7 @@ const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
           background: isUser()
             ? "var(--accent-primary)"
             : "var(--bg-surface)",
-          color: isUser() ? "#fff" : "var(--text-primary)",
+          color: isUser() ? "var(--accent-text, #fff)" : "var(--text-primary)",
           border: isUser() ? "none" : "1px solid var(--border-muted)",
           "box-shadow": isUser()
             ? "0 1px 4px color-mix(in srgb, var(--accent-primary) 30%, transparent)"

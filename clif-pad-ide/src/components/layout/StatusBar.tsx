@@ -73,18 +73,31 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
   const updateLabel = () => {
     const status = updateStatus();
     switch (status.state) {
-      case "available":
-        return `Update v${status.version}`;
-      case "downloading":
-        return `Updating ${status.progress}%`;
-      case "installing":
-        return "Installing...";
-      case "error":
-        return "Update failed";
-      default:
-        return `ClifPad v${appVersion()}`;
+      case "checking":   return "Checking...";
+      case "up-to-date": return `✓ Up to date`;
+      case "available":  return `Update v${status.version}`;
+      case "downloading": return `Updating ${status.progress}%`;
+      case "installing": return "Installing...";
+      case "error":      return "Update failed";
+      default:           return `ClifPad v${appVersion()}`;
     }
   };
+
+  async function forceCheckUpdate() {
+    setUpdateStatus({ state: "checking" });
+    try {
+      const update = await checkForUpdate();
+      if (update) {
+        setPendingUpdate(update);
+        setUpdateStatus({ state: "available", version: update.version, update });
+      } else {
+        setUpdateStatus({ state: "up-to-date" });
+        setTimeout(() => setUpdateStatus({ state: "idle" }), 3000);
+      }
+    } catch {
+      setUpdateStatus({ state: "idle" });
+    }
+  }
 
   const isClickable = () => {
     const s = updateStatus().state;
@@ -414,12 +427,21 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
             style={{
               color: updateStatus().state === "downloading" || updateStatus().state === "installing"
                 ? "var(--accent-yellow, #eab308)"
+                : updateStatus().state === "up-to-date"
+                ? "var(--accent-green)"
+                : updateStatus().state === "checking"
+                ? "var(--text-muted)"
                 : "var(--accent-primary)",
-              cursor: updateStatus().state === "idle" ? "pointer" : "default",
+              cursor: updateStatus().state === "idle" || updateStatus().state === "up-to-date" ? "pointer" : "default",
+              position: "relative",
             }}
-            title={`ClifPad v${appVersion()}`}
+            title={updateStatus().state === "idle"
+              ? `ClifPad v${appVersion()} — click to check for updates`
+              : updateStatus().state === "up-to-date"
+              ? "Already on latest version"
+              : undefined}
             onClick={() => {
-              if (updateStatus().state === "idle" && props.onShowAbout) props.onShowAbout();
+              if (updateStatus().state === "idle") forceCheckUpdate();
             }}
             onMouseEnter={(e) => {
               if (updateStatus().state === "idle") (e.currentTarget as HTMLElement).style.opacity = "0.7";
