@@ -1,6 +1,8 @@
 import { Component, Show, For, createSignal, createMemo, lazy, Suspense } from "solid-js";
 import { projectRoot, openFile, openDiff, refreshFileTree } from "../../stores/fileStore";
-import { revealPath, renameEntry, deleteEntry } from "../../lib/tauri";
+import { revealPath, renameEntry, deleteEntry, scanFilesSecurity } from "../../lib/tauri";
+import { securityEnabled, setSecurityResults, setSecurityShowModal, securityShowModal } from "../../stores/securityStore";
+import SecurityModal from "../security/SecurityModal";
 import ContextMenu, { type ContextMenuItem } from "../explorer/ContextMenu";
 import {
   isGitRepo, currentBranch, changedFiles, diffStat,
@@ -496,6 +498,7 @@ const SpinnerIcon = () => (
 const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: string) => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
+  const [pendingCommit, setPendingCommit] = createSignal(false);
   const [isCommitting, setIsCommitting] = createSignal(false);
   const [creatingType, setCreatingType] = createSignal<"file" | "folder" | null>(null);
   const [branchDropdownOpen, setBranchDropdownOpen] = createSignal(false);
@@ -527,18 +530,48 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
     document.addEventListener("mouseup", onMouseUp);
   }
 
-  async function handleCommit() {
+  async function doCommit() {
     const msg = commitMsg().trim();
     if (!msg) return;
     setIsCommitting(true);
     try {
       await commitChanges(msg);
       setCommitMsg("");
+      setPendingCommit(false);
     } catch (e) {
       console.error("Commit failed:", e);
     } finally {
       setIsCommitting(false);
     }
+  }
+
+  async function handleCommit() {
+    const msg = commitMsg().trim();
+    if (!msg) return;
+
+    // Pre-commit security scan if enabled
+    if (securityEnabled() && projectRoot()) {
+      const root = projectRoot()!;
+      const paths = stagedFiles().map((f) =>
+        f.path.startsWith("/") ? f.path : `${root}/${f.path}`
+      );
+      if (paths.length > 0) {
+        try {
+          const issues = await scanFilesSecurity(paths);
+          if (issues.length > 0) {
+            setSecurityResults(issues);
+            setPendingCommit(true);
+            setSecurityShowModal(true);
+            return; // Wait for user decision in modal
+          }
+        } catch (e) {
+          console.error("Pre-commit scan failed:", e);
+          // If scan fails, proceed with commit
+        }
+      }
+    }
+
+    await doCommit();
   }
 
   return (
@@ -1163,6 +1196,20 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
         </Show>
       </div>
 
+      {/* Security modal rendered via Portal so it escapes sidebar bounds */}
+      <Show when={securityShowModal()}>
+        <SecurityModal
+          mode={pendingCommit() ? "pre-commit" : "scan"}
+          onCommitAnyway={() => {
+            setSecurityShowModal(false);
+            doCommit();
+          }}
+          onClose={() => {
+            setSecurityShowModal(false);
+            setPendingCommit(false);
+          }}
+        />
+      </Show>
     </div>
   );
 };

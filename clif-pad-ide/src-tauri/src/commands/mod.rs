@@ -5,5 +5,6 @@ pub mod fs;
 pub mod git;
 pub mod pty;
 pub mod search;
+pub mod security;
 pub mod settings;
 pub mod window;

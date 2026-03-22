@@ -271,3 +271,21 @@ export function onAgentDone(callback: () => void): Promise<UnlistenFn> {
 export function onAgentError(callback: (error: string) => void): Promise<UnlistenFn> {
   return listen<string>("agent_error", (event) => callback(event.payload));
 }
+
+// Security scanner
+export interface SecurityIssue {
+  file: string;
+  line: number;
+  severity: "critical" | "warning" | "info";
+  category: string;
+  description: string;
+  snippet: string;
+}
+
+export async function scanFilesSecurity(paths: string[]): Promise<SecurityIssue[]> {
+  return invoke("scan_files_security", { paths });
+}
+
+export async function scanRepoSecurity(workspaceDir: string): Promise<SecurityIssue[]> {
+  return invoke("scan_repo_security", { workspaceDir });
+}

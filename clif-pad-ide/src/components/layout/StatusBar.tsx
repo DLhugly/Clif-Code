@@ -4,6 +4,8 @@ import { activeFile, projectRoot } from "../../stores/fileStore";
 const hasProject = () => !!projectRoot();
 import { isGitRepo, currentBranch, aheadBehind, fetchRemote } from "../../stores/gitStore";
 import { theme, THEMES, agentVisible, toggleAgentPanel, terminalVisible, toggleTerminal } from "../../stores/uiStore";
+import { securityEnabled, setSecurityEnabled, securityResults, securityScanning, setSecurityScanning, setSecurityResults, setSecurityShowModal, criticalCount, warningCount } from "../../stores/securityStore";
+import { scanRepoSecurity } from "../../lib/tauri";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -249,6 +251,87 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
             UTF-8
           </span>
         </Show>
+
+        {/* Security toggle + scan */}
+        <div class="flex items-center gap-1">
+          {/* Security mode toggle */}
+          <button
+            class="flex items-center gap-1"
+            style={{
+              background: "transparent", border: "none",
+              color: securityEnabled() ? "var(--accent-green)" : "var(--text-muted)",
+              cursor: "pointer", "font-size": "11px", "font-family": "var(--font-sans)",
+              padding: "1px 4px", "border-radius": "3px", transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            onClick={() => setSecurityEnabled(!securityEnabled())}
+            title={securityEnabled() ? "Security scan enabled (click to disable)" : "Security scan disabled (click to enable)"}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <Show when={securityResults().length > 0 && securityEnabled()}>
+              <span style={{ color: criticalCount() > 0 ? "var(--accent-red)" : "var(--accent-yellow)", "font-weight": "600" }}>
+                {criticalCount() > 0 ? `${criticalCount()} critical` : `${warningCount()} warn`}
+              </span>
+            </Show>
+            <Show when={securityResults().length === 0 || !securityEnabled()}>
+              <span>{securityEnabled() ? "Secure" : "Security off"}</span>
+            </Show>
+          </button>
+
+          {/* Scan results badge (clickable to open modal) */}
+          <Show when={securityResults().length > 0}>
+            <button
+              style={{
+                background: criticalCount() > 0
+                  ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
+                  : "color-mix(in srgb, var(--accent-yellow) 15%, transparent)",
+                color: criticalCount() > 0 ? "var(--accent-red)" : "var(--accent-yellow)",
+                border: "none", "border-radius": "3px", cursor: "pointer",
+                "font-size": "10px", "font-weight": "700", padding: "1px 5px",
+              }}
+              onClick={() => setSecurityShowModal(true)}
+              title="View security issues"
+            >
+              {securityResults().length} issue{securityResults().length !== 1 ? "s" : ""}
+            </button>
+          </Show>
+
+          {/* Scan repo button */}
+          <Show when={securityEnabled() && !!projectRoot()}>
+            <button
+              class="flex items-center gap-1"
+              style={{
+                background: "transparent", border: "none",
+                color: "var(--text-muted)", cursor: securityScanning() ? "default" : "pointer",
+                "font-size": "11px", "font-family": "var(--font-sans)",
+                padding: "1px 4px", "border-radius": "3px", transition: "all 0.15s",
+                opacity: securityScanning() ? "0.5" : "1",
+              }}
+              onMouseEnter={(e) => { if (!securityScanning()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              onClick={async () => {
+                if (securityScanning() || !projectRoot()) return;
+                setSecurityScanning(true);
+                try {
+                  const issues = await scanRepoSecurity(projectRoot()!);
+                  setSecurityResults(issues);
+                  // path tracked in store
+                  setSecurityShowModal(true);
+                } catch (e) {
+                  console.error("Security scan failed:", e);
+                } finally {
+                  setSecurityScanning(false);
+                }
+              }}
+              title="Scan entire repo for security issues"
+            >
+              {securityScanning() ? "Scanning..." : "Scan repo"}
+            </button>
+          </Show>
+        </div>
 
         {/* Agent chat toggle */}
         <button

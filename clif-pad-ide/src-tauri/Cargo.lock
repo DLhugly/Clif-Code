@@ -358,13 +358,14 @@ dependencies = [
 
 [[package]]
 name = "clifpad"
-version = "1.27.0"
+version = "1.28.1"
 dependencies = [
  "env_logger",
  "futures",
  "log",
  "notify",
  "portable-pty",
+ "regex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

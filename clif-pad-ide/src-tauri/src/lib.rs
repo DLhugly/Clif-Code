@@ -145,6 +145,8 @@ pub fn run() {
             commands::window::create_window,
             commands::agent::agent_chat,
             commands::agent::agent_stop,
+            commands::security::scan_files_security,
+            commands::security::scan_repo_security,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
