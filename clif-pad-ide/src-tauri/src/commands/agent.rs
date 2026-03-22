@@ -868,6 +868,20 @@ async fn run_agent_loop(
             let args: serde_json::Value =
                 serde_json::from_str(args_str).unwrap_or(json!({}));
 
+            // Handle submit specially — emit the summary as a final assistant
+            // message rather than a tool call card, then finish the session.
+            if name == "submit" {
+                let args_val: serde_json::Value =
+                    serde_json::from_str(args_str).unwrap_or(json!({}));
+                let summary = args_val
+                    .get("summary")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Task complete.");
+                let _ = app.emit_to(label, "agent_stream", summary);
+                let _ = app.emit_to(label, "agent_stream", "[DONE]");
+                return Ok(());
+            }
+
             // Emit tool_call event to frontend
             let _ = app.emit_to(
                 label,
@@ -875,8 +889,26 @@ async fn run_agent_loop(
                 json!({ "id": id, "name": name, "arguments": args_str }),
             );
 
-            // Execute the tool
-            let result = execute_tool(name, &args, &workspace_dir).await;
+            // Execute the tool — for run_command, race against cancel so Stop
+            // works even while a subprocess is still running.
+            let result = if name == "run_command" {
+                tokio::select! {
+                    res = execute_tool(name, &args, &workspace_dir) => res,
+                    _ = async {
+                        // Poll cancel channel every 250ms while command runs
+                        loop {
+                            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                            if cancel_rx.try_recv().is_ok() { break; }
+                        }
+                    } => {
+                        let _ = app.emit_to(label, "agent_stream", "\n*[Stopped by user]*\n");
+                        let _ = app.emit_to(label, "agent_stream", "[DONE]");
+                        return Ok(());
+                    }
+                }
+            } else {
+                execute_tool(name, &args, &workspace_dir).await
+            };
 
             // Emit full result to frontend (UI can scroll)
             let _ = app.emit_to(

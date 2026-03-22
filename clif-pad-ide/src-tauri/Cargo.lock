@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "clifpad"
-version = "1.28.1"
+version = "1.30.0"
 dependencies = [
  "env_logger",
  "futures",

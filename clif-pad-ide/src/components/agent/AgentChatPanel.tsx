@@ -737,6 +737,37 @@ const AgentChatPanel: Component = () => {
         </div>
       </Show>
 
+      {/* Persistent stop banner — visible whenever agent is active */}
+      <Show when={agentStreaming()}>
+        <div
+          class="shrink-0 flex items-center justify-between px-3 py-1.5"
+          style={{
+            background: "color-mix(in srgb, var(--accent-red) 8%, transparent)",
+            "border-top": "1px solid color-mix(in srgb, var(--accent-red) 20%, transparent)",
+          }}
+        >
+          <span style={{ "font-size": "11px", color: "var(--accent-red)", "font-weight": "500" }}>
+            Agent is working...
+          </span>
+          <button
+            class="flex items-center gap-1.5 rounded-md px-3 py-1"
+            style={{
+              background: "var(--accent-red)",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              "font-size": "11px",
+              "font-weight": "700",
+            }}
+            onClick={stopAgent}
+            title="Stop all agent tasks immediately"
+          >
+            <StopIcon />
+            Stop
+          </button>
+        </div>
+      </Show>
+
       {/* Input area */}
       <div
         class="shrink-0 px-3 py-2"
