@@ -1,3 +1,10 @@
+## [1.32.2](https://github.com/DLhugly/Clif-Code/compare/v1.32.1...v1.32.2) (2026-03-22)
+
+
+### Bug Fixes
+
+* pass :online model directly to agent_chat instead of via settings mutation (web search was silently failing) ([c71e577](https://github.com/DLhugly/Clif-Code/commit/c71e577aefe29b8ad610840bb47049cabd7a62f4))
+
 ## [1.32.1](https://github.com/DLhugly/Clif-Code/compare/v1.32.0...v1.32.1) (2026-03-22)
 
 
