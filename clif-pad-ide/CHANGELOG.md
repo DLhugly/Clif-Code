@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/DLhugly/Clif-Code/compare/v1.31.2...v1.32.0) (2026-03-22)
+
+
+### Features
+
+* web search toggle, git bar redesign, font scaling, window title fix ([715ec97](https://github.com/DLhugly/Clif-Code/commit/715ec979fecec5f27d125d4ec5c90f43b8707f84))
+
 ## [1.31.2](https://github.com/DLhugly/Clif-Code/compare/v1.31.1...v1.31.2) (2026-03-22)
 
 
