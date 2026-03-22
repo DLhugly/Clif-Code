@@ -91,6 +91,8 @@ A ~20MB native Rust IDE. Tauri 2 backend, SolidJS frontend, Monaco editor.
 
 **20 Themes** — Midnight, Graphite, Dawn, Arctic, Dusk, Cyberpunk, Ember, Forest, Solarized Dark, Monokai, Nord, Dracula, One Dark, Tokyo Night, Catppuccin, Rosé Pine, Ayu Dark, Vesper, Poimandres, Pale Fire. Two-column theme picker split by dark/light.
 
+**Security Scanner** — Detects hardcoded secrets, API keys, private keys, SQL injection, eval/exec, and more. Runs automatically before every git commit — warns before you ship a vulnerability. Full repo scan from the status bar. Enable/disable toggle. No false positives from binary files or dependencies.
+
 **Keyboard Shortcuts** — `Ctrl+`` ` toggle terminal, `Ctrl+Shift+`` ` new terminal, `Cmd+K` clear terminal, `Ctrl+B` sidebar, `Ctrl+S` save, `Ctrl+Shift+P` command palette.
 
 ### Size Comparison
