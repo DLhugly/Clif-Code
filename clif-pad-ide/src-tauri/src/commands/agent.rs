@@ -7,6 +7,32 @@ use uuid::Uuid;
 static AGENT_SESSIONS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<()>>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+// Pending command approvals: session_id -> oneshot sender with bool (true=approved)
+static COMMAND_APPROVALS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>> =
+    std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+/// Frontend calls this to approve or deny a pending run_command
+#[tauri::command]
+pub async fn agent_approve_command(session_id: String, approved: bool) -> Result<(), String> {
+    let tx = {
+        let mut map = COMMAND_APPROVALS.lock().map_err(|e| e.to_string())?;
+        map.remove(&session_id)
+    };
+    if let Some(tx) = tx {
+        let _ = tx.send(approved);
+    }
+    Ok(())
+}
+
+/// Kill all active agent sessions (called on window close)
+pub fn kill_all_agent_sessions() {
+    if let Ok(mut sessions) = AGENT_SESSIONS.lock() {
+        for (_, tx) in sessions.drain() {
+            let _ = tx.send(());
+        }
+    }
+}
+
 /// Tool definitions for OpenAI function-calling format
 fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
@@ -537,6 +563,9 @@ pub async fn agent_chat(
         sessions.insert(session_id.clone(), cancel_tx);
     }
 
+    // Emit session ID to frontend so it can call agent_stop
+    let _ = window.emit("agent_session_id", &session_id);
+
     let sid = session_id.clone();
 
     tokio::spawn(async move {
@@ -571,7 +600,7 @@ pub async fn agent_chat(
 async fn run_agent_loop(
     app: tauri::AppHandle,
     label: &str,
-    _session_id: &str,
+    session_id: &str,
     initial_messages: Vec<super::ai::ChatMessage>,
     model: String,
     api_key: Option<String>,
@@ -889,13 +918,27 @@ async fn run_agent_loop(
                 json!({ "id": id, "name": name, "arguments": args_str }),
             );
 
-            // Execute the tool — for run_command, race against cancel so Stop
-            // works even while a subprocess is still running.
+            // For run_command: request user approval before executing.
+            // Emit approval request, wait for frontend response (or cancel).
             let result = if name == "run_command" {
-                tokio::select! {
-                    res = execute_tool(name, &args, &workspace_dir) => res,
+                let command_preview = args.get("command").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                let (approval_tx, approval_rx) = tokio::sync::oneshot::channel::<bool>();
+                {
+                    let mut approvals = COMMAND_APPROVALS.lock().unwrap_or_else(|e| e.into_inner());
+                    approvals.insert(session_id.to_string(), approval_tx);
+                }
+
+                let _ = app.emit_to(label, "agent_command_approval", json!({
+                    "session_id": session_id,
+                    "command": command_preview,
+                    "tool_call_id": id,
+                }));
+
+                // Wait for approval or cancel
+                let approved = tokio::select! {
+                    result = approval_rx => result.unwrap_or(false),
                     _ = async {
-                        // Poll cancel channel every 250ms while command runs
                         loop {
                             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                             if cancel_rx.try_recv().is_ok() { break; }
@@ -904,6 +947,25 @@ async fn run_agent_loop(
                         let _ = app.emit_to(label, "agent_stream", "\n*[Stopped by user]*\n");
                         let _ = app.emit_to(label, "agent_stream", "[DONE]");
                         return Ok(());
+                    }
+                };
+
+                if !approved {
+                    "Command blocked by user.".to_string()
+                } else {
+                    // Execute with cancel-race
+                    tokio::select! {
+                        res = execute_tool(name, &args, &workspace_dir) => res,
+                        _ = async {
+                            loop {
+                                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                                if cancel_rx.try_recv().is_ok() { break; }
+                            }
+                        } => {
+                            let _ = app.emit_to(label, "agent_stream", "\n*[Stopped by user]*\n");
+                            let _ = app.emit_to(label, "agent_stream", "[DONE]");
+                            return Ok(());
+                        }
                     }
                 }
             } else {

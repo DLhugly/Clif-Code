@@ -157,6 +157,12 @@ async function initAgentListeners() {
   );
 
   unlisteners.push(
+    await listen<string>("agent_session_id", (event) => {
+      setAgentSessionId(event.payload);
+    })
+  );
+
+  unlisteners.push(
     await listen<void>("agent_done", () => {
       setAgentStreaming(false);
       setAgentMessages(

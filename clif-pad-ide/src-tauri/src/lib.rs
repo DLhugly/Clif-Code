@@ -92,6 +92,8 @@ pub fn run() {
                 if let Some(pty_state) = app.try_state::<PtyState>() {
                     pty_state.kill_all_for_window(&label);
                 }
+                // Kill all active agent sessions
+                commands::agent::kill_all_agent_sessions();
 
                 // Clean up file watchers for this window
                 if let Some(watcher_state) = app.try_state::<WatcherState>() {
@@ -145,6 +147,7 @@ pub fn run() {
             commands::window::create_window,
             commands::agent::agent_chat,
             commands::agent::agent_stop,
+            commands::agent::agent_approve_command,
             commands::security::scan_files_security,
             commands::security::scan_repo_security,
         ])

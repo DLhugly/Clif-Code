@@ -247,6 +247,10 @@ export async function agentStop(sessionId: string): Promise<void> {
   return invoke("agent_stop", { sessionId });
 }
 
+export async function agentApproveCommand(sessionId: string, approved: boolean): Promise<void> {
+  return invoke("agent_approve_command", { sessionId, approved });
+}
+
 // Agent event listeners
 export function onAgentStream(callback: (chunk: string) => void): Promise<UnlistenFn> {
   return listen<string>("agent_stream", (event) => callback(event.payload));
