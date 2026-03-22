@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/DLhugly/Clif-Code/compare/v1.30.1...v1.31.0) (2026-03-22)
+
+
+### Features
+
+* model browser — hover expands full description + pricing, emoji badges scale with font size ([ad7a9ea](https://github.com/DLhugly/Clif-Code/commit/ad7a9ea0ed87c3f9d49f71205342dc7034379e1b))
+
 ## [1.30.1](https://github.com/DLhugly/Clif-Code/compare/v1.30.0...v1.30.1) (2026-03-22)
 
 
