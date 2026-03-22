@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/DLhugly/Clif-Code/compare/v1.29.0...v1.30.0) (2026-03-22)
+
+
+### Features
+
+* built-in security scanner with pre-commit intercept and full repo scan ([0013bdc](https://github.com/DLhugly/Clif-Code/commit/0013bdc0cea8cab63d52f34cd5d83640f8154299))
+
 # [1.29.0](https://github.com/DLhugly/Clif-Code/compare/v1.28.1...v1.29.0) (2026-03-21)
 
 
