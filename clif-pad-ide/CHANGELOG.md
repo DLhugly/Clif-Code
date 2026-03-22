@@ -1,3 +1,10 @@
+## [1.32.1](https://github.com/DLhugly/Clif-Code/compare/v1.32.0...v1.32.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* use --accent-text on chat bubbles so ayu-dark yellow gets dark text, agent resize to near-fullscreen, force update check on click ([2a50515](https://github.com/DLhugly/Clif-Code/commit/2a50515f76b7318d121983e36099ccb16ce9e5e6))
+
 # [1.32.0](https://github.com/DLhugly/Clif-Code/compare/v1.31.2...v1.32.0) (2026-03-22)
 
 
