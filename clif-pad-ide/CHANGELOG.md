@@ -1,3 +1,10 @@
+## [1.30.1](https://github.com/DLhugly/Clif-Code/compare/v1.30.0...v1.30.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* agent stop kills running commands, submit renders as final message ([e501f4a](https://github.com/DLhugly/Clif-Code/commit/e501f4a04d387566e1e3ef609b6f8b5269c45c57))
+
 # [1.30.0](https://github.com/DLhugly/Clif-Code/compare/v1.29.0...v1.30.0) (2026-03-22)
 
 
