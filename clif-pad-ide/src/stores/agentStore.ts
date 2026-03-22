@@ -188,7 +188,7 @@ async function initAgentListeners() {
   );
 }
 
-async function sendAgentMessage(content: string, context?: AgentContext) {
+async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string) {
   if (agentStreaming()) return;
 
   const userMsg: AgentMessage = {
@@ -213,8 +213,8 @@ async function sendAgentMessage(content: string, context?: AgentContext) {
   try {
     await invoke("agent_chat", {
       messages,
-      model: s.aiModel,
-      apiKey: null, // Will be loaded from stored keys on backend
+      model: modelOverride || s.aiModel,
+      apiKey: null,
       provider: s.aiProvider,
       workspaceDir,
       context: context ? JSON.stringify(context) : null,

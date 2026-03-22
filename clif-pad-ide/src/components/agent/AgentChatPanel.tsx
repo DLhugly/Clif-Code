@@ -264,9 +264,7 @@ const AgentChatPanel: Component = () => {
     setContextFiles([]);
     if (webSearchEnabled() && settings().aiProvider === "openrouter") {
       const baseModel = settings().aiModel.replace(/:online$/, "");
-      updateSettings({ aiModel: baseModel + ":online" });
-      await sendAgentMessage(text, ctx);
-      updateSettings({ aiModel: baseModel });
+      await sendAgentMessage(text, ctx, baseModel + ":online");
     } else {
       await sendAgentMessage(text, ctx);
     }
