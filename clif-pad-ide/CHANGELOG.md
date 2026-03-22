@@ -1,3 +1,10 @@
+## [1.31.1](https://github.com/DLhugly/Clif-Code/compare/v1.31.0...v1.31.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* agent stop works, command approval UI, session cleanup on window close ([ffd4252](https://github.com/DLhugly/Clif-Code/commit/ffd42527a8093f54faedf413ed748c3c16b30b0a))
+
 # [1.31.0](https://github.com/DLhugly/Clif-Code/compare/v1.30.1...v1.31.0) (2026-03-22)
 
 
