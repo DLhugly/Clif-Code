@@ -124,7 +124,7 @@ const App: Component = () => {
       const folder = root.split("/").pop() || root;
       getCurrentWindow().setTitle(`${folder} — ClifPad`);
     } else {
-      getCurrentWindow().setTitle("ClifPad");
+      getCurrentWindow().setTitle("ClifPad — No folder open");
     }
   });
 

@@ -123,6 +123,7 @@ const AgentChatPanel: Component = () => {
   const [modelProviderFilter, setModelProviderFilter] = createSignal("all");
   const [hoveredModel, setHoveredModel] = createSignal<string | null>(null);
   const [pendingCommand, setPendingCommand] = createSignal<{ sessionId: string; command: string; toolCallId: string } | null>(null);
+  const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
 
   async function fetchOpenRouterModels() {
     if (openRouterModels().length > 0) return;
@@ -258,12 +259,17 @@ const AgentChatPanel: Component = () => {
     const text = inputValue().trim();
     if (!text || agentStreaming()) return;
     setInputValue("");
-    if (inputRef) {
-      inputRef.style.height = "auto";
-    }
+    if (inputRef) inputRef.style.height = "auto";
     const ctx = buildContext();
     setContextFiles([]);
-    await sendAgentMessage(text, ctx);
+    if (webSearchEnabled() && settings().aiProvider === "openrouter") {
+      const baseModel = settings().aiModel.replace(/:online$/, "");
+      updateSettings({ aiModel: baseModel + ":online" });
+      await sendAgentMessage(text, ctx);
+      updateSettings({ aiModel: baseModel });
+    } else {
+      await sendAgentMessage(text, ctx);
+    }
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -986,7 +992,7 @@ const AgentChatPanel: Component = () => {
       </Show>
 
       {/* Messages */}
-      <div class="flex-1 min-h-0 overflow-y-auto py-2">
+      <div class="flex-1 min-h-0 overflow-y-auto py-2" style={{ "padding-bottom": agentStreaming() ? "32px" : "8px" }}>
         <Show
           when={agentMessages.length > 0}
           fallback={
@@ -1291,17 +1297,48 @@ const AgentChatPanel: Component = () => {
           style={{ "font-size": `${fontSize() - 4}px`, color: "var(--text-muted)" }}
         >
           <span>Enter to send, Shift+Enter for newline</span>
-          <Show when={agentTokens().prompt > 0}>
-            <span style={{ "font-family": "var(--font-mono, monospace)" }}>
-              {(() => {
-                const t = agentTokens();
-                const total = t.prompt + t.completion;
-                const cost = (t.prompt * 3 + t.completion * 15) / 1_000_000;
-                const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
-                return `${totalStr} tokens · ~$${cost.toFixed(4)}`;
-              })()}
-            </span>
-          </Show>
+          <div class="flex items-center gap-2">
+            {/* Web search toggle */}
+            <Show when={settings().aiProvider === "openrouter"}>
+              <button
+                class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-all"
+                style={{
+                  background: webSearchEnabled()
+                    ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)"
+                    : "transparent",
+                  color: webSearchEnabled() ? "var(--accent-blue)" : "var(--text-muted)",
+                  border: webSearchEnabled()
+                    ? "1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent)"
+                    : "1px solid transparent",
+                  cursor: "pointer",
+                  "font-size": `${fontSize() - 4}px`,
+                  "font-family": "var(--font-sans)",
+                }}
+                onMouseEnter={(e) => { if (!webSearchEnabled()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                onMouseLeave={(e) => { if (!webSearchEnabled()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                onClick={() => setWebSearchEnabled(!webSearchEnabled())}
+                title={webSearchEnabled()
+                  ? "Web search ON — model will fetch live results ($0.004/search)"
+                  : "Enable web search — appends :online to model via OpenRouter"}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                {webSearchEnabled() ? "Search on" : "Search"}
+              </button>
+            </Show>
+            <Show when={agentTokens().prompt > 0}>
+              <span style={{ "font-family": "var(--font-mono, monospace)" }}>
+                {(() => {
+                  const t = agentTokens();
+                  const total = t.prompt + t.completion;
+                  const cost = (t.prompt * 3 + t.completion * 15) / 1_000_000;
+                  const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
+                  return `${totalStr} tokens · ~$${cost.toFixed(4)}`;
+                })()}
+              </span>
+            </Show>
+          </div>
         </div>
       </div>
 

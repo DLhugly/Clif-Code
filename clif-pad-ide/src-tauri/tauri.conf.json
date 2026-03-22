@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ClifPad",
+        "title": "ClifPad — No folder open",
         "width": 1400,
         "height": 900,
         "decorations": true,

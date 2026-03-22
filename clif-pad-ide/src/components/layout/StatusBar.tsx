@@ -253,20 +253,28 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
         </Show>
 
         {/* Security toggle + scan */}
-        <div class="flex items-center gap-1">
-          {/* Security mode toggle */}
+        <div class="flex items-center gap-1" style={{ position: "relative" }}>
+          {/* Security mode toggle — with rich tooltip */}
           <button
-            class="flex items-center gap-1"
+            class="flex items-center gap-1 peer"
             style={{
               background: "transparent", border: "none",
               color: securityEnabled() ? "var(--accent-green)" : "var(--text-muted)",
               cursor: "pointer", "font-size": "11px", "font-family": "var(--font-sans)",
               padding: "1px 4px", "border-radius": "3px", transition: "all 0.15s",
+              position: "relative",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+              const tip = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
+              if (tip) tip.style.display = "block";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              const tip = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
+              if (tip) tip.style.display = "none";
+            }}
             onClick={() => setSecurityEnabled(!securityEnabled())}
-            title={securityEnabled() ? "Security scan enabled (click to disable)" : "Security scan disabled (click to enable)"}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -280,6 +288,32 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
               <span>{securityEnabled() ? "Secure" : "Security off"}</span>
             </Show>
           </button>
+
+          {/* Rich tooltip */}
+          <div style={{
+            display: "none",
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            right: "0",
+            width: "240px",
+            background: "var(--bg-overlay)",
+            border: "1px solid var(--border-default)",
+            "border-radius": "8px",
+            padding: "10px 12px",
+            "box-shadow": "0 4px 20px rgba(0,0,0,0.3)",
+            "z-index": "500",
+            "pointer-events": "none",
+          }}>
+            <div style={{ "font-size": "12px", "font-weight": "700", color: "var(--text-primary)", "margin-bottom": "4px" }}>
+              ClifCode Security Scanner
+            </div>
+            <div style={{ "font-size": "11px", color: "var(--text-muted)", "line-height": "1.5" }}>
+              Automatically scans for hardcoded API keys, passwords, private keys, SQL injection, and unsafe code patterns before every git commit.
+            </div>
+            <div style={{ "font-size": "10px", color: "var(--text-muted)", "margin-top": "6px", "border-top": "1px solid var(--border-muted)", "padding-top": "6px" }}>
+              {securityEnabled() ? "✓ Active — scanning staged files on commit" : "⊘ Disabled — click to re-enable"}
+            </div>
+          </div>
 
           {/* Scan results badge (clickable to open modal) */}
           <Show when={securityResults().length > 0}>

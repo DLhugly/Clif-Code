@@ -626,7 +626,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
               style={{
                 "min-width": "16px",
                 height: "16px",
-                "font-size": "10px",
+                "font-size": "0.78em",
                 background: "var(--accent-blue)",
                 color: "#fff",
                 "padding-left": "4px",
@@ -932,7 +932,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                     background: "var(--bg-base)",
                     border: "1px solid var(--border-muted)",
                     cursor: isSyncing() ? "not-allowed" : "pointer",
-                    "font-size": "11px",
+                    "font-size": "0.85em",
                     "font-family": "inherit",
                     opacity: isSyncing() ? "0.6" : "1",
                   }}
@@ -954,7 +954,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                     background: "var(--bg-base)",
                     border: "1px solid var(--border-muted)",
                     cursor: isSyncing() ? "not-allowed" : "pointer",
-                    "font-size": "11px",
+                    "font-size": "0.85em",
                     "font-family": "inherit",
                     opacity: isSyncing() ? "0.6" : "1",
                   }}
@@ -978,7 +978,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                     background: "var(--bg-base)",
                     border: "1px solid var(--border-muted)",
                     cursor: isSyncing() ? "not-allowed" : "pointer",
-                    "font-size": "11px",
+                    "font-size": "0.85em",
                     "font-family": "inherit",
                     opacity: isSyncing() ? "0.6" : "1",
                   }}
@@ -999,36 +999,72 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
 
               {/* Commit input */}
               <div class="shrink-0 p-2" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
-                <input
-                  type="text"
-                  class="w-full rounded px-2 py-1.5 outline-none"
-                  style={{
-                    background: "var(--bg-base)",
-                    color: "var(--text-primary)",
-                    border: "1px solid var(--border-default)",
-                  }}
-                  placeholder="Commit message..."
-                  value={commitMsg()}
-                  onInput={(e) => setCommitMsg(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && commitMsg().trim()) handleCommit();
-                  }}
-                />
-                <button
-                  class="w-full mt-1.5 py-1 rounded font-medium transition-colors"
-                  style={{
-                    background: commitMsg().trim() && stagedFiles().length > 0
-                      ? "var(--accent-blue)" : "var(--bg-hover)",
-                    color: commitMsg().trim() && stagedFiles().length > 0
-                      ? "#fff" : "var(--text-muted)",
-                    cursor: commitMsg().trim() && stagedFiles().length > 0
-                      ? "pointer" : "not-allowed",
-                  }}
-                  disabled={!commitMsg().trim() || stagedFiles().length === 0 || isCommitting()}
-                  onClick={handleCommit}
-                >
-                  {isCommitting() ? "Committing..." : `Commit (${stagedFiles().length} staged)`}
-                </button>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    class="w-full rounded px-2 py-1.5 outline-none"
+                    style={{
+                      background: "var(--bg-base)",
+                      color: "var(--text-primary)",
+                      border: commitMsg().trim() ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                      "padding-right": "40px",
+                      "font-size": "inherit",
+                      transition: "border-color 0.15s",
+                    }}
+                    placeholder="Commit message..."
+                    value={commitMsg()}
+                    onInput={(e) => setCommitMsg(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && commitMsg().trim()) handleCommit();
+                    }}
+                  />
+                  <Show when={commitMsg().trim()}>
+                    <span style={{
+                      position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)",
+                      "font-size": "0.78em", color: commitMsg().length > 72 ? "var(--accent-red)" : "var(--text-muted)",
+                    }}>
+                      {commitMsg().length}
+                    </span>
+                  </Show>
+                </div>
+                <div class="flex gap-1.5 mt-1.5">
+                  <button
+                    class="flex-1 py-1.5 rounded font-medium transition-colors"
+                    style={{
+                      background: stagedFiles().length > 0 && commitMsg().trim()
+                        ? "var(--accent-primary)"
+                        : "var(--bg-hover)",
+                      color: stagedFiles().length > 0 && commitMsg().trim()
+                        ? "var(--accent-text, #fff)"
+                        : "var(--text-muted)",
+                      cursor: stagedFiles().length > 0 && commitMsg().trim() && !isCommitting()
+                        ? "pointer" : "not-allowed",
+                      "font-size": "inherit",
+                      border: "none",
+                      transition: "all 0.15s",
+                    }}
+                    disabled={!commitMsg().trim() || stagedFiles().length === 0 || isCommitting()}
+                    onClick={handleCommit}
+                  >
+                    {isCommitting() ? "Committing..." : stagedFiles().length > 0
+                      ? `Commit ${stagedFiles().length} file${stagedFiles().length !== 1 ? "s" : ""}`
+                      : "Nothing staged"}
+                  </button>
+                  <Show when={unstagedFiles().length > 0 && stagedFiles().length === 0}>
+                    <button
+                      class="px-2.5 py-1.5 rounded font-medium transition-colors"
+                      style={{
+                        background: "var(--bg-base)", color: "var(--accent-green)",
+                        border: "1px solid color-mix(in srgb, var(--accent-green) 30%, transparent)",
+                        cursor: "pointer", "font-size": "inherit",
+                      }}
+                      onClick={() => stageAll()}
+                      title="Stage all changes"
+                    >
+                      Stage All
+                    </button>
+                  </Show>
+                </div>
               </div>
 
               {/* Resizable changes + commits split */}
@@ -1045,25 +1081,24 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                   <Show when={stagedFiles().length > 0}>
                     <div>
                       <div
-                        class="flex items-center justify-between px-2 py-1.5"
-                        style={{ "border-bottom": "1px solid var(--border-muted)" }}
+                        class="flex items-center justify-between px-2 py-1"
+                        style={{ "border-bottom": "1px solid var(--border-muted)", background: "color-mix(in srgb, var(--accent-green) 5%, transparent)" }}
                       >
-                        <span class="font-medium" style={{ color: "var(--accent-green)" }}>
-                          Staged ({stagedFiles().length})
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                          <div style={{ width: "7px", height: "7px", "border-radius": "50%", background: "var(--accent-green)" }} />
+                          <span class="font-semibold" style={{ color: "var(--accent-green)", "font-size": "0.85em" }}>
+                            Staged · {stagedFiles().length}
+                          </span>
+                        </div>
                         <button
                           class="px-1.5 py-0.5 rounded transition-colors"
-                          style={{ color: "var(--text-muted)", background: "transparent" }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLElement).style.background = "transparent";
-                          }}
+                          style={{ color: "var(--text-muted)", background: "transparent", "font-size": "0.78em", border: "none", cursor: "pointer" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
                           onClick={() => unstageAll()}
                           title="Unstage all"
                         >
-                          Unstage All
+                          Unstage all
                         </button>
                       </div>
                       <For each={stagedFiles()}>
@@ -1082,25 +1117,24 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                   <Show when={unstagedFiles().length > 0}>
                     <div>
                       <div
-                        class="flex items-center justify-between px-2 py-1.5"
-                        style={{ "border-bottom": "1px solid var(--border-muted)" }}
+                        class="flex items-center justify-between px-2 py-1"
+                        style={{ "border-bottom": "1px solid var(--border-muted)", background: "color-mix(in srgb, var(--accent-yellow) 5%, transparent)" }}
                       >
-                        <span class="font-medium" style={{ color: "var(--accent-yellow)" }}>
-                          Changes ({unstagedFiles().length})
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                          <div style={{ width: "7px", height: "7px", "border-radius": "50%", background: "var(--accent-yellow)" }} />
+                          <span class="font-semibold" style={{ color: "var(--accent-yellow)", "font-size": "0.85em" }}>
+                            Changes · {unstagedFiles().length}
+                          </span>
+                        </div>
                         <button
                           class="px-1.5 py-0.5 rounded transition-colors"
-                          style={{ color: "var(--text-muted)", background: "transparent" }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLElement).style.background = "transparent";
-                          }}
+                          style={{ color: "var(--accent-green)", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", "font-size": "0.78em", border: "1px solid color-mix(in srgb, var(--accent-green) 25%, transparent)", cursor: "pointer" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-green) 18%, transparent)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-green) 10%, transparent)"; }}
                           onClick={() => stageAll()}
                           title="Stage all"
                         >
-                          Stage All
+                          Stage all
                         </button>
                       </div>
                       <For each={unstagedFiles()}>
@@ -1150,11 +1184,14 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                 <div class="flex flex-col min-h-0 flex-1">
                   <Show when={commitLog().length > 0}>
                     <div
-                      class="flex items-center justify-between px-2 py-1.5 shrink-0"
+                      class="flex items-center justify-between px-2 py-1 shrink-0"
                       style={{ "border-bottom": "1px solid var(--border-muted)" }}
                     >
-                      <span class="font-medium" style={{ color: "var(--text-secondary)" }}>
-                        Commits ({commitLog().length})
+                      <span class="font-semibold" style={{ color: "var(--text-secondary)", "font-size": "0.85em" }}>
+                        History · {commitLog().length}
+                      </span>
+                      <span style={{ "font-size": "0.78em", color: "var(--text-muted)" }}>
+                        {currentBranch()}
                       </span>
                     </div>
                     <div class="overflow-y-auto min-h-0 flex-1">
