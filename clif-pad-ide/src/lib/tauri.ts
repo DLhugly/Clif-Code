@@ -251,6 +251,24 @@ export async function agentApproveCommand(sessionId: string, approved: boolean):
   return invoke("agent_approve_command", { sessionId, approved });
 }
 
+// CLIF.md project context
+export async function clifProjectInitialized(workspaceDir: string): Promise<boolean> {
+  return invoke("clif_project_initialized", { workspaceDir });
+}
+
+export async function clifReadContext(workspaceDir: string): Promise<string | null> {
+  return invoke("clif_read_context", { workspaceDir });
+}
+
+export async function clifInitProject(
+  workspaceDir: string,
+  model: string,
+  apiKey: string | null,
+  provider: string,
+): Promise<void> {
+  return invoke("clif_init_project", { workspaceDir, model, apiKey, provider });
+}
+
 // Agent event listeners
 export function onAgentStream(callback: (chunk: string) => void): Promise<UnlistenFn> {
   return listen<string>("agent_stream", (event) => callback(event.payload));

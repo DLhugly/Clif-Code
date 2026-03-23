@@ -148,6 +148,9 @@ pub fn run() {
             commands::agent::agent_chat,
             commands::agent::agent_stop,
             commands::agent::agent_approve_command,
+            commands::agent::clif_project_initialized,
+            commands::agent::clif_read_context,
+            commands::agent::clif_init_project,
             commands::security::scan_files_security,
             commands::security::scan_repo_security,
         ])

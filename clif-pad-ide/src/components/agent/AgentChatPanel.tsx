@@ -16,7 +16,7 @@ import { activeFile, projectRoot } from "../../stores/fileStore";
 import { currentBranch } from "../../stores/gitStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
-import { getApiKey, setApiKey as saveApiKey, agentApproveCommand } from "../../lib/tauri";
+import { getApiKey, setApiKey as saveApiKey, agentApproveCommand, clifProjectInitialized, clifReadContext, clifInitProject } from "../../lib/tauri";
 import ChatMessage from "./ChatMessage";
 import ContextChip from "./ContextChip";
 import type { AgentContext } from "../../types/agent";
@@ -123,6 +123,9 @@ const AgentChatPanel: Component = () => {
   const [modelProviderFilter, setModelProviderFilter] = createSignal("all");
   const [hoveredModel, setHoveredModel] = createSignal<string | null>(null);
   const [pendingCommand, setPendingCommand] = createSignal<{ sessionId: string; command: string; toolCallId: string } | null>(null);
+  const [clifInitializing, setClifInitializing] = createSignal(false);
+  const [clifInitProgress, setClifInitProgress] = createSignal("");
+  const [clifExists, setClifExists] = createSignal<boolean | null>(null); // null = checking
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
   const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
 
@@ -202,7 +205,25 @@ const AgentChatPanel: Component = () => {
         });
       }
     );
-    onCleanup(() => unlisten());
+
+    // Listen for init progress and completion
+    const unlistenProgress = await listen<string>("clif_init_progress", (event) => {
+      setClifInitProgress(event.payload);
+    });
+    const unlistenDone = await listen<{ success: boolean; message: string }>("clif_init_done", (event) => {
+      setClifInitializing(false);
+      setClifInitProgress("");
+      if (event.payload.success) {
+        setClifExists(true);
+      }
+    });
+
+    onCleanup(() => { unlisten(); unlistenProgress(); unlistenDone(); });
+
+    // Check if CLIF.md exists for current project
+    if (projectRoot()) {
+      clifProjectInitialized(projectRoot()!).then((exists) => setClifExists(exists));
+    }
   });
 
   async function checkApiKey() {
@@ -272,6 +293,32 @@ const AgentChatPanel: Component = () => {
     const files = contextFiles();
     if (files.length > 0) ctx.files = files;
     return Object.keys(ctx).length > 0 ? ctx : undefined;
+  }
+
+  // Re-check CLIF.md when project changes
+  createEffect(() => {
+    const root = projectRoot();
+    if (root) {
+      setClifExists(null);
+      clifProjectInitialized(root).then((exists) => setClifExists(exists));
+    } else {
+      setClifExists(null);
+    }
+  });
+
+  async function handleInitProject() {
+    const root = projectRoot();
+    if (!root || clifInitializing()) return;
+    const key = await getApiKey(settings().aiProvider).catch(() => null);
+    setClifInitializing(true);
+    setClifInitProgress("Starting analysis...");
+    try {
+      await clifInitProject(root, settings().aiModel, key, settings().aiProvider);
+    } catch (e) {
+      setClifInitializing(false);
+      setClifInitProgress("");
+      console.error("Init failed:", e);
+    }
   }
 
   async function handleSend() {
@@ -660,6 +707,41 @@ const AgentChatPanel: Component = () => {
         >
           +
         </button>
+
+        {/* Init project button */}
+        <Show when={projectRoot() && settings().aiProvider !== "ollama"}>
+          <button
+            class="flex items-center justify-center shrink-0"
+            style={{
+              width: "28px", height: "28px",
+              color: clifInitializing() ? "var(--accent-primary)" : clifExists() ? "var(--accent-green)" : "var(--text-muted)",
+              background: "transparent", border: "none",
+              cursor: clifInitializing() ? "default" : "pointer",
+              "font-size": "13px",
+            }}
+            onMouseEnter={(e) => { if (!clifInitializing()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            onClick={handleInitProject}
+            title={clifInitializing()
+              ? "Analyzing project..."
+              : clifExists()
+              ? "Re-initialize project context (CLIF.md exists)"
+              : "Initialize project context — analyze codebase and write .clif/CLIF.md"}
+          >
+            <Show when={clifInitializing()} fallback={
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <Show when={clifExists()}>
+                  <polyline points="9 11 12 14 22 4" />
+                </Show>
+              </svg>
+            }>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            </Show>
+          </button>
+        </Show>
       </div>
 
       {/* Header row 2: provider + model selectors (always visible) */}
@@ -788,6 +870,33 @@ const AgentChatPanel: Component = () => {
           >
             {savingKey() ? "..." : "Save"}
           </button>
+        </div>
+      </Show>
+
+      {/* Init project overlay */}
+      <Show when={clifInitializing()}>
+        <div style={{
+          position: "absolute", inset: "0", "z-index": "55",
+          background: "color-mix(in srgb, var(--bg-surface) 95%, transparent)",
+          "backdrop-filter": "blur(2px)",
+          display: "flex", "flex-direction": "column",
+          "align-items": "center", "justify-content": "center", gap: "16px",
+          padding: "24px",
+        }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" class="animate-spin">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          <div style={{ "text-align": "center" }}>
+            <div style={{ "font-size": "14px", "font-weight": "600", color: "var(--text-primary)", "margin-bottom": "6px" }}>
+              Analyzing project...
+            </div>
+            <div style={{ "font-size": "12px", color: "var(--text-muted)", "max-width": "240px", "line-height": "1.5" }}>
+              {clifInitProgress() || "Reading codebase structure..."}
+            </div>
+            <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-top": "8px" }}>
+              Writing .clif/CLIF.md
+            </div>
+          </div>
         </div>
       </Show>
 
@@ -1018,7 +1127,7 @@ const AgentChatPanel: Component = () => {
       </Show>
 
       {/* Messages */}
-      <div class="flex-1 min-h-0 overflow-y-auto py-2" style={{ "padding-bottom": agentStreaming() ? "32px" : "8px" }}>
+      <div class="flex-1 min-h-0 overflow-y-auto py-2" style={{ "padding-bottom": agentStreaming() ? "56px" : "12px" }}>
         <Show
           when={agentMessages.length > 0}
           fallback={
@@ -1192,41 +1301,6 @@ const AgentChatPanel: Component = () => {
         class="shrink-0 px-3 py-2"
         style={{ "border-top": "1px solid var(--border-default)" }}
       >
-        {/* Thin agent-running indicator inside the input area, above the textarea */}
-        <Show when={agentStreaming()}>
-          <div class="flex items-center justify-between mb-1.5">
-            <div class="flex items-center gap-1.5">
-              <span
-                class="inline-block animate-pulse"
-                style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
-              />
-              <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>Agent running</span>
-            </div>
-            <button
-              class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors"
-              style={{
-                background: "transparent", color: "var(--text-muted)",
-                border: "1px solid var(--border-default)", cursor: "pointer",
-                "font-size": "10px", "font-weight": "600",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 10%, transparent)";
-                (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
-                (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 25%, transparent)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "transparent";
-                (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
-              }}
-              onClick={stopAgent}
-              title="Stop all agent tasks"
-            >
-              <StopIcon />
-              Stop
-            </button>
-          </div>
-        </Show>
         <div
           class="flex items-end gap-2 rounded-xl px-3 py-2"
           style={{
@@ -1351,7 +1425,41 @@ const AgentChatPanel: Component = () => {
           class="flex items-center justify-between mt-1 px-1"
           style={{ "font-size": `${fontSize() - 4}px`, color: "var(--text-muted)" }}
         >
-          <span>Enter to send, Shift+Enter for newline</span>
+          {/* Left: status or hint */}
+          <Show when={agentStreaming()}
+            fallback={<span>Enter to send, Shift+Enter for newline</span>}
+          >
+            <div class="flex items-center gap-1.5">
+              <span
+                class="inline-block animate-pulse"
+                style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
+              />
+              <span>Agent running</span>
+              <button
+                class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors"
+                style={{
+                  background: "transparent", color: "var(--text-muted)",
+                  border: "1px solid var(--border-default)", cursor: "pointer",
+                  "font-size": `${fontSize() - 4}px`, "font-weight": "600",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 10%, transparent)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 25%, transparent)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+                }}
+                onClick={stopAgent}
+                title="Stop all agent tasks"
+              >
+                <StopIcon />
+                Stop
+              </button>
+            </div>
+          </Show>
           <div class="flex items-center gap-2">
             {/* Web search toggle */}
             <Show when={settings().aiProvider === "openrouter"}>

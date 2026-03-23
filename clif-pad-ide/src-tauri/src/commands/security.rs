@@ -57,7 +57,7 @@ const SKIP_EXTENSIONS: &[&str] = &[
 /// Directories to skip
 const SKIP_DIRS: &[&str] = &[
     "node_modules", ".git", "target", "__pycache__", ".next",
-    "dist", "build", ".cache", "vendor", ".venv", "venv",
+    "dist", "build", ".cache", "vendor", ".venv", "venv", ".clif",
 ];
 
 fn should_skip_file(path: &str) -> bool {

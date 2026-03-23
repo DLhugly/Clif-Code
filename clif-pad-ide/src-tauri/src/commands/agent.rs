@@ -186,6 +186,14 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
         workspace_dir
     );
 
+    // Auto-inject CLIF.md project context if it exists
+    let clif_path = std::path::Path::new(workspace_dir).join(".clif").join("CLIF.md");
+    if let Ok(clif_content) = std::fs::read_to_string(&clif_path) {
+        prompt.push_str("\n\n## Project Context (from .clif/CLIF.md)\n\n");
+        prompt.push_str(&clif_content);
+        prompt.push_str("\n\n---\n");
+    }
+
     if let Some(ctx) = context {
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
             if let Some(active_file) = parsed.get("activeFile").and_then(|v| v.as_str()) {
@@ -1029,4 +1037,156 @@ pub async fn agent_stop(session_id: String) -> Result<(), String> {
         }
         None => Err(format!("Session not found: {}", session_id)),
     }
+}
+
+/// Check if a project has been initialized (has .clif/CLIF.md)
+#[tauri::command]
+pub async fn clif_project_initialized(workspace_dir: String) -> bool {
+    std::path::Path::new(&workspace_dir).join(".clif").join("CLIF.md").exists()
+}
+
+/// Read CLIF.md content if it exists
+#[tauri::command]
+pub async fn clif_read_context(workspace_dir: String) -> Option<String> {
+    let path = std::path::Path::new(&workspace_dir).join(".clif").join("CLIF.md");
+    std::fs::read_to_string(path).ok()
+}
+
+/// Initialize project context — runs a focused agent pass to analyze the codebase
+/// and write .clif/CLIF.md with architecture, stack, conventions, and key files.
+#[tauri::command]
+pub async fn clif_init_project(
+    window: tauri::Window,
+    workspace_dir: String,
+    model: String,
+    api_key: Option<String>,
+    provider: String,
+) -> Result<(), String> {
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
+    let url = get_provider_url(&provider);
+    let key = api_key.or_else(|| load_api_key(&provider));
+
+    let clif_dir = std::path::Path::new(&workspace_dir).join(".clif");
+    let _ = std::fs::create_dir_all(&clif_dir);
+
+    let system_prompt = format!(
+        "You are a senior engineer performing a codebase analysis for ClifPad. \
+         Your ONLY job is to analyze the project at '{}' and write a concise, useful \
+         CLIF.md file that will help an AI coding agent understand this project quickly.\n\n\
+         Use list_files to explore the structure, read key files (README, package.json, Cargo.toml, \
+         pyproject.toml, go.mod, main entry points, config files), and search for patterns.\n\n\
+         Then write .clif/CLIF.md with exactly these sections:\n\
+         # Project Overview\n(1-2 sentences: what this project does)\n\n\
+         # Tech Stack\n(bullet list: languages, frameworks, key dependencies with versions)\n\n\
+         # Architecture\n(bullet list: key directories and what they do)\n\n\
+         # Key Files\n(bullet list: most important files to know about)\n\n\
+         # Build & Run\n(exact commands to install, dev, build, test)\n\n\
+         # Conventions\n(coding style, naming conventions, patterns used)\n\n\
+         # Important Notes\n(gotchas, environment requirements, things not to break)\n\n\
+         Be concise — target 300-500 words total. Focus on what an AI agent needs to \
+         understand before making changes. When done, call submit with a summary.",
+        workspace_dir
+    );
+
+    let messages = vec![
+        json!({ "role": "system", "content": system_prompt }),
+        json!({ "role": "user", "content": "Analyze this project and write .clif/CLIF.md now." }),
+    ];
+
+    let tools = tool_definitions();
+    let client = reqwest::Client::new();
+    let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
+    let session_id = uuid::Uuid::new_v4().to_string();
+
+    {
+        let mut sessions = AGENT_SESSIONS.lock().map_err(|e| e.to_string())?;
+        sessions.insert(session_id.clone(), cancel_tx);
+    }
+
+    let _ = app.emit_to(&label, "clif_init_progress", "Analyzing project structure...");
+
+    let mut conversation = messages;
+    let max_turns = 15;
+
+    for _turn in 0..max_turns {
+        if cancel_rx.try_recv().is_ok() {
+            let _ = app.emit_to(&label, "clif_init_done", json!({ "success": false, "message": "Cancelled" }));
+            return Ok(());
+        }
+
+        let body = json!({
+            "model": model,
+            "messages": conversation,
+            "tools": tools,
+            "stream": false,
+        });
+
+        let mut req = client.post(&url).header("Content-Type", "application/json");
+        if let Some(ref k) = key {
+            req = req.header("Authorization", format!("Bearer {}", k));
+        }
+        if provider == "openrouter" {
+            req = req.header("HTTP-Referer", "https://clif.dev").header("X-Title", "ClifPad");
+        }
+
+        let resp = req.json(&body).send().await.map_err(|e| format!("Request failed: {}", e))?;
+        if !resp.status().is_success() {
+            let err = resp.text().await.unwrap_or_default();
+            return Err(format!("API error: {}", err));
+        }
+
+        let resp_json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+        let finish_reason = resp_json.pointer("/choices/0/finish_reason").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let content = resp_json.pointer("/choices/0/message/content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+        let tool_calls_raw = resp_json.pointer("/choices/0/message/tool_calls").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+        let assistant_msg = if tool_calls_raw.is_empty() {
+            json!({ "role": "assistant", "content": content })
+        } else {
+            json!({ "role": "assistant", "content": serde_json::Value::Null, "tool_calls": tool_calls_raw })
+        };
+        conversation.push(assistant_msg);
+
+        if tool_calls_raw.is_empty() || finish_reason != "tool_calls" {
+            break;
+        }
+
+        for tc in &tool_calls_raw {
+            let id = tc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let name = tc.pointer("/function/name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let args_str = tc.pointer("/function/arguments").and_then(|v| v.as_str()).unwrap_or("{}").to_string();
+            let args: serde_json::Value = serde_json::from_str(&args_str).unwrap_or(json!({}));
+
+            let _ = app.emit_to(&label, "clif_init_progress", format!("Running: {}", name));
+
+            if name == "submit" {
+                let summary = args.get("summary").and_then(|v| v.as_str()).unwrap_or("Project analyzed");
+                let clif_path = clif_dir.join("CLIF.md");
+                let exists = clif_path.exists();
+                let _ = app.emit_to(&label, "clif_init_done", json!({
+                    "success": exists,
+                    "message": summary,
+                    "path": clif_path.to_string_lossy(),
+                }));
+                let mut sessions = AGENT_SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
+                sessions.remove(&session_id);
+                return Ok(());
+            }
+
+            let result = execute_tool(&name, &args, &workspace_dir).await;
+            conversation.push(json!({ "role": "tool", "tool_call_id": id, "content": result }));
+        }
+    }
+
+    let clif_path = clif_dir.join("CLIF.md");
+    let _ = app.emit_to(&label, "clif_init_done", json!({
+        "success": clif_path.exists(),
+        "message": "Analysis complete",
+        "path": clif_path.to_string_lossy(),
+    }));
+    let mut sessions = AGENT_SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
+    sessions.remove(&session_id);
+    Ok(())
 }
