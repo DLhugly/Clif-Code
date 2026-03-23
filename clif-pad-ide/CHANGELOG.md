@@ -1,3 +1,10 @@
+# [1.38.0](https://github.com/DLhugly/Clif-Code/compare/v1.37.0...v1.38.0) (2026-03-23)
+
+
+### Features
+
+* persist agent chat history, fix message queue, CLIF.md scan progress bar ([9cb85d1](https://github.com/DLhugly/Clif-Code/commit/9cb85d1768f8742723de1e02b91e3d0658b38b10))
+
 # [1.37.0](https://github.com/DLhugly/Clif-Code/compare/v1.36.0...v1.37.0) (2026-03-23)
 
 
