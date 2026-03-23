@@ -1,3 +1,10 @@
+## [1.38.1](https://github.com/DLhugly/Clif-Code/compare/v1.38.0...v1.38.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* scope agent events to current window — prevents multi-window cross-contamination ([942b484](https://github.com/DLhugly/Clif-Code/commit/942b48412d5d1801acbe60f8e4d36260c825b62e))
+
 # [1.38.0](https://github.com/DLhugly/Clif-Code/compare/v1.37.0...v1.38.0) (2026-03-23)
 
 
