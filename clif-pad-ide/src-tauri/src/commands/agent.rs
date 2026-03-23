@@ -1104,10 +1104,14 @@ pub async fn clif_init_project(
         sessions.insert(session_id.clone(), cancel_tx);
     }
 
-    let _ = app.emit_to(&label, "clif_init_progress", "Analyzing project structure...");
+    let _ = app.emit_to(&label, "clif_init_progress", json!({
+        "step": 0, "total": 15, "message": "Starting codebase analysis..."
+    }));
 
     let mut conversation = messages;
     let max_turns = 15;
+    let mut step = 0usize;
+    let start_time = std::time::Instant::now();
 
     for _turn in 0..max_turns {
         if cancel_rx.try_recv().is_ok() {
@@ -1159,7 +1163,39 @@ pub async fn clif_init_project(
             let args_str = tc.pointer("/function/arguments").and_then(|v| v.as_str()).unwrap_or("{}").to_string();
             let args: serde_json::Value = serde_json::from_str(&args_str).unwrap_or(json!({}));
 
-            let _ = app.emit_to(&label, "clif_init_progress", format!("Running: {}", name));
+            step += 1;
+            let elapsed = start_time.elapsed().as_secs();
+            // Human-readable label for each tool
+            let friendly = match name.as_str() {
+                "list_files" => {
+                    let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+                    format!("Exploring {}", path)
+                }
+                "read_file" => {
+                    let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("a file");
+                    let name_only = std::path::Path::new(path).file_name()
+                        .and_then(|n| n.to_str()).unwrap_or(path);
+                    format!("Reading {}", name_only)
+                }
+                "search" => {
+                    let q = args.get("query").and_then(|v| v.as_str()).unwrap_or("...");
+                    format!("Searching for \"{}\"", q)
+                }
+                "write_file" => "Writing .clif/CLIF.md".to_string(),
+                "run_command" => {
+                    let cmd = args.get("command").and_then(|v| v.as_str()).unwrap_or("...");
+                    format!("Running: {}", &cmd[..cmd.len().min(40)])
+                }
+                "submit" => "Finalizing context file...".to_string(),
+                _ => format!("{}...", name),
+            };
+
+            let _ = app.emit_to(&label, "clif_init_progress", json!({
+                "step": step,
+                "total": max_turns,
+                "message": friendly,
+                "elapsed_secs": elapsed,
+            }));
 
             if name == "submit" {
                 let summary = args.get("summary").and_then(|v| v.as_str()).unwrap_or("Project analyzed");
@@ -1169,6 +1205,7 @@ pub async fn clif_init_project(
                     "success": exists,
                     "message": summary,
                     "path": clif_path.to_string_lossy(),
+                    "elapsed_secs": start_time.elapsed().as_secs(),
                 }));
                 let mut sessions = AGENT_SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
                 sessions.remove(&session_id);

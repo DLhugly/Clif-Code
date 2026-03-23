@@ -70,14 +70,35 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
     const args = tc.arguments;
     switch (props.message.toolName) {
       case "run_command": return (args.command as string) || "";
-      case "read_file": return (args.path as string) || "";
-      case "write_file": return (args.path as string) || "";
-      case "edit_file": return (args.path as string) || "";
-      case "search": return `"${args.query || ""}" in ${args.path || "."}`;
+      case "read_file": {
+        const p = (args.path as string) || "";
+        // Show just the filename, not full path
+        return p.split("/").pop() || p;
+      }
+      case "write_file": return (args.path as string || "").split("/").pop() || "";
+      case "edit_file": return (args.path as string || "").split("/").pop() || "";
+      case "search": return `"${args.query || ""}"${args.path ? ` in ${(args.path as string).split("/").pop()}` : ""}`;
       case "find_file": return (args.name as string) || "";
-      case "list_files": return (args.path as string) || ".";
+      case "list_files": {
+        const p = (args.path as string) || ".";
+        return p.split("/").pop() || p;
+      }
       default: return "";
     }
+  };
+
+  // Result preview for the collapsed state — first meaningful line of output
+  const resultPreview = () => {
+    const result = toolCall()?.result;
+    if (!result || toolCall()?.status !== "done") return "";
+    const text = result.trim();
+    if (!text || text === "Task complete") return "";
+    // Skip error messages in preview
+    if (text.startsWith("Error:")) return text.slice(0, 80);
+    // For file reads, show first non-empty line of content
+    const firstLine = text.split("\n").find(l => l.trim().length > 0) || "";
+    if (firstLine.length > 90) return firstLine.slice(0, 87) + "…";
+    return firstLine;
   };
 
   return (
@@ -89,7 +110,7 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
       }}
     >
       <button
-        class="flex items-center gap-2 w-full px-3 py-2 text-left"
+        class="flex flex-col w-full px-3 py-2 text-left gap-1"
         style={{
           background: "transparent",
           border: "none",
@@ -100,58 +121,55 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
         }}
         onClick={() => setExpanded(!expanded())}
       >
-        <span
-          class="shrink-0 rounded-full"
-          style={{
-            width: "6px",
-            height: "6px",
-            background: statusColor(),
-          }}
-        />
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          style={{
-            transform: expanded() ? "rotate(90deg)" : "rotate(0deg)",
-            transition: "transform 0.15s",
-          }}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-        <span class="font-mono font-medium" style={{ color: "var(--accent-primary)" }}>
-          {props.message.toolName}
-        </span>
-        <Show when={toolSummary()}>
+        {/* Row 1: status dot + chevron + tool name + key arg + spinner */}
+        <div class="flex items-center gap-2 w-full">
           <span
-            class="truncate font-mono"
-            style={{
-              color: props.message.toolName === "run_command" ? "var(--accent-yellow)" : "var(--text-muted)",
-              "max-width": "200px",
-              "font-size": "0.9em",
-            }}
-            title={toolSummary()}
-          >
-            {toolSummary()}
-          </span>
-        </Show>
-        <Show when={toolCall()?.status === "running"}>
+            class="shrink-0 rounded-full"
+            style={{ width: "6px", height: "6px", background: statusColor() }}
+          />
           <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            class="animate-spin"
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style={{ transform: expanded() ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", "flex-shrink": "0" }}
           >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            <polyline points="9 18 15 12 9 6" />
           </svg>
+          <span class="font-mono font-medium shrink-0" style={{ color: "var(--accent-primary)" }}>
+            {props.message.toolName}
+          </span>
+          <Show when={toolSummary()}>
+            <span
+              class="truncate font-mono flex-1"
+              style={{
+                color: props.message.toolName === "run_command" ? "var(--accent-yellow)" : "var(--text-muted)",
+                "font-size": "0.9em",
+              }}
+              title={toolSummary()}
+            >
+              {toolSummary()}
+            </span>
+          </Show>
+          <Show when={toolCall()?.status === "running"}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin shrink-0">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          </Show>
+        </div>
+
+        {/* Row 2: result preview (only when done and not expanded) */}
+        <Show when={!expanded() && resultPreview()}>
+          <div
+            class="truncate"
+            style={{
+              "padding-left": "20px",
+              "font-size": `${fontSize() - 3}px`,
+              "font-family": "var(--font-mono, monospace)",
+              color: "var(--text-muted)",
+              opacity: "0.75",
+            }}
+          >
+            {resultPreview()}
+          </div>
         </Show>
       </button>
 

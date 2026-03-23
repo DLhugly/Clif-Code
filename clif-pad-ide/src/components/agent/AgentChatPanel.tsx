@@ -124,7 +124,7 @@ const AgentChatPanel: Component = () => {
   const [hoveredModel, setHoveredModel] = createSignal<string | null>(null);
   const [pendingCommand, setPendingCommand] = createSignal<{ sessionId: string; command: string; toolCallId: string } | null>(null);
   const [clifInitializing, setClifInitializing] = createSignal(false);
-  const [clifInitProgress, setClifInitProgress] = createSignal("");
+  const [clifInitProgress, setClifInitProgress] = createSignal<{ step: number; total: number; message: string; elapsed_secs: number }>({ step: 0, total: 15, message: "", elapsed_secs: 0 });
   const [clifExists, setClifExists] = createSignal<boolean | null>(null); // null = checking
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
   const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
@@ -207,12 +207,12 @@ const AgentChatPanel: Component = () => {
     );
 
     // Listen for init progress and completion
-    const unlistenProgress = await listen<string>("clif_init_progress", (event) => {
+    const unlistenProgress = await listen<{ step: number; total: number; message: string; elapsed_secs: number }>("clif_init_progress", (event) => {
       setClifInitProgress(event.payload);
     });
     const unlistenDone = await listen<{ success: boolean; message: string }>("clif_init_done", (event) => {
       setClifInitializing(false);
-      setClifInitProgress("");
+      setClifInitProgress({ step: 0, total: 15, message: "", elapsed_secs: 0 });
       if (event.payload.success) {
         setClifExists(true);
       }
@@ -317,13 +317,12 @@ const AgentChatPanel: Component = () => {
     if (!root || clifInitializing()) return;
     const key = await getApiKey(settings().aiProvider).catch(() => null);
     setClifInitializing(true);
-    setClifInitProgress("Starting analysis...");
+    setClifInitProgress({ step: 0, total: 15, message: "Starting analysis...", elapsed_secs: 0 });
     try {
       await clifInitProject(root, settings().aiModel, key, settings().aiProvider);
     } catch (e) {
       setClifInitializing(false);
-      setClifInitProgress("");
-      console.error("Init failed:", e);
+      setClifInitProgress({ step: 0, total: 15, message: "", elapsed_secs: 0 });
     }
   }
 
@@ -882,21 +881,43 @@ const AgentChatPanel: Component = () => {
       {/* Non-blocking init banner — appears at top of messages when scanning */}
       <Show when={clifInitializing()}>
         <div
-          class="shrink-0 flex items-center gap-2 px-3 py-1.5"
+          class="shrink-0 px-3 py-2"
           style={{
-            background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
-            "border-bottom": "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+            background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
+            "border-bottom": "1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent)",
           }}
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" class="animate-spin shrink-0">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-          </svg>
-          <span style={{ "font-size": "11px", color: "var(--accent-primary)", flex: "1" }}>
-            {clifInitProgress() || "Scanning codebase..."}
-          </span>
-          <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>
-            You can chat while this runs
-          </span>
+          {/* Top row: icon + message + elapsed */}
+          <div class="flex items-center gap-2 mb-1.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" class="animate-spin shrink-0">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            <span style={{ "font-size": "11px", color: "var(--accent-primary)", flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
+              {clifInitProgress().message || "Scanning codebase..."}
+            </span>
+            <span style={{ "font-size": "10px", color: "var(--text-muted)", "flex-shrink": "0" }}>
+              {clifInitProgress().elapsed_secs > 0 ? `${clifInitProgress().elapsed_secs}s` : ""}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div style={{ height: "3px", background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)", "border-radius": "2px", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${Math.min(100, (clifInitProgress().step / clifInitProgress().total) * 100)}%`,
+              background: "var(--accent-primary)",
+              "border-radius": "2px",
+              transition: "width 0.4s ease",
+            }} />
+          </div>
+          {/* Bottom row: step count + hint */}
+          <div class="flex items-center justify-between mt-1">
+            <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>
+              Step {clifInitProgress().step} / ~{clifInitProgress().total} — building .clif/CLIF.md
+            </span>
+            <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>
+              You can chat while this runs
+            </span>
+          </div>
         </div>
       </Show>
 
