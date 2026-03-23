@@ -301,6 +301,9 @@ const GitGraphRow: Component<{
   isLast: boolean;
   isMerge: boolean;
 }> = (props) => {
+  const [hovered, setHovered] = createSignal(false);
+  let rowRef: HTMLDivElement | undefined;
+
   const refLabels = createMemo(() => {
     return props.entry.refs.filter((r) => r !== "").map((r) => {
       const isHead = r.includes("HEAD");
@@ -310,26 +313,24 @@ const GitGraphRow: Component<{
   });
 
   return (
-    <div class="git-graph-row px-2 py-1 cursor-default">
+    <div
+      ref={rowRef}
+      class="git-graph-row px-2 py-1 cursor-default"
+      style={{ position: "relative" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div class="flex items-start gap-2">
         {/* Graph column */}
         <div
           class="shrink-0 flex flex-col items-center"
           style={{ width: "16px", "min-height": "28px" }}
         >
-          {/* Line above dot */}
+          <div style={{ width: "2px", height: "6px", background: "var(--border-default)" }} />
           <div
             style={{
-              width: "2px",
-              height: "6px",
-              background: "var(--border-default)",
-            }}
-          />
-          {/* Commit dot */}
-          <div
-            style={{
-              width: props.entry.is_head ? "10px" : props.isMerge ? "8px" : "8px",
-              height: props.entry.is_head ? "10px" : props.isMerge ? "8px" : "8px",
+              width: props.entry.is_head ? "10px" : "8px",
+              height: props.entry.is_head ? "10px" : "8px",
               "border-radius": "50%",
               background: props.entry.is_head
                 ? "var(--accent-blue)"
@@ -341,22 +342,13 @@ const GitGraphRow: Component<{
               "flex-shrink": "0",
             }}
           />
-          {/* Line below dot */}
           <Show when={!props.isLast}>
-            <div
-              style={{
-                width: "2px",
-                "flex-grow": "1",
-                "min-height": "6px",
-                background: "var(--border-default)",
-              }}
-            />
+            <div style={{ width: "2px", "flex-grow": "1", "min-height": "6px", background: "var(--border-default)" }} />
           </Show>
         </div>
 
         {/* Commit info */}
         <div class="flex-1 min-w-0 py-0.5">
-          {/* Ref labels */}
           <Show when={refLabels().length > 0}>
             <div class="flex flex-wrap gap-1 mb-0.5">
               <For each={refLabels()}>
@@ -364,13 +356,9 @@ const GitGraphRow: Component<{
                   <span
                     class="px-1 rounded font-mono"
                     style={{
-                      "font-size": "0.75em",
-                      "line-height": "1.4",
-                      background: ref.isHead
-                        ? "var(--accent-blue)"
-                        : BRANCH_COLORS[i() % BRANCH_COLORS.length],
-                      color: "#fff",
-                      opacity: ref.isHead ? "1" : "0.85",
+                      "font-size": "0.75em", "line-height": "1.4",
+                      background: ref.isHead ? "var(--accent-blue)" : BRANCH_COLORS[i() % BRANCH_COLORS.length],
+                      color: "#fff", opacity: ref.isHead ? "1" : "0.85",
                     }}
                   >
                     {ref.label}
@@ -379,45 +367,23 @@ const GitGraphRow: Component<{
               </For>
             </div>
           </Show>
-          {/* Message */}
-          <div
-            class="truncate"
-            style={{
-              color: "var(--text-primary)",
-              "font-size": "0.92em",
-              "line-height": "1.4",
-            }}
-          >
+          <div class="truncate" style={{ color: "var(--text-primary)", "font-size": "0.92em", "line-height": "1.4" }}>
             {props.entry.message}
           </div>
-          {/* Hash + author + date */}
-          <div
-            class="flex items-center gap-2 mt-0.5"
-            style={{ color: "var(--text-muted)", "font-size": "0.84em" }}
-          >
+          <div class="flex items-center gap-2 mt-0.5" style={{ color: "var(--text-muted)", "font-size": "0.84em" }}>
             <Show when={remoteUrl()}>
               <span
                 class="font-mono"
-                style={{
-                  color: "var(--accent-yellow)",
-                  cursor: "pointer",
-                  "text-decoration": "none",
-                }}
+                style={{ color: "var(--accent-yellow)", cursor: "pointer" }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-                title={`Open commit on ${new URL(remoteUrl()!).hostname}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  open(`${remoteUrl()}/commit/${props.entry.hash}`);
-                }}
+                onClick={(e) => { e.stopPropagation(); open(`${remoteUrl()}/commit/${props.entry.hash}`); }}
               >
                 {props.entry.short_hash}
               </span>
             </Show>
             <Show when={!remoteUrl()}>
-              <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>
-                {props.entry.short_hash}
-              </span>
+              <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>{props.entry.short_hash}</span>
             </Show>
             <span class="truncate">{props.entry.author}</span>
             <span class="shrink-0 ml-auto">{props.entry.date}</span>
@@ -425,54 +391,98 @@ const GitGraphRow: Component<{
         </div>
       </div>
 
-      {/* Expanded detail — shown on hover via CSS */}
-      <div
-        class="git-graph-tooltip"
-        style={{
-          overflow: "hidden",
-          "max-height": "0",
-          "padding-left": "24px",
-          "font-size": "0.84em",
-          transition: "max-height 0.15s ease",
-        }}
-      >
+      {/* Floating popup — VS Code style, appears to the left */}
+      <Show when={hovered()}>
         <div
           style={{
-            padding: "4px 0 2px",
-            "border-top": "1px solid var(--border-muted)",
-            "margin-top": "2px",
+            position: "fixed",
+            right: "calc(100% - 310px + 4px)",
+            "margin-top": "-4px",
+            width: "260px",
+            background: "var(--bg-overlay)",
+            border: "1px solid var(--border-default)",
+            "border-radius": "8px",
+            padding: "10px 12px",
+            "box-shadow": "0 4px 20px rgba(0,0,0,0.35)",
+            "z-index": "500",
+            "font-size": "0.85em",
+            "pointer-events": "none",
           }}
+          onMouseEnter={() => setHovered(true)}
         >
-          <div class="flex gap-2 mb-1">
-            <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Commit</span>
-            <Show when={remoteUrl()}>
+          {/* Message */}
+          <div style={{ "font-weight": "600", color: "var(--text-primary)", "margin-bottom": "8px", "line-height": "1.4", "word-break": "break-word" }}>
+            {props.entry.message}
+          </div>
+
+          {/* Hash */}
+          <div class="flex items-center gap-2 mb-1">
+            <span style={{ color: "var(--text-muted)", "min-width": "48px", "font-size": "0.9em" }}>Hash</span>
+            <Show when={remoteUrl()}
+              fallback={<span class="font-mono" style={{ color: "var(--accent-yellow)", "font-size": "0.9em" }}>{props.entry.hash.slice(0, 16)}</span>}
+            >
               <span
                 class="font-mono"
-                style={{ color: "var(--accent-yellow)", cursor: "pointer" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  open(`${remoteUrl()}/commit/${props.entry.hash}`);
-                }}
+                style={{ color: "var(--accent-yellow)", cursor: "pointer", "text-decoration": "underline", "font-size": "0.9em", "pointer-events": "all" }}
+                onClick={(e) => { e.stopPropagation(); open(`${remoteUrl()}/commit/${props.entry.hash}`); }}
+                title={`View on ${new URL(remoteUrl()!).hostname}`}
               >
-                {props.entry.hash.slice(0, 16)}
+                {props.entry.hash.slice(0, 16)} ↗
               </span>
             </Show>
-            <Show when={!remoteUrl()}>
-              <span class="font-mono" style={{ color: "var(--accent-yellow)" }}>{props.entry.hash.slice(0, 16)}</span>
-            </Show>
           </div>
-          <div class="flex gap-2 mb-1">
-            <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Author</span>
-            <span style={{ color: "var(--text-primary)" }}>{props.entry.author}</span>
+
+          {/* Author */}
+          <div class="flex items-center gap-2 mb-1">
+            <span style={{ color: "var(--text-muted)", "min-width": "48px", "font-size": "0.9em" }}>Author</span>
+            <span style={{ color: "var(--text-primary)", "font-size": "0.9em" }}>{props.entry.author}</span>
           </div>
-          <div class="flex gap-2">
-            <span style={{ color: "var(--text-muted)", "min-width": "42px" }}>Date</span>
-            <span style={{ color: "var(--text-primary)" }}>{props.entry.date}</span>
+
+          {/* Date */}
+          <div class="flex items-center gap-2 mb-1">
+            <span style={{ color: "var(--text-muted)", "min-width": "48px", "font-size": "0.9em" }}>Date</span>
+            <span style={{ color: "var(--text-primary)", "font-size": "0.9em" }}>{props.entry.date}</span>
           </div>
+
+          {/* Refs */}
+          <Show when={refLabels().length > 0}>
+            <div class="flex items-start gap-2 mt-1 pt-1" style={{ "border-top": "1px solid var(--border-muted)" }}>
+              <span style={{ color: "var(--text-muted)", "min-width": "48px", "font-size": "0.9em", "padding-top": "1px" }}>Refs</span>
+              <div class="flex flex-wrap gap-1">
+                <For each={refLabels()}>
+                  {(ref, i) => (
+                    <span
+                      class="px-1 rounded font-mono"
+                      style={{
+                        "font-size": "0.8em", "line-height": "1.5",
+                        background: ref.isHead ? "var(--accent-blue)" : BRANCH_COLORS[i() % BRANCH_COLORS.length],
+                        color: "#fff",
+                      }}
+                    >
+                      {ref.label}
+                    </span>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
+
+          {/* Open on GitHub link */}
+          <Show when={remoteUrl()}>
+            <div
+              class="mt-2 pt-1"
+              style={{ "border-top": "1px solid var(--border-muted)", "pointer-events": "all" }}
+            >
+              <span
+                style={{ color: "var(--accent-primary)", "font-size": "0.85em", cursor: "pointer", "text-decoration": "underline" }}
+                onClick={(e) => { e.stopPropagation(); open(`${remoteUrl()}/commit/${props.entry.hash}`); }}
+              >
+                View on {new URL(remoteUrl()!).hostname} ↗
+              </span>
+            </div>
+          </Show>
         </div>
-      </div>
+      </Show>
     </div>
   );
 };
