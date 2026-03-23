@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/DLhugly/Clif-Code/compare/v1.32.2...v1.33.0) (2026-03-23)
+
+
+### Features
+
+* replace flickering git graph tooltip with VS Code-style floating commit popup ([f08d92c](https://github.com/DLhugly/Clif-Code/commit/f08d92c5275c4930c0a7fcbc0df308183e68ef56))
+
 ## [1.32.2](https://github.com/DLhugly/Clif-Code/compare/v1.32.1...v1.32.2) (2026-03-22)
 
 
