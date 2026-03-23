@@ -124,6 +124,25 @@ const AgentChatPanel: Component = () => {
   const [hoveredModel, setHoveredModel] = createSignal<string | null>(null);
   const [pendingCommand, setPendingCommand] = createSignal<{ sessionId: string; command: string; toolCallId: string } | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
+  const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
+
+  // Auto-send queued message when agent finishes
+  createEffect(() => {
+    if (!agentStreaming() && queuedMessage()) {
+      const msg = queuedMessage()!;
+      setQueuedMessage(null);
+      setInputValue("");
+      if (inputRef) inputRef.style.height = "auto";
+      const ctx = buildContext();
+      setContextFiles([]);
+      if (webSearchEnabled() && settings().aiProvider === "openrouter") {
+        const baseModel = settings().aiModel.replace(/:online$/, "");
+        sendAgentMessage(msg, ctx, baseModel + ":online");
+      } else {
+        sendAgentMessage(msg, ctx);
+      }
+    }
+  });
 
   async function fetchOpenRouterModels() {
     if (openRouterModels().length > 0) return;
@@ -257,7 +276,16 @@ const AgentChatPanel: Component = () => {
 
   async function handleSend() {
     const text = inputValue().trim();
-    if (!text || agentStreaming()) return;
+    if (!text) return;
+
+    // If agent is running, queue the message to send when it finishes
+    if (agentStreaming()) {
+      setQueuedMessage(text);
+      setInputValue("");
+      if (inputRef) inputRef.style.height = "auto";
+      return;
+    }
+
     setInputValue("");
     if (inputRef) inputRef.style.height = "auto";
     const ctx = buildContext();
@@ -1241,35 +1269,64 @@ const AgentChatPanel: Component = () => {
               "min-height": "20px",
               "max-height": "150px",
               "font-family": "inherit",
+              opacity: queuedMessage() ? "0.6" : "1",
             }}
-            placeholder={agentStreaming() ? "Agent is thinking..." : "Ask the agent..."}
+            placeholder={
+              queuedMessage()
+                ? `Queued: "${queuedMessage()!.slice(0, 40)}${queuedMessage()!.length > 40 ? "…" : ""}"`
+                : agentStreaming()
+                ? "Type to queue next message..."
+                : "Ask the agent..."
+            }
             rows={1}
             value={inputValue()}
             onInput={(e) => {
+              if (queuedMessage()) return; // don't allow typing while message is queued
               setInputValue(e.currentTarget.value);
               autoResize(e.currentTarget);
             }}
             onKeyDown={handleKeyDown}
-            disabled={agentStreaming()}
           />
 
           {/* Send / Stop streaming button */}
           <Show
             when={!agentStreaming()}
             fallback={
-              <button
-                class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
-                style={{
-                  background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
-                  color: "var(--accent-red)",
-                  border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
-                  cursor: "pointer",
-                }}
-                onClick={stopAgent}
-                title="Stop streaming response"
+              <Show
+                when={inputValue().trim()}
+                fallback={
+                  <button
+                    class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+                    style={{
+                      background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
+                      color: "var(--accent-red)",
+                      border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
+                      cursor: "pointer",
+                    }}
+                    onClick={stopAgent}
+                    title="Stop streaming response"
+                  >
+                    <StopIcon />
+                  </button>
+                }
               >
-                <StopIcon />
-              </button>
+                {/* Queue button — send after agent finishes */}
+                <button
+                  class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+                  style={{
+                    background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                    color: "var(--accent-primary)",
+                    border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                    cursor: "pointer",
+                  }}
+                  onClick={handleSend}
+                  title="Queue message — sends when agent finishes"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+                  </svg>
+                </button>
+              </Show>
             }
           >
             <button
