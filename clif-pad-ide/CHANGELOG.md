@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/DLhugly/Clif-Code/compare/v1.35.0...v1.36.0) (2026-03-23)
+
+
+### Features
+
+* auto-scan codebase in background on first agent open, non-blocking banner ([cc45c04](https://github.com/DLhugly/Clif-Code/commit/cc45c04ac3a6aa23d60a777ec922422676fdc28c))
+
 # [1.35.0](https://github.com/DLhugly/Clif-Code/compare/v1.34.0...v1.35.0) (2026-03-23)
 
 
