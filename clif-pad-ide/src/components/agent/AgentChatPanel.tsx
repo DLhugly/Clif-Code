@@ -295,12 +295,18 @@ const AgentChatPanel: Component = () => {
     return Object.keys(ctx).length > 0 ? ctx : undefined;
   }
 
-  // Re-check CLIF.md when project changes
+  // Re-check CLIF.md when project changes, auto-init if missing
   createEffect(() => {
     const root = projectRoot();
     if (root) {
       setClifExists(null);
-      clifProjectInitialized(root).then((exists) => setClifExists(exists));
+      clifProjectInitialized(root).then((exists) => {
+        setClifExists(exists);
+        // Auto-init in background if no CLIF.md and we have an API key
+        if (!exists && settings().aiProvider !== "ollama") {
+          handleInitProject();
+        }
+      });
     } else {
       setClifExists(null);
     }
@@ -873,32 +879,28 @@ const AgentChatPanel: Component = () => {
         </div>
       </Show>
 
-      {/* Init project overlay */}
+      {/* Non-blocking init banner — appears at top of messages when scanning */}
       <Show when={clifInitializing()}>
-        <div style={{
-          position: "absolute", inset: "0", "z-index": "55",
-          background: "color-mix(in srgb, var(--bg-surface) 95%, transparent)",
-          "backdrop-filter": "blur(2px)",
-          display: "flex", "flex-direction": "column",
-          "align-items": "center", "justify-content": "center", gap: "16px",
-          padding: "24px",
-        }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" class="animate-spin">
+        <div
+          class="shrink-0 flex items-center gap-2 px-3 py-1.5"
+          style={{
+            background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
+            "border-bottom": "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" class="animate-spin shrink-0">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
-          <div style={{ "text-align": "center" }}>
-            <div style={{ "font-size": "14px", "font-weight": "600", color: "var(--text-primary)", "margin-bottom": "6px" }}>
-              Analyzing project...
-            </div>
-            <div style={{ "font-size": "12px", color: "var(--text-muted)", "max-width": "240px", "line-height": "1.5" }}>
-              {clifInitProgress() || "Reading codebase structure..."}
-            </div>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-top": "8px" }}>
-              Writing .clif/CLIF.md
-            </div>
-          </div>
+          <span style={{ "font-size": "11px", color: "var(--accent-primary)", flex: "1" }}>
+            {clifInitProgress() || "Scanning codebase..."}
+          </span>
+          <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>
+            You can chat while this runs
+          </span>
         </div>
       </Show>
+
+      {/* placeholder for future ready indicator */}
 
       {/* Model browser — full overlay over chat when open */}
       <Show when={modelDropdownOpen()}>
@@ -1171,7 +1173,11 @@ const AgentChatPanel: Component = () => {
                   class="text-center"
                   style={{ color: "var(--text-muted)", "font-size": "13px" }}
                 >
-                  Ask the agent to help with your code. It can read files, search, edit, and run commands.
+                  <Show when={clifInitializing()}
+                    fallback="Ask the agent to help with your code. It can read files, search, edit, and run commands."
+                  >
+                    Scanning your codebase in the background...
+                  </Show>
                 </p>
                 <Show when={!projectRoot()}>
                   <p
