@@ -1,3 +1,10 @@
+# [1.37.0](https://github.com/DLhugly/Clif-Code/compare/v1.36.0...v1.37.0) (2026-03-23)
+
+
+### Features
+
+* tool call cards show result preview when collapsed, progress bar for CLIF.md scan ([b4b63ae](https://github.com/DLhugly/Clif-Code/commit/b4b63ae60281b32362c9794a367c5b99839ba455))
+
 # [1.36.0](https://github.com/DLhugly/Clif-Code/compare/v1.35.0...v1.36.0) (2026-03-23)
 
 
