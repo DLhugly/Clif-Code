@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/DLhugly/Clif-Code/compare/v1.33.0...v1.34.0) (2026-03-23)
+
+
+### Features
+
+* type while agent runs — queues message and auto-sends when done ([b3e5e0f](https://github.com/DLhugly/Clif-Code/commit/b3e5e0fe97d2ea1616189458b9361da8efb6b477))
+
 # [1.33.0](https://github.com/DLhugly/Clif-Code/compare/v1.32.2...v1.33.0) (2026-03-23)
 
 
