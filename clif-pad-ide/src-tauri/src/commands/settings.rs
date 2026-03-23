@@ -70,3 +70,43 @@ pub fn set_settings(settings: serde_json::Value) -> Result<(), String> {
 
     Ok(())
 }
+
+/// Save agent chat history for a given workspace project
+#[tauri::command]
+pub fn save_agent_history(workspace_dir: String, data: serde_json::Value) -> Result<(), String> {
+    let home = get_home_dir().ok_or("Could not determine home directory")?;
+    let sessions_dir = home.join(".clif").join("agent_sessions");
+    fs::create_dir_all(&sessions_dir)
+        .map_err(|e| format!("Failed to create sessions dir: {}", e))?;
+
+    // Use a hash of the workspace path as filename to avoid path separator issues
+    let key = format!("{:x}", md5_hash(&workspace_dir));
+    let path = sessions_dir.join(format!("{}.json", key));
+
+    let content = serde_json::to_string(&data)
+        .map_err(|e| format!("Failed to serialize: {}", e))?;
+    fs::write(&path, content)
+        .map_err(|e| format!("Failed to write session: {}", e))?;
+
+    Ok(())
+}
+
+/// Load agent chat history for a given workspace project
+#[tauri::command]
+pub fn load_agent_history(workspace_dir: String) -> Option<serde_json::Value> {
+    let home = get_home_dir()?;
+    let key = format!("{:x}", md5_hash(&workspace_dir));
+    let path = home.join(".clif").join("agent_sessions").join(format!("{}.json", key));
+    let content = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Simple deterministic hash for workspace path → filename
+fn md5_hash(s: &str) -> u64 {
+    let mut hash: u64 = 14695981039346656037;
+    for byte in s.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(1099511628211);
+    }
+    hash
+}

@@ -269,6 +269,15 @@ export async function clifInitProject(
   return invoke("clif_init_project", { workspaceDir, model, apiKey, provider });
 }
 
+// Agent chat history persistence
+export async function saveAgentHistory(workspaceDir: string, data: unknown): Promise<void> {
+  return invoke("save_agent_history", { workspaceDir, data });
+}
+
+export async function loadAgentHistory(workspaceDir: string): Promise<unknown> {
+  return invoke("load_agent_history", { workspaceDir });
+}
+
 // Agent event listeners
 export function onAgentStream(callback: (chunk: string) => void): Promise<UnlistenFn> {
   return listen<string>("agent_stream", (event) => callback(event.payload));

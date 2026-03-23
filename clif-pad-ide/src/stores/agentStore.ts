@@ -1,10 +1,11 @@
-import { createSignal } from "solid-js";
+import { createSignal, createEffect } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentMessage, ToolCall, AgentContext } from "../types/agent";
 import { settings } from "./settingsStore";
 import { projectRoot } from "./fileStore";
+import { saveAgentHistory, loadAgentHistory } from "../lib/tauri";
 
 interface AgentTab {
   id: string;
@@ -25,6 +26,47 @@ let tabCounter = 0;
 
 let unlisteners: UnlistenFn[] = [];
 let messageIdCounter = 0;
+let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Auto-save debounced — called after messages change
+function scheduleSave() {
+  if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+  saveDebounceTimer = setTimeout(() => {
+    const root = projectRoot();
+    if (!root) return;
+    const data = {
+      tabs: agentTabs.map(t => ({ ...t })),
+      activeTab: activeAgentTab(),
+      messages: [...agentMessages],
+      tokens: agentTokens(),
+      savedAt: Date.now(),
+    };
+    saveAgentHistory(root, data).catch(() => {});
+  }, 1000);
+}
+
+// Restore persisted history for a workspace
+async function restoreAgentHistory(workspaceDir: string) {
+  try {
+    const data = await loadAgentHistory(workspaceDir) as any;
+    if (!data) return;
+    if (data.tabs && Array.isArray(data.tabs) && data.tabs.length > 0) {
+      setAgentTabs(data.tabs);
+      tabCounter = data.tabs.length;
+    }
+    if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+      setAgentMessages(data.messages);
+    }
+    if (data.tokens) {
+      setAgentTokens(data.tokens);
+    }
+    if (data.activeTab) {
+      setActiveAgentTab(data.activeTab);
+    }
+  } catch {
+    // ignore restore errors
+  }
+}
 
 function genId(): string {
   return `msg_${Date.now()}_${++messageIdCounter}`;
@@ -173,6 +215,7 @@ async function initAgentListeners() {
           }
         })
       );
+      scheduleSave(); // persist after each completed turn
     })
   );
 
@@ -199,6 +242,7 @@ async function sendAgentMessage(content: string, context?: AgentContext, modelOv
     status: "done",
   };
   setAgentMessages(produce((msgs) => msgs.push(userMsg)));
+  scheduleSave();
   setAgentStreaming(true);
   setAgentError(null);
 
@@ -323,4 +367,5 @@ export {
   startNewSession,
   switchAgentTab,
   removeAgentTab,
+  restoreAgentHistory,
 };

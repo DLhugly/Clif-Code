@@ -11,6 +11,7 @@ import {
   switchAgentTab,
   removeAgentTab,
   initAgentListeners,
+  restoreAgentHistory,
 } from "../../stores/agentStore";
 import { activeFile, projectRoot } from "../../stores/fileStore";
 import { currentBranch } from "../../stores/gitStore";
@@ -129,9 +130,9 @@ const AgentChatPanel: Component = () => {
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
   const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
 
-  // Auto-send queued message when agent finishes
+  // Auto-send queued message when agent finishes (and not while init is running)
   createEffect(() => {
-    if (!agentStreaming() && queuedMessage()) {
+    if (!agentStreaming() && !clifInitializing() && queuedMessage()) {
       const msg = queuedMessage()!;
       setQueuedMessage(null);
       setInputValue("");
@@ -192,6 +193,11 @@ const AgentChatPanel: Component = () => {
     await initAgentListeners();
     setInitialized(true);
     await checkApiKey();
+
+    // Restore persisted chat history for this project
+    if (projectRoot()) {
+      await restoreAgentHistory(projectRoot()!);
+    }
 
     // Listen for run_command approval requests from the agent
     const { listen } = await import("@tauri-apps/api/event");
@@ -299,6 +305,9 @@ const AgentChatPanel: Component = () => {
   createEffect(() => {
     const root = projectRoot();
     if (root) {
+      // Restore chat history for new project
+      restoreAgentHistory(root);
+
       setClifExists(null);
       clifProjectInitialized(root).then((exists) => {
         setClifExists(exists);
@@ -330,8 +339,8 @@ const AgentChatPanel: Component = () => {
     const text = inputValue().trim();
     if (!text) return;
 
-    // If agent is running, queue the message to send when it finishes
-    if (agentStreaming()) {
+    // If agent is running OR project is being scanned, queue the message
+    if (agentStreaming() || clifInitializing()) {
       setQueuedMessage(text);
       setInputValue("");
       if (inputRef) inputRef.style.height = "auto";
@@ -1375,7 +1384,7 @@ const AgentChatPanel: Component = () => {
             placeholder={
               queuedMessage()
                 ? `Queued: "${queuedMessage()!.slice(0, 40)}${queuedMessage()!.length > 40 ? "…" : ""}"`
-                : agentStreaming()
+                : (agentStreaming() || clifInitializing())
                 ? "Type to queue next message..."
                 : "Ask the agent..."
             }

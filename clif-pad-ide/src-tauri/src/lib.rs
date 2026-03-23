@@ -140,6 +140,8 @@ pub fn run() {
             commands::claude_code::claude_code_stop,
             commands::settings::get_settings,
             commands::settings::set_settings,
+            commands::settings::save_agent_history,
+            commands::settings::load_agent_history,
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_resize,
