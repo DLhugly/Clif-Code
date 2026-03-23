@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/DLhugly/Clif-Code/compare/v1.34.0...v1.35.0) (2026-03-23)
+
+
+### Features
+
+* CLIF.md project init — analyze codebase and inject context into every agent session ([d3d6615](https://github.com/DLhugly/Clif-Code/commit/d3d6615b1ed6e3bb15913051c5090918d4e4b25b))
+
 # [1.34.0](https://github.com/DLhugly/Clif-Code/compare/v1.33.0...v1.34.0) (2026-03-23)
 
 
