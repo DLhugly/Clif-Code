@@ -200,8 +200,9 @@ const AgentChatPanel: Component = () => {
     }
 
     // Listen for run_command approval requests from the agent
-    const { listen } = await import("@tauri-apps/api/event");
-    const unlisten = await listen<{ session_id: string; command: string; tool_call_id: string }>(
+    const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+    const appWindow = getCurrentWebviewWindow();
+    const unlisten = await appWindow.listen<{ session_id: string; command: string; tool_call_id: string }>(
       "agent_command_approval",
       (event) => {
         setPendingCommand({
@@ -213,10 +214,10 @@ const AgentChatPanel: Component = () => {
     );
 
     // Listen for init progress and completion
-    const unlistenProgress = await listen<{ step: number; total: number; message: string; elapsed_secs: number }>("clif_init_progress", (event) => {
+    const unlistenProgress = await appWindow.listen<{ step: number; total: number; message: string; elapsed_secs: number }>("clif_init_progress", (event) => {
       setClifInitProgress(event.payload);
     });
-    const unlistenDone = await listen<{ success: boolean; message: string }>("clif_init_done", (event) => {
+    const unlistenDone = await appWindow.listen<{ success: boolean; message: string }>("clif_init_done", (event) => {
       setClifInitializing(false);
       setClifInitProgress({ step: 0, total: 15, message: "", elapsed_secs: 0 });
       if (event.payload.success) {

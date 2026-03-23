@@ -1,6 +1,6 @@
 import { createSignal, createEffect } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentMessage, ToolCall, AgentContext } from "../types/agent";
 import { settings } from "./settingsStore";
@@ -72,13 +72,18 @@ function genId(): string {
   return `msg_${Date.now()}_${++messageIdCounter}`;
 }
 
+type UnlistenFn = () => void;
+
 async function initAgentListeners() {
   // Clean up any existing listeners
   for (const fn of unlisteners) fn();
   unlisteners = [];
 
+  // Use getCurrentWebviewWindow().listen() to scope events to this window only
+  const appWindow = getCurrentWebviewWindow();
+
   unlisteners.push(
-    await listen<string>("agent_stream", (event) => {
+    await appWindow.listen<string>("agent_stream", (event) => {
       const chunk = event.payload;
       if (chunk === "[DONE]") {
         // Mark last assistant message as done
@@ -114,7 +119,7 @@ async function initAgentListeners() {
   );
 
   unlisteners.push(
-    await listen<{ id: string; name: string; arguments: string }>("agent_tool_call", (event) => {
+    await appWindow.listen<{ id: string; name: string; arguments: string }>("agent_tool_call", (event) => {
       const { id, name, arguments: argsStr } = event.payload;
       let args: Record<string, unknown> = {};
       try {
@@ -147,7 +152,7 @@ async function initAgentListeners() {
   );
 
   unlisteners.push(
-    await listen<{ tool_call_id: string; result: string }>("agent_tool_result", (event) => {
+    await appWindow.listen<{ tool_call_id: string; result: string }>("agent_tool_result", (event) => {
       const { tool_call_id, result } = event.payload;
       setAgentMessages(
         produce((msgs) => {
@@ -177,7 +182,7 @@ async function initAgentListeners() {
   );
 
   unlisteners.push(
-    await listen<string>("agent_error", (event) => {
+    await appWindow.listen<string>("agent_error", (event) => {
       setAgentError(event.payload);
       setAgentStreaming(false);
       setAgentMessages(
@@ -199,13 +204,13 @@ async function initAgentListeners() {
   );
 
   unlisteners.push(
-    await listen<string>("agent_session_id", (event) => {
+    await appWindow.listen<string>("agent_session_id", (event) => {
       setAgentSessionId(event.payload);
     })
   );
 
   unlisteners.push(
-    await listen<void>("agent_done", () => {
+    await appWindow.listen<void>("agent_done", () => {
       setAgentStreaming(false);
       setAgentMessages(
         produce((msgs) => {
@@ -220,7 +225,7 @@ async function initAgentListeners() {
   );
 
   unlisteners.push(
-    await listen<{ prompt_tokens: number; completion_tokens: number; estimated_context: number }>("agent_usage", (event) => {
+    await appWindow.listen<{ prompt_tokens: number; completion_tokens: number; estimated_context: number }>("agent_usage", (event) => {
       const { prompt_tokens, completion_tokens, estimated_context } = event.payload;
       setAgentTokens((prev) => ({
         prompt: prev.prompt + prompt_tokens,
