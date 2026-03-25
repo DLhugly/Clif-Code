@@ -1,3 +1,10 @@
+# [1.40.0](https://github.com/DLhugly/Clif-Code/compare/v1.39.0...v1.40.0) (2026-03-25)
+
+
+### Features
+
+* **agent:** improve edit reliability, inline command approval, periodic context refresh ([60bc3ca](https://github.com/DLhugly/Clif-Code/commit/60bc3ca24cbce449913a0da6ed03be2843edbdaa))
+
 # [1.39.0](https://github.com/DLhugly/Clif-Code/compare/v1.38.1...v1.39.0) (2026-03-25)
 
 
