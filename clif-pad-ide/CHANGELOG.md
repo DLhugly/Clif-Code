@@ -1,3 +1,10 @@
+# [1.39.0](https://github.com/DLhugly/Clif-Code/compare/v1.38.1...v1.39.0) (2026-03-25)
+
+
+### Features
+
+* **agent:** harden agent harness + add Agent Trace tab ([9781e08](https://github.com/DLhugly/Clif-Code/commit/9781e089ff28807a2dfde424aabc4d52d864da16))
+
 ## [1.38.1](https://github.com/DLhugly/Clif-Code/compare/v1.38.0...v1.38.1) (2026-03-23)
 
 
