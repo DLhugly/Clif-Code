@@ -6,6 +6,7 @@ const MonacoEditor = lazy(() => import("../editor/MonacoEditor"));
 const MarkdownPreview = lazy(() => import("../editor/MarkdownPreview"));
 const BrowserPanel = lazy(() => import("../editor/BrowserPanel"));
 const DiffView = lazy(() => import("../editor/DiffView"));
+const AgentTracePanel = lazy(() => import("../agent/AgentTracePanel"));
 
 const EmptyState: Component = () => (
   <div
@@ -59,20 +60,24 @@ const EditorArea: Component = () => {
               </div>
             }
           >
-            <Show when={activeFile()?.isBrowser} fallback={
-              <Show when={activeFile()?.isDiff} fallback={
-                <Show when={activeFile()?.isPreview} fallback={<MonacoEditor />}>
-                  <MarkdownPreview />
+            <Show when={activeFile()?.isTrace} fallback={
+              <Show when={activeFile()?.isBrowser} fallback={
+                <Show when={activeFile()?.isDiff} fallback={
+                  <Show when={activeFile()?.isPreview} fallback={<MonacoEditor />}>
+                    <MarkdownPreview />
+                  </Show>
+                }>
+                  <DiffView
+                    original={activeFile()?.originalContent ?? ""}
+                    modified={activeFile()?.content ?? ""}
+                    language={activeFile()?.language ?? ""}
+                  />
                 </Show>
               }>
-                <DiffView
-                  original={activeFile()?.originalContent ?? ""}
-                  modified={activeFile()?.content ?? ""}
-                  language={activeFile()?.language ?? ""}
-                />
+                <BrowserPanel />
               </Show>
             }>
-              <BrowserPanel />
+              <AgentTracePanel />
             </Show>
           </Suspense>
         </Show>

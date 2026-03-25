@@ -32,3 +32,31 @@ export interface AgentContext {
   activeFile?: string;
   gitBranch?: string;
 }
+
+export interface AgentTraceEntry {
+  timestamp: number;
+  tool_call_id: string;
+  tool: string;
+  arguments: Record<string, unknown>;
+  ok: boolean;
+  result_preview: string;
+  result_length: number;
+  turn: number;
+}
+
+export interface EditPreview {
+  start_line: number;
+  end_line: number;
+  old_line_count: number;
+  new_line_count: number;
+  before: string;
+  after: string;
+}
+
+export interface WritePreview {
+  created: boolean;
+  old_line_count: number;
+  new_line_count: number;
+  bytes: number;
+  preview: string;
+}

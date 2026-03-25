@@ -1,5 +1,6 @@
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use uuid::Uuid;
@@ -40,11 +41,13 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "read_file",
-                "description": "Read the contents of a file at the given path",
+                "description": "Read the contents of a file. Read files before editing them. Use this to inspect code, configs, and logs before making changes.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Absolute path to the file" }
+                        "path": { "type": "string", "description": "Path to the file. Prefer paths inside the current workspace." }
                     },
                     "required": ["path"]
                 }
@@ -54,12 +57,14 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "write_file",
-                "description": "Write content to a file at the given path, creating it if necessary",
+                "description": "Write full content to a file, creating it if necessary. Use this for new files or full rewrites. Do not use this for small localized edits; prefer edit_file for targeted changes.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Absolute path to the file" },
-                        "content": { "type": "string", "description": "Content to write" }
+                        "path": { "type": "string", "description": "Path to the file to write. Prefer paths inside the current workspace." },
+                        "content": { "type": "string", "description": "Full file content to write." }
                     },
                     "required": ["path", "content"]
                 }
@@ -69,13 +74,15 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "edit_file",
-                "description": "Replace old_string with new_string in the file. old_string must match exactly.",
+                "description": "Make a targeted edit by replacing old_string with new_string exactly once. Read the file first. Prefer this over write_file for localized changes. old_string must match the current file contents exactly, including whitespace.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Absolute path to the file" },
-                        "old_string": { "type": "string", "description": "Exact text to find and replace" },
-                        "new_string": { "type": "string", "description": "Replacement text" }
+                        "path": { "type": "string", "description": "Path to the file to edit. Prefer paths inside the current workspace." },
+                        "old_string": { "type": "string", "description": "Exact text to find and replace. Include enough surrounding context to make the match unique when possible." },
+                        "new_string": { "type": "string", "description": "Replacement text." }
                     },
                     "required": ["path", "old_string", "new_string"]
                 }
@@ -85,11 +92,13 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "list_files",
-                "description": "List files and directories at the given path",
+                "description": "List files and directories at a path. Use this to explore the workspace before reading or editing files.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Directory path to list" }
+                        "path": { "type": "string", "description": "Directory path to list. Prefer paths inside the current workspace." }
                     },
                     "required": ["path"]
                 }
@@ -99,12 +108,14 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "search",
-                "description": "Search for text in files within a directory",
+                "description": "Search for text in files within a directory. Prefer this over run_command for codebase exploration.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "query": { "type": "string", "description": "Text to search for" },
-                        "path": { "type": "string", "description": "Directory to search in" }
+                        "query": { "type": "string", "description": "Text or pattern to search for." },
+                        "path": { "type": "string", "description": "Directory to search in. Prefer paths inside the current workspace." }
                     },
                     "required": ["query", "path"]
                 }
@@ -114,12 +125,14 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "run_command",
-                "description": "Run a shell command and return its output. Use for build, test, git, etc.",
+                "description": "Run a shell command and return its output. Use this mainly for build, test, lint, git, or validation tasks. Prefer read/search/list tools over shell commands for basic exploration. Requires user approval before execution.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "command": { "type": "string", "description": "Shell command to execute" },
-                        "working_dir": { "type": "string", "description": "Working directory (optional)" }
+                        "command": { "type": "string", "description": "Shell command to execute." },
+                        "working_dir": { "type": "string", "description": "Working directory for the command. Must stay inside the workspace if provided." }
                     },
                     "required": ["command"]
                 }
@@ -129,12 +142,14 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "find_file",
-                "description": "Find files by name anywhere in the workspace. Searches recursively. Use when you don't know where a file is.",
+                "description": "Find files or directories by partial name anywhere in the workspace. Use this when you do not know the exact location of something.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "name": { "type": "string", "description": "File or directory name to search for (partial match)" },
-                        "dir": { "type": "string", "description": "Starting directory. Defaults to workspace root." }
+                        "name": { "type": "string", "description": "File or directory name to search for, partial match allowed." },
+                        "dir": { "type": "string", "description": "Starting directory. Defaults to the workspace root." }
                     },
                     "required": ["name"]
                 }
@@ -144,11 +159,13 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "change_directory",
-                "description": "Change the working directory for subsequent tool calls. Use when the user wants to switch to a different folder.",
+                "description": "Change the working directory for subsequent tool calls. Use only when the task clearly requires operating from a different folder inside the workspace.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Absolute path to the directory to switch to" }
+                        "path": { "type": "string", "description": "Directory path to switch to. Must stay inside the workspace." }
                     },
                     "required": ["path"]
                 }
@@ -158,11 +175,13 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "submit",
-                "description": "Mark the task as complete. Call when finished with the user's request.",
+                "description": "Finish the task and provide a brief summary. Only call this when the user's request is complete or you are blocked and have clearly explained why.",
+                "strict": true,
                 "parameters": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
-                        "summary": { "type": "string", "description": "Brief summary of what was accomplished" }
+                        "summary": { "type": "string", "description": "Brief summary of what was completed or what is blocking completion." }
                     },
                     "required": ["summary"]
                 }
@@ -177,11 +196,17 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
         "You are an AI coding assistant embedded in ClifPad, a desktop code editor. \
          You help users with their code by reading files, making edits, searching codebases, and running commands.\n\n\
          The current workspace is: {}\n\n\
-         Guidelines:\n\
+         Operating rules:\n\
          - Be concise and direct.\n\
          - Use tools to gather information before answering.\n\
-         - When editing files, use edit_file for small changes and write_file for new files or rewrites.\n\
+         - Read relevant files before editing them.\n\
+         - Prefer list_files, find_file, and search for exploration before using run_command.\n\
+         - Use edit_file for small targeted changes and write_file only for new files or full rewrites.\n\
+         - After meaningful code changes, run verification commands when feasible.\n\
+         - If a tool returns an error, fix the arguments or approach and retry deliberately.\n\
+         - Do not call submit until the user's request is complete or you are clearly blocked.\n\
          - Always confirm destructive operations before proceeding.\n\
+         - Stay inside the current workspace when reading, writing, searching, or changing directories.\n\
          - Format responses in markdown.\n",
         workspace_dir
     );
@@ -219,63 +244,145 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
     match name {
         "read_file" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = resolve_path(path, workspace_dir);
+            let full_path = match ensure_path_in_workspace(path, workspace_dir, false) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
             match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => {
-                    if content.len() > 50000 {
+                    let value = if content.len() > 50000 {
                         format!("{}\n\n... (truncated, {} total bytes)", &content[..50000], content.len())
                     } else {
                         content
-                    }
+                    };
+                    tool_success(json!(value))
                 }
-                Err(e) => format!("Error reading file: {}", e),
+                Err(e) => tool_error("READ_FAILED", format!("Error reading file: {}", e), true),
             }
         }
         "write_file" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
             let content = args.get("content").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = resolve_path(path, workspace_dir);
+            let full_path = match ensure_path_in_workspace(path, workspace_dir, true) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
 
-            // Ensure parent dir exists
-            if let Some(parent) = std::path::Path::new(&full_path).parent() {
+            if let Some(parent) = full_path.parent() {
                 let _ = tokio::fs::create_dir_all(parent).await;
             }
 
+            // Check if file existed before write (for metadata)
+            let existed = full_path.exists();
+            let old_line_count = if existed {
+                tokio::fs::read_to_string(&full_path)
+                    .await
+                    .map(|c| c.lines().count())
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+            let new_line_count = content.lines().count();
+
             match tokio::fs::write(&full_path, content).await {
-                Ok(()) => format!("Successfully wrote {} bytes to {}", content.len(), path),
-                Err(e) => format!("Error writing file: {}", e),
+                Ok(()) => {
+                    // Build a small preview of the first few lines
+                    let preview_lines: Vec<&str> = content.lines().take(8).collect();
+                    let preview = if content.lines().count() > 8 {
+                        format!("{}\n  ... ({} more lines)", preview_lines.join("\n"), content.lines().count() - 8)
+                    } else {
+                        preview_lines.join("\n")
+                    };
+
+                    json!({
+                        "ok": true,
+                        "tool": "write_file",
+                        "path": path,
+                        "summary": if existed {
+                            format!("Overwrote {} — {} → {} lines ({} bytes)", path, old_line_count, new_line_count, content.len())
+                        } else {
+                            format!("Created {} — {} lines ({} bytes)", path, new_line_count, content.len())
+                        },
+                        "write": {
+                            "created": !existed,
+                            "old_line_count": old_line_count,
+                            "new_line_count": new_line_count,
+                            "bytes": content.len(),
+                            "preview": preview,
+                        },
+                    })
+                    .to_string()
+                }
+                Err(e) => tool_error("WRITE_FAILED", format!("Error writing file: {}", e), true),
             }
         }
         "edit_file" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
             let old_string = args.get("old_string").and_then(|v| v.as_str()).unwrap_or("");
             let new_string = args.get("new_string").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = resolve_path(path, workspace_dir);
+            let full_path = match ensure_path_in_workspace(path, workspace_dir, true) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
 
             match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => {
                     if !content.contains(old_string) {
-                        return format!("Error: old_string not found in {}", path);
+                        return tool_error("OLD_STRING_NOT_FOUND", format!("old_string not found in {}", path), true);
                     }
+
+                    // Compute line range of the match before replacing
+                    let match_byte_start = content.find(old_string).unwrap_or(0);
+                    let start_line = content[..match_byte_start].lines().count().max(1);
+                    let old_line_count = old_string.lines().count().max(1);
+                    let new_line_count = new_string.lines().count().max(1);
+                    let end_line = start_line + old_line_count - 1;
+
+                    // Build a compact unified diff preview
+                    let old_lines: Vec<&str> = old_string.lines().collect();
+                    let new_lines: Vec<&str> = new_string.lines().collect();
+                    let mut diff_preview = format!("@@ -{},{} +{},{} @@\n", start_line, old_line_count, start_line, new_line_count);
+                    for l in &old_lines { diff_preview.push_str(&format!("-{}\n", l)); }
+                    for l in &new_lines { diff_preview.push_str(&format!("+{}\n", l)); }
+
                     let new_content = content.replacen(old_string, new_string, 1);
                     match tokio::fs::write(&full_path, &new_content).await {
-                        Ok(()) => format!("Successfully edited {}", path),
-                        Err(e) => format!("Error writing file: {}", e),
+                        Ok(()) => {
+                            json!({
+                                "ok": true,
+                                "tool": "edit_file",
+                                "path": path,
+                                "summary": format!("Edited {} — lines {}-{}", path, start_line, end_line),
+                                "edit": {
+                                    "start_line": start_line,
+                                    "end_line": end_line,
+                                    "old_line_count": old_line_count,
+                                    "new_line_count": new_line_count,
+                                    "before": old_string,
+                                    "after": new_string,
+                                },
+                                "diff_preview": diff_preview,
+                            })
+                            .to_string()
+                        }
+                        Err(e) => tool_error("WRITE_FAILED", format!("Error writing file: {}", e), true),
                     }
                 }
-                Err(e) => format!("Error reading file: {}", e),
+                Err(e) => tool_error("READ_FAILED", format!("Error reading file: {}", e), true),
             }
         }
         "list_files" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = resolve_path(path, workspace_dir);
+            let full_path = match ensure_path_in_workspace(path, workspace_dir, false) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
 
             match tokio::fs::read_dir(&full_path).await {
                 Ok(mut entries) => {
                     let mut items = Vec::new();
                     while let Ok(Some(entry)) = entries.next_entry().await {
                         let name = entry.file_name().to_string_lossy().to_string();
-                        // Skip hidden dirs and common noise
                         if name.starts_with('.') || name == "node_modules" || name == "target" {
                             continue;
                         }
@@ -283,25 +390,23 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                         items.push(if is_dir { format!("{}/", name) } else { name });
                     }
                     items.sort();
-                    items.join("\n")
+                    tool_success(json!(items.join("\n")))
                 }
-                Err(e) => format!("Error listing directory: {}", e),
+                Err(e) => tool_error("LIST_FAILED", format!("Error listing directory: {}", e), true),
             }
         }
         "search" => {
             let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = resolve_path(path, workspace_dir);
+            let full_path = match ensure_path_in_workspace(path, workspace_dir, false) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
 
-            // Use the search command logic inline
-            let results = crate::commands::search::search_files(
-                full_path,
-                query.to_string(),
-                None,
-            );
+            let results = crate::commands::search::search_files(full_path, query.to_string(), None);
             match results {
                 Ok(items) => {
-                    if items.is_empty() {
+                    let value = if items.is_empty() {
                         format!("No results found for '{}'", query)
                     } else {
                         items
@@ -310,9 +415,10 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                             .map(|r| format!("{}:{}: {}", r.file, r.line, r.content.trim()))
                             .collect::<Vec<_>>()
                             .join("\n")
-                    }
+                    };
+                    tool_success(json!(value))
                 }
-                Err(e) => format!("Search error: {}", e),
+                Err(e) => tool_error("SEARCH_FAILED", format!("Search error: {}", e), true),
             }
         }
         "run_command" => {
@@ -321,13 +427,17 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 .get("working_dir")
                 .and_then(|v| v.as_str())
                 .unwrap_or(workspace_dir);
+            let safe_working_dir = match ensure_path_in_workspace(working_dir, workspace_dir, false) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
 
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(30),
                 tokio::process::Command::new("sh")
                     .arg("-c")
                     .arg(command)
-                    .current_dir(working_dir)
+                    .current_dir(&safe_working_dir)
                     .output()
             ).await;
 
@@ -351,23 +461,23 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                     if result.len() > 20000 {
                         result = format!("{}\n\n... (truncated, {} total bytes)", &result[..20000], result.len());
                     }
-                    result
+                    tool_success(json!(result))
                 }
-                Ok(Err(e)) => format!("Error running command: {}", e),
-                Err(_) => "Error: command timed out after 30 seconds".to_string(),
+                Ok(Err(e)) => tool_error("COMMAND_FAILED", format!("Error running command: {}", e), true),
+                Err(_) => tool_error("COMMAND_TIMEOUT", "Error: command timed out after 30 seconds", true),
             }
         }
         "find_file" => {
             let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let dir = args
-                .get("dir")
-                .and_then(|v| v.as_str())
-                .unwrap_or(workspace_dir);
-            let full_path = resolve_path(dir, workspace_dir);
+            let dir = args.get("dir").and_then(|v| v.as_str()).unwrap_or(workspace_dir);
+            let full_path = match ensure_path_in_workspace(dir, workspace_dir, false) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
 
             let output = tokio::process::Command::new("find")
                 .args([
-                    &full_path,
+                    full_path.to_string_lossy().as_ref(),
                     "-maxdepth", "5",
                     "-iname", &format!("*{}*", name),
                     "-not", "-path", "*/node_modules/*",
@@ -382,29 +492,33 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 Ok(out) => {
                     let text = String::from_utf8_lossy(&out.stdout);
                     let results: Vec<&str> = text.lines().take(30).collect();
-                    if results.is_empty() {
+                    let value = if results.is_empty() {
                         format!("No files found matching '{}'", name)
                     } else {
                         results.join("\n")
-                    }
+                    };
+                    tool_success(json!(value))
                 }
-                Err(e) => format!("Find error: {}", e),
+                Err(e) => tool_error("FIND_FAILED", format!("Find error: {}", e), true),
             }
         }
         "change_directory" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = resolve_path(path, workspace_dir);
-            if std::path::Path::new(&full_path).is_dir() {
-                format!("Changed workspace to {}", full_path)
+            let full_path = match ensure_path_in_workspace(path, workspace_dir, false) {
+                Ok(path) => path,
+                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+            };
+            if full_path.is_dir() {
+                tool_success(json!(format!("Changed workspace to {}", full_path.display())))
             } else {
-                format!("Error: {} is not a directory", full_path)
+                tool_error("NOT_A_DIRECTORY", format!("{} is not a directory", full_path.display()), true)
             }
         }
         "submit" => {
             let summary = args.get("summary").and_then(|v| v.as_str()).unwrap_or("Task complete");
-            format!("Task complete: {}", summary)
+            tool_success(json!(format!("Task complete: {}", summary)))
         }
-        _ => format!("Unknown tool: {}", name),
+        _ => tool_error("UNKNOWN_TOOL", format!("Unknown tool: {}", name), false),
     }
 }
 
@@ -415,6 +529,145 @@ fn resolve_path(path: &str, workspace_dir: &str) -> String {
     } else {
         format!("{}/{}", workspace_dir, path)
     }
+}
+
+fn workspace_root(workspace_dir: &str) -> Result<PathBuf, String> {
+    std::fs::canonicalize(workspace_dir)
+        .map_err(|e| format!("Failed to resolve workspace root '{}': {}", workspace_dir, e))
+}
+
+fn canonicalize_existing_path(path: &Path) -> Result<PathBuf, String> {
+    std::fs::canonicalize(path)
+        .map_err(|e| format!("Failed to resolve path '{}': {}", path.display(), e))
+}
+
+fn canonicalize_for_write(path: &Path) -> Result<PathBuf, String> {
+    if path.exists() {
+        return canonicalize_existing_path(path);
+    }
+
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("Path '{}' has no parent directory", path.display()))?;
+    let canonical_parent = std::fs::canonicalize(parent)
+        .map_err(|e| format!("Failed to resolve parent directory '{}': {}", parent.display(), e))?;
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| format!("Invalid file path '{}'", path.display()))?;
+    Ok(canonical_parent.join(file_name))
+}
+
+fn ensure_path_in_workspace(path: &str, workspace_dir: &str, for_write: bool) -> Result<PathBuf, String> {
+    let root = workspace_root(workspace_dir)?;
+    let joined = if Path::new(path).is_absolute() {
+        PathBuf::from(path)
+    } else {
+        Path::new(workspace_dir).join(path)
+    };
+
+    let canonical = if for_write {
+        canonicalize_for_write(&joined)?
+    } else {
+        canonicalize_existing_path(&joined)?
+    };
+
+    if canonical.starts_with(&root) {
+        Ok(canonical)
+    } else {
+        Err(format!(
+            "Path '{}' is outside the workspace '{}'",
+            canonical.display(),
+            root.display()
+        ))
+    }
+}
+
+fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String> {
+    let obj = args
+        .as_object()
+        .ok_or_else(|| "Tool arguments must be a JSON object".to_string())?;
+
+    let allowed: &[&str] = match name {
+        "read_file" => &["path"],
+        "write_file" => &["path", "content"],
+        "edit_file" => &["path", "old_string", "new_string"],
+        "list_files" => &["path"],
+        "search" => &["query", "path"],
+        "run_command" => &["command", "working_dir"],
+        "find_file" => &["name", "dir"],
+        "change_directory" => &["path"],
+        "submit" => &["summary"],
+        _ => return Err(format!("Unknown tool: {}", name)),
+    };
+
+    for key in obj.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(format!("Unexpected argument '{}' for tool '{}'", key, name));
+        }
+    }
+
+    let require_string = |field: &str| -> Result<(), String> {
+        match obj.get(field) {
+            Some(v) if v.is_string() => Ok(()),
+            Some(_) => Err(format!("Field '{}' must be a string", field)),
+            None => Err(format!("Missing required field '{}'", field)),
+        }
+    };
+
+    match name {
+        "read_file" | "list_files" | "change_directory" => require_string("path"),
+        "write_file" => {
+            require_string("path")?;
+            require_string("content")
+        }
+        "edit_file" => {
+            require_string("path")?;
+            require_string("old_string")?;
+            require_string("new_string")
+        }
+        "search" => {
+            require_string("query")?;
+            require_string("path")
+        }
+        "run_command" => {
+            require_string("command")?;
+            if let Some(v) = obj.get("working_dir") {
+                if !v.is_string() {
+                    return Err("Field 'working_dir' must be a string".to_string());
+                }
+            }
+            Ok(())
+        }
+        "find_file" => {
+            require_string("name")?;
+            if let Some(v) = obj.get("dir") {
+                if !v.is_string() {
+                    return Err("Field 'dir' must be a string".to_string());
+                }
+            }
+            Ok(())
+        }
+        "submit" => require_string("summary"),
+        _ => Err(format!("Unknown tool: {}", name)),
+    }
+}
+
+fn tool_error(error_code: &str, message: impl Into<String>, retryable: bool) -> String {
+    json!({
+        "ok": false,
+        "error_code": error_code,
+        "message": message.into(),
+        "retryable": retryable,
+    })
+    .to_string()
+}
+
+fn tool_success(result: serde_json::Value) -> String {
+    json!({
+        "ok": true,
+        "result": result,
+    })
+    .to_string()
 }
 
 /// Estimate token count for the conversation (~4 chars per token).
@@ -902,15 +1155,57 @@ async fn run_agent_loop(
                 return Ok(());
             }
 
-            let args: serde_json::Value =
-                serde_json::from_str(args_str).unwrap_or(json!({}));
+            let args: serde_json::Value = match serde_json::from_str(args_str) {
+                Ok(value) => value,
+                Err(e) => {
+                    let result = tool_error(
+                        "INVALID_TOOL_ARGUMENTS",
+                        format!("Failed to parse tool arguments for '{}': {}", name, e),
+                        true,
+                    );
+                    let _ = app.emit_to(
+                        label,
+                        "agent_tool_call",
+                        json!({ "id": id, "name": name, "arguments": args_str }),
+                    );
+                    let _ = app.emit_to(
+                        label,
+                        "agent_tool_result",
+                        json!({ "tool_call_id": id, "result": &result }),
+                    );
+                    conversation.push(json!({
+                        "role": "tool",
+                        "tool_call_id": id,
+                        "content": result,
+                    }));
+                    continue;
+                }
+            };
+
+            if let Err(e) = validate_tool_args(name, &args) {
+                let result = tool_error("INVALID_TOOL_ARGUMENTS", e, true);
+                let _ = app.emit_to(
+                    label,
+                    "agent_tool_call",
+                    json!({ "id": id, "name": name, "arguments": args_str }),
+                );
+                let _ = app.emit_to(
+                    label,
+                    "agent_tool_result",
+                    json!({ "tool_call_id": id, "result": &result }),
+                );
+                conversation.push(json!({
+                    "role": "tool",
+                    "tool_call_id": id,
+                    "content": result,
+                }));
+                continue;
+            }
 
             // Handle submit specially — emit the summary as a final assistant
             // message rather than a tool call card, then finish the session.
             if name == "submit" {
-                let args_val: serde_json::Value =
-                    serde_json::from_str(args_str).unwrap_or(json!({}));
-                let summary = args_val
+                let summary = args
                     .get("summary")
                     .and_then(|v| v.as_str())
                     .unwrap_or("Task complete.");
@@ -985,6 +1280,44 @@ async fn run_agent_loop(
                 label,
                 "agent_tool_result",
                 json!({ "tool_call_id": id, "result": &result }),
+            );
+
+            // Emit structured trace event for the Agent Trace tab
+            let trace_ok = result.contains("\"ok\":true") || result.contains("\"ok\": true");
+            let timestamp_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+
+            // Use a larger preview for edit/write tools so diff_preview and summary survive truncation
+            let preview_limit: usize = match name.as_str() {
+                "edit_file" | "write_file" => 2000,
+                _ => 400,
+            };
+            let result_preview = if result.len() > preview_limit {
+                let end = result.char_indices()
+                    .take_while(|(i, _)| *i < preview_limit)
+                    .last()
+                    .map(|(i, c)| i + c.len_utf8())
+                    .unwrap_or(preview_limit.min(result.len()));
+                format!("{}…", &result[..end])
+            } else {
+                result.clone()
+            };
+
+            let _ = app.emit_to(
+                label,
+                "agent_trace",
+                json!({
+                    "timestamp": timestamp_ms,
+                    "tool_call_id": id,
+                    "tool": name,
+                    "arguments": args,
+                    "ok": trace_ok,
+                    "result_preview": result_preview,
+                    "result_length": result.len(),
+                    "turn": _turn,
+                }),
             );
 
             // Cap tool result before adding to conversation to prevent context explosion.
@@ -1161,7 +1494,24 @@ pub async fn clif_init_project(
             let id = tc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let name = tc.pointer("/function/name").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let args_str = tc.pointer("/function/arguments").and_then(|v| v.as_str()).unwrap_or("{}").to_string();
-            let args: serde_json::Value = serde_json::from_str(&args_str).unwrap_or(json!({}));
+            let args: serde_json::Value = match serde_json::from_str(&args_str) {
+                Ok(v) => v,
+                Err(e) => {
+                    let result = tool_error(
+                        "INVALID_TOOL_ARGUMENTS",
+                        format!("Failed to parse tool arguments for '{}': {}", name, e),
+                        true,
+                    );
+                    conversation.push(json!({ "role": "tool", "tool_call_id": id, "content": result }));
+                    continue;
+                }
+            };
+
+            if let Err(e) = validate_tool_args(&name, &args) {
+                let result = tool_error("INVALID_TOOL_ARGUMENTS", e, true);
+                conversation.push(json!({ "role": "tool", "tool_call_id": id, "content": result }));
+                continue;
+            }
 
             step += 1;
             let elapsed = start_time.elapsed().as_secs();

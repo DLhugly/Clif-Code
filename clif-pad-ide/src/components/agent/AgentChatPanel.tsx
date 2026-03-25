@@ -1,10 +1,11 @@
-import { Component, For, Show, createSignal, createEffect, onMount, onCleanup, type Accessor } from "solid-js";
+import { Component, For, Show, createSignal, createEffect, onMount, onCleanup, lazy, Suspense, type Accessor } from "solid-js";
 import {
   agentMessages,
   agentStreaming,
   agentTokens,
   agentTabs,
   activeAgentTab,
+  agentTraceEntries,
   sendAgentMessage,
   stopAgent,
   startNewSession,
@@ -13,7 +14,8 @@ import {
   initAgentListeners,
   restoreAgentHistory,
 } from "../../stores/agentStore";
-import { activeFile, projectRoot } from "../../stores/fileStore";
+
+import { activeFile, projectRoot, openAgentTrace } from "../../stores/fileStore";
 import { currentBranch } from "../../stores/gitStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
@@ -129,6 +131,7 @@ const AgentChatPanel: Component = () => {
   const [clifExists, setClifExists] = createSignal<boolean | null>(null); // null = checking
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
   const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
+
 
   // Auto-send queued message when agent finishes (and not while init is running)
   createEffect(() => {
@@ -1156,6 +1159,45 @@ const AgentChatPanel: Component = () => {
               <span>per 1M tokens · live from openrouter.ai</span>
             </Show>
           </div>
+        </div>
+      </Show>
+
+      {/* Open Trace button strip */}
+      <Show when={agentTraceEntries.length > 0}>
+        <div
+          class="flex items-center shrink-0 px-2"
+          style={{
+            height: "26px",
+            "border-bottom": "1px solid var(--border-default)",
+            background: "var(--bg-surface)",
+          }}
+        >
+          <button
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-colors"
+            style={{
+              background: "transparent",
+              color: "var(--text-muted)",
+              border: "none",
+              cursor: "pointer",
+              "font-size": "11px",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent-primary)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            onClick={() => openAgentTrace()}
+            title="Open Agent Trace in editor tab"
+          >
+            🔍 Open Trace
+            <span
+              class="px-1 rounded font-mono"
+              style={{
+                "font-size": "9px",
+                background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                color: "var(--accent-primary)",
+              }}
+            >
+              {agentTraceEntries.length}
+            </span>
+          </button>
         </div>
       </Show>
 
