@@ -15,6 +15,5 @@ export interface OpenFile {
   isPreview?: boolean;
   isBrowser?: boolean;
   isDiff?: boolean;
-  isTrace?: boolean;
   originalContent?: string;
 }

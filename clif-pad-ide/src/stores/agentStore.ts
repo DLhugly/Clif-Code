@@ -2,7 +2,7 @@ import { createSignal, createEffect } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
-import type { AgentMessage, ToolCall, AgentContext, AgentTraceEntry } from "../types/agent";
+import type { AgentMessage, ToolCall, AgentContext } from "../types/agent";
 import { settings } from "./settingsStore";
 import { projectRoot } from "./fileStore";
 import { saveAgentHistory, loadAgentHistory } from "../lib/tauri";
@@ -21,8 +21,6 @@ const [agentError, setAgentError] = createSignal<string | null>(null);
 const [agentTokens, setAgentTokens] = createSignal({ prompt: 0, completion: 0, context: 0 });
 const [agentTabs, setAgentTabs] = createStore<AgentTab[]>([]);
 const [activeAgentTab, setActiveAgentTab] = createSignal("default");
-const [agentTraceEntries, setAgentTraceEntries] = createStore<AgentTraceEntry[]>([]);
-
 let tabCounter = 0;
 
 let unlisteners: UnlistenFn[] = [];
@@ -236,18 +234,6 @@ async function initAgentListeners() {
     })
   );
 
-  // Agent Trace — structured execution log
-  unlisteners.push(
-    await appWindow.listen<AgentTraceEntry>("agent_trace", (event) => {
-      setAgentTraceEntries(
-        produce((entries) => {
-          entries.push(event.payload);
-          // Keep last 500 entries max to avoid memory bloat
-          if (entries.length > 500) entries.splice(0, entries.length - 500);
-        })
-      );
-    })
-  );
 }
 
 async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string) {
@@ -316,10 +302,6 @@ function clearAgentMessages() {
   setAgentError(null);
 }
 
-function clearAgentTrace() {
-  setAgentTraceEntries([]);
-}
-
 function saveCurrentTab() {
   const currentId = activeAgentTab();
   const msgs = [...agentMessages];
@@ -383,12 +365,10 @@ export {
   agentTokens,
   agentTabs,
   activeAgentTab,
-  agentTraceEntries,
   initAgentListeners,
   sendAgentMessage,
   stopAgent,
   clearAgentMessages,
-  clearAgentTrace,
   startNewSession,
   switchAgentTab,
   removeAgentTab,

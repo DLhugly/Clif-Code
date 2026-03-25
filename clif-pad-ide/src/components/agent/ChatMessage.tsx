@@ -1,7 +1,13 @@
-import { Component, Show, createSignal, createMemo } from "solid-js";
+import { Component, Show, createSignal, createMemo, type Accessor } from "solid-js";
 import { marked } from "marked";
 import { fontSize } from "../../stores/uiStore";
 import type { AgentMessage } from "../../types/agent";
+
+export interface PendingCommand {
+  sessionId: string;
+  command: string;
+  toolCallId: string;
+}
 
 const CopyButton: Component<{ text: string }> = (props) => {
   const [copied, setCopied] = createSignal(false);
@@ -52,9 +58,18 @@ const CopyButton: Component<{ text: string }> = (props) => {
 
 marked.setOptions({ async: false, breaks: true, gfm: true });
 
-const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
+const ToolCallCard: Component<{
+  message: AgentMessage;
+  pendingCommand?: Accessor<PendingCommand | null>;
+  onApprove?: (sessionId: string, approved: boolean) => void;
+}> = (props) => {
   const [expanded, setExpanded] = createSignal(false);
   const toolCall = () => props.message.toolCalls?.[0];
+
+  const isPendingApproval = () => {
+    const pending = props.pendingCommand?.();
+    return pending && pending.toolCallId === props.message.toolCallId;
+  };
   const statusColor = () => {
     switch (toolCall()?.status) {
       case "running": return "var(--accent-yellow)";
@@ -173,6 +188,47 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
         </Show>
       </button>
 
+      {/* Inline approval buttons for run_command */}
+      <Show when={isPendingApproval()}>
+        <div
+          class="flex items-center gap-2 px-3 py-2"
+          style={{ "border-top": "1px solid var(--border-muted)" }}
+        >
+          <button
+            class="flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors"
+            style={{
+              background: "var(--accent-primary)",
+              color: "var(--accent-text)",
+              border: "none",
+              cursor: "pointer",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const pending = props.pendingCommand?.();
+              if (pending) props.onApprove?.(pending.sessionId, true);
+            }}
+          >
+            Allow
+          </button>
+          <button
+            class="flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors"
+            style={{
+              background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
+              color: "var(--accent-red)",
+              border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
+              cursor: "pointer",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const pending = props.pendingCommand?.();
+              if (pending) props.onApprove?.(pending.sessionId, false);
+            }}
+          >
+            Block
+          </button>
+        </div>
+      </Show>
+
       <Show when={expanded()}>
         <div
           class="px-3 pb-2"
@@ -216,7 +272,11 @@ const ToolCallCard: Component<{ message: AgentMessage }> = (props) => {
   );
 };
 
-const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
+const ChatMessage: Component<{
+  message: AgentMessage;
+  pendingCommand?: Accessor<PendingCommand | null>;
+  onApprove?: (sessionId: string, approved: boolean) => void;
+}> = (props) => {
   const isUser = () => props.message.role === "user";
   const isToolCall = () => props.message.role === "tool_call";
   const isToolResult = () => props.message.role === "tool_result";
@@ -232,7 +292,7 @@ const ChatMessage: Component<{ message: AgentMessage }> = (props) => {
   if (isToolResult()) return null;
 
   if (isToolCall()) {
-    return <ToolCallCard message={props.message} />;
+    return <ToolCallCard message={props.message} pendingCommand={props.pendingCommand} onApprove={props.onApprove} />;
   }
 
   if (isSystem()) {

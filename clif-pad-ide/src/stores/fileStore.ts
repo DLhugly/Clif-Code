@@ -438,31 +438,6 @@ async function openPreview(sourcePath: string) {
   setActiveFilePath(previewPath);
 }
 
-function openAgentTrace() {
-  const tracePath = "::agent-trace";
-
-  // If already open, just switch to it
-  const existing = openFiles.find((f) => f.path === tracePath);
-  if (existing) {
-    setActiveFilePath(tracePath);
-    return;
-  }
-
-  setOpenFiles(
-    produce((files) => {
-      files.push({
-        path: tracePath,
-        name: "🔍 Agent Trace",
-        content: "",
-        language: "",
-        isDirty: false,
-        isTrace: true,
-      });
-    })
-  );
-  setActiveFilePath(tracePath);
-}
-
 function togglePreview() {
   const path = activeFilePath();
   if (!path) return;
@@ -577,5 +552,4 @@ export {
   togglePreview,
   getRecentFolders,
   removeRecentFolder,
-  openAgentTrace,
 };

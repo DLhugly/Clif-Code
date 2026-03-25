@@ -41,15 +41,17 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "read_file",
-                "description": "Read the contents of a file. Read files before editing them. Use this to inspect code, configs, and logs before making changes.",
+                "description": "Read the contents of a file. Read files before editing them. Use this to inspect code, configs, and logs before making changes. For large files, use offset and limit to read specific line ranges instead of the whole file.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Path to the file. Prefer paths inside the current workspace." }
+                        "path": { "type": "string", "description": "Path to the file. Prefer paths inside the current workspace." },
+                        "offset": { "type": ["integer", "null"], "description": "1-based starting line number. Omit or null to start from line 1." },
+                        "limit": { "type": ["integer", "null"], "description": "Maximum number of lines to return. Omit or null to read the entire file." }
                     },
-                    "required": ["path"]
+                    "required": ["path", "offset", "limit"]
                 }
             }
         }),
@@ -244,16 +246,41 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
     match name {
         "read_file" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+            let offset = args.get("offset").and_then(|v| v.as_u64()).map(|v| v as usize);
+            let limit = args.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize);
             let full_path = match ensure_path_in_workspace(path, workspace_dir, false) {
                 Ok(path) => path,
                 Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
             };
             match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => {
-                    let value = if content.len() > 50000 {
-                        format!("{}\n\n... (truncated, {} total bytes)", &content[..50000], content.len())
+                    let all_lines: Vec<&str> = content.lines().collect();
+                    let total_lines = all_lines.len();
+                    let start = offset.unwrap_or(1).max(1).min(total_lines + 1) - 1;
+                    let end = match limit {
+                        Some(n) => (start + n).min(total_lines),
+                        None => total_lines,
+                    };
+                    let slice = &all_lines[start..end];
+                    let width = total_lines.max(1).to_string().len();
+                    let numbered: String = slice
+                        .iter()
+                        .enumerate()
+                        .map(|(i, line)| format!("{:>width$}|{}", start + i + 1, line, width = width))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+
+                    let is_partial = start > 0 || end < total_lines;
+                    let header = if is_partial {
+                        format!("[Lines {}-{} of {}]\n", start + 1, end, total_lines)
                     } else {
-                        content
+                        String::new()
+                    };
+
+                    let value = if numbered.len() > 60000 {
+                        format!("{}{}\n\n... (truncated, {} total lines)", header, &numbered[..60000], total_lines)
+                    } else {
+                        format!("{}{}", header, numbered)
                     };
                     tool_success(json!(value))
                 }
@@ -327,25 +354,56 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
 
             match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => {
-                    if !content.contains(old_string) {
-                        return tool_error("OLD_STRING_NOT_FOUND", format!("old_string not found in {}", path), true);
+                    let mut match_found = false;
+                    let mut actual_old_string = old_string.to_string();
+
+                    if content.contains(old_string) {
+                        match_found = true;
+                    } else {
+                        // Fallback: try whitespace-agnostic matching
+                        let normalize = |s: &str| s.split_whitespace().collect::<Vec<_>>().join(" ");
+                        let norm_old = normalize(old_string);
+                        
+                        // Simple sliding window over lines to find a matching block
+                        let lines: Vec<&str> = content.lines().collect();
+                        let old_lines_count = old_string.lines().count().max(1);
+                        
+                        for i in 0..=lines.len().saturating_sub(old_lines_count) {
+                            for j in i + 1..=lines.len().min(i + old_lines_count * 2) {
+                                let block = lines[i..j].join("\n");
+                                if normalize(&block) == norm_old {
+                                    actual_old_string = block;
+                                    match_found = true;
+                                    break;
+                                }
+                            }
+                            if match_found { break; }
+                        }
+                    }
+
+                    if !match_found {
+                        return tool_error(
+                            "OLD_STRING_NOT_FOUND",
+                            format!("old_string not found in {}. Make sure you are matching the exact indentation and whitespace.", path),
+                            true
+                        );
                     }
 
                     // Compute line range of the match before replacing
-                    let match_byte_start = content.find(old_string).unwrap_or(0);
+                    let match_byte_start = content.find(&actual_old_string).unwrap_or(0);
                     let start_line = content[..match_byte_start].lines().count().max(1);
-                    let old_line_count = old_string.lines().count().max(1);
+                    let old_line_count = actual_old_string.lines().count().max(1);
                     let new_line_count = new_string.lines().count().max(1);
                     let end_line = start_line + old_line_count - 1;
 
                     // Build a compact unified diff preview
-                    let old_lines: Vec<&str> = old_string.lines().collect();
+                    let old_lines: Vec<&str> = actual_old_string.lines().collect();
                     let new_lines: Vec<&str> = new_string.lines().collect();
                     let mut diff_preview = format!("@@ -{},{} +{},{} @@\n", start_line, old_line_count, start_line, new_line_count);
                     for l in &old_lines { diff_preview.push_str(&format!("-{}\n", l)); }
                     for l in &new_lines { diff_preview.push_str(&format!("+{}\n", l)); }
 
-                    let new_content = content.replacen(old_string, new_string, 1);
+                    let new_content = content.replacen(&actual_old_string, new_string, 1);
                     match tokio::fs::write(&full_path, &new_content).await {
                         Ok(()) => {
                             json!({
@@ -403,7 +461,7 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
             };
 
-            let results = crate::commands::search::search_files(full_path, query.to_string(), None);
+            let results = crate::commands::search::search_files(full_path.to_string_lossy().to_string(), query.to_string(), None);
             match results {
                 Ok(items) => {
                     let value = if items.is_empty() {
@@ -588,7 +646,7 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
         .ok_or_else(|| "Tool arguments must be a JSON object".to_string())?;
 
     let allowed: &[&str] = match name {
-        "read_file" => &["path"],
+        "read_file" => &["path", "offset", "limit"],
         "write_file" => &["path", "content"],
         "edit_file" => &["path", "old_string", "new_string"],
         "list_files" => &["path"],
@@ -615,7 +673,21 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
     };
 
     match name {
-        "read_file" | "list_files" | "change_directory" => require_string("path"),
+        "read_file" => {
+            require_string("path")?;
+            if let Some(v) = obj.get("offset") {
+                if !v.is_null() && !v.is_u64() && !v.is_i64() {
+                    return Err("Field 'offset' must be an integer or null".to_string());
+                }
+            }
+            if let Some(v) = obj.get("limit") {
+                if !v.is_null() && !v.is_u64() && !v.is_i64() {
+                    return Err("Field 'limit' must be an integer or null".to_string());
+                }
+            }
+            Ok(())
+        }
+        "list_files" | "change_directory" => require_string("path"),
         "write_file" => {
             require_string("path")?;
             require_string("content")
@@ -784,6 +856,41 @@ fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens
     conversation.extend(tail);
 }
 
+fn build_workspace_snapshot(workspace_dir: &str) -> String {
+    use walkdir::WalkDir;
+    let root = std::path::Path::new(workspace_dir);
+    let skip = ["node_modules", ".git", "target", "dist", ".next", "__pycache__", ".venv", "build", "out"];
+    let mut lines = Vec::new();
+    let cap = 3000;
+
+    for entry in WalkDir::new(root)
+        .max_depth(4)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            if e.depth() > 0 && name.starts_with('.') { return false; }
+            if e.file_type().is_dir() && skip.contains(&name.as_ref()) { return false; }
+            true
+        })
+    {
+        let entry = match entry { Ok(e) => e, Err(_) => continue };
+        if entry.depth() == 0 { continue; }
+        let rel = entry.path().strip_prefix(root).unwrap_or(entry.path());
+        let indent = "  ".repeat(entry.depth() - 1);
+        let name = entry.file_name().to_string_lossy();
+        let suffix = if entry.file_type().is_dir() { "/" } else { "" };
+        let line = format!("{}{}{}", indent, name, suffix);
+        lines.push(line);
+        let total: usize = lines.iter().map(|l| l.len() + 1).sum();
+        if total > cap {
+            lines.push("  ... (truncated)".to_string());
+            break;
+        }
+    }
+    lines.join("\n")
+}
+
 /// Get the provider URL
 fn get_provider_url(provider: &str) -> String {
     match provider {
@@ -917,6 +1024,32 @@ async fn run_agent_loop(
     let max_turns = 200; // Safety limit — compaction handles context
 
     for _turn in 0..max_turns {
+        // Periodic context refresh
+        if _turn > 0 && _turn % 50 == 0 {
+            let snapshot = build_workspace_snapshot(&workspace_dir);
+            if !snapshot.is_empty() {
+                conversation.push(json!({
+                    "role": "system",
+                    "content": format!("[Workspace refreshed — current file tree]\n{}", snapshot),
+                }));
+            }
+        }
+        if _turn > 0 && _turn % 100 == 0 {
+            let clif_path = std::path::Path::new(&workspace_dir).join(".clif").join("CLIF.md");
+            if let Ok(clif_content) = std::fs::read_to_string(&clif_path) {
+                conversation.push(json!({
+                    "role": "system",
+                    "content": format!(
+                        "[CLIF.md refreshed — current project context]\n{}\n\n\
+                         If you have made structural changes to the project during this session \
+                         (new files, renamed modules, changed dependencies), update .clif/CLIF.md \
+                         to reflect them using write_file.",
+                        clif_content
+                    ),
+                }));
+            }
+        }
+
         // Auto-compact when context grows large. Our estimate runs ~40% below
         // actual token count (JSON overhead, tokenizer differences), so 80K estimated
         // maps to roughly 110-130K real tokens — well within 200K model limits.
@@ -1280,44 +1413,6 @@ async fn run_agent_loop(
                 label,
                 "agent_tool_result",
                 json!({ "tool_call_id": id, "result": &result }),
-            );
-
-            // Emit structured trace event for the Agent Trace tab
-            let trace_ok = result.contains("\"ok\":true") || result.contains("\"ok\": true");
-            let timestamp_ms = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_millis() as u64)
-                .unwrap_or(0);
-
-            // Use a larger preview for edit/write tools so diff_preview and summary survive truncation
-            let preview_limit: usize = match name.as_str() {
-                "edit_file" | "write_file" => 2000,
-                _ => 400,
-            };
-            let result_preview = if result.len() > preview_limit {
-                let end = result.char_indices()
-                    .take_while(|(i, _)| *i < preview_limit)
-                    .last()
-                    .map(|(i, c)| i + c.len_utf8())
-                    .unwrap_or(preview_limit.min(result.len()));
-                format!("{}…", &result[..end])
-            } else {
-                result.clone()
-            };
-
-            let _ = app.emit_to(
-                label,
-                "agent_trace",
-                json!({
-                    "timestamp": timestamp_ms,
-                    "tool_call_id": id,
-                    "tool": name,
-                    "arguments": args,
-                    "ok": trace_ok,
-                    "result_preview": result_preview,
-                    "result_length": result.len(),
-                    "turn": _turn,
-                }),
             );
 
             // Cap tool result before adding to conversation to prevent context explosion.

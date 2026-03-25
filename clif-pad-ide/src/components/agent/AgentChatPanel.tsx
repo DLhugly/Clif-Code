@@ -5,7 +5,6 @@ import {
   agentTokens,
   agentTabs,
   activeAgentTab,
-  agentTraceEntries,
   sendAgentMessage,
   stopAgent,
   startNewSession,
@@ -15,7 +14,7 @@ import {
   restoreAgentHistory,
 } from "../../stores/agentStore";
 
-import { activeFile, projectRoot, openAgentTrace } from "../../stores/fileStore";
+import { activeFile, projectRoot } from "../../stores/fileStore";
 import { currentBranch } from "../../stores/gitStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
@@ -1162,45 +1161,6 @@ const AgentChatPanel: Component = () => {
         </div>
       </Show>
 
-      {/* Open Trace button strip */}
-      <Show when={agentTraceEntries.length > 0}>
-        <div
-          class="flex items-center shrink-0 px-2"
-          style={{
-            height: "26px",
-            "border-bottom": "1px solid var(--border-default)",
-            background: "var(--bg-surface)",
-          }}
-        >
-          <button
-            class="flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-colors"
-            style={{
-              background: "transparent",
-              color: "var(--text-muted)",
-              border: "none",
-              cursor: "pointer",
-              "font-size": "11px",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent-primary)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-            onClick={() => openAgentTrace()}
-            title="Open Agent Trace in editor tab"
-          >
-            🔍 Open Trace
-            <span
-              class="px-1 rounded font-mono"
-              style={{
-                "font-size": "9px",
-                background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
-                color: "var(--accent-primary)",
-              }}
-            >
-              {agentTraceEntries.length}
-            </span>
-          </button>
-        </div>
-      </Show>
-
       {/* Messages */}
       <div class="flex-1 min-h-0 overflow-y-auto py-2" style={{ "padding-bottom": agentStreaming() ? "56px" : "12px" }}>
         <Show
@@ -1268,7 +1228,7 @@ const AgentChatPanel: Component = () => {
           }
         >
           <For each={agentMessages}>
-            {(msg) => <ChatMessage message={msg} />}
+            {(msg) => <ChatMessage message={msg} pendingCommand={pendingCommand} onApprove={async (sid, approved) => { setPendingCommand(null); await agentApproveCommand(sid, approved); }} />}
           </For>
           <div ref={messagesEndRef} />
         </Show>
@@ -1290,89 +1250,6 @@ const AgentChatPanel: Component = () => {
             )}
           </For>
         </div>
-      </Show>
-
-      {/* Command approval prompt */}
-      <Show when={pendingCommand()}>
-        {(cmd) => (
-          <div
-            style={{
-              position: "absolute", inset: "0", "z-index": "60",
-              background: "rgba(0,0,0,0.7)", "backdrop-filter": "blur(4px)",
-              display: "flex", "align-items": "center", "justify-content": "center",
-              padding: "16px",
-            }}
-          >
-            <div
-              style={{
-                background: "var(--bg-surface)", "border-radius": "12px",
-                border: "1px solid var(--border-default)",
-                "box-shadow": "0 16px 48px rgba(0,0,0,0.5)",
-                padding: "20px", width: "100%",
-              }}
-            >
-              <div class="flex items-center gap-2 mb-3">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-yellow)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                <span style={{ "font-size": "13px", "font-weight": "700", color: "var(--text-primary)" }}>
-                  Agent wants to run a command
-                </span>
-              </div>
-
-              <div
-                style={{
-                  background: "var(--bg-base)", "border-radius": "8px",
-                  padding: "10px 12px", "margin-bottom": "14px",
-                  "font-family": "var(--font-mono, monospace)", "font-size": "12px",
-                  color: "var(--accent-yellow)", "word-break": "break-all",
-                  border: "1px solid var(--border-muted)",
-                }}
-              >
-                {cmd().command}
-              </div>
-
-              <div class="flex gap-2">
-                <button
-                  class="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
-                  style={{
-                    background: "var(--accent-primary)", color: "var(--accent-text)", border: "none", cursor: "pointer",
-                    "font-size": "13px", "font-weight": "700",
-                  }}
-                  onClick={async () => {
-                    const c = pendingCommand();
-                    if (!c) return;
-                    setPendingCommand(null);
-                    await agentApproveCommand(c.sessionId, true);
-                  }}
-                >
-                  Allow
-                </button>
-                <button
-                  class="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors"
-                  style={{
-                    background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
-                    color: "var(--accent-red)",
-                    border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
-                    cursor: "pointer", "font-size": "13px", "font-weight": "700",
-                  }}
-                  onClick={async () => {
-                    const c = pendingCommand();
-                    if (!c) return;
-                    setPendingCommand(null);
-                    await agentApproveCommand(c.sessionId, false);
-                  }}
-                >
-                  Block
-                </button>
-              </div>
-              <p style={{ "font-size": "10px", color: "var(--text-muted)", "margin-top": "8px", "text-align": "center" }}>
-                The agent will continue with the result either way
-              </p>
-            </div>
-          </div>
-        )}
       </Show>
 
       {/* Input area */}
