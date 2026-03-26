@@ -1,3 +1,10 @@
+## [1.41.1](https://github.com/DLhugly/Clif-Code/compare/v1.41.0...v1.41.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* **agent:** detect tool narration and auto-correct, add tool_choice auto ([021f254](https://github.com/DLhugly/Clif-Code/commit/021f25485b3ad830b36a9d5dd34f6c1d02c8748d))
+
 # [1.41.0](https://github.com/DLhugly/Clif-Code/compare/v1.40.0...v1.41.0) (2026-03-26)
 
 
