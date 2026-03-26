@@ -198,8 +198,12 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
         "You are an AI coding assistant embedded in ClifPad, a desktop code editor. \
          You help users with their code by reading files, making edits, searching codebases, and running commands.\n\n\
          The current workspace is: {}\n\n\
+         CRITICAL: You MUST use function/tool calls to take action. NEVER describe or narrate using a tool \
+         without actually calling it. If you need to read a file, call read_file. If you need to edit, call edit_file. \
+         Do not say \"Let me read the file\" and then write text — call the tool.\n\n\
          Operating rules:\n\
          - Be concise and direct.\n\
+         - Always call tools to take action — never simulate or narrate tool usage in plain text.\n\
          - Use tools to gather information before answering.\n\
          - Read relevant files before editing them.\n\
          - Prefer list_files, find_file, and search for exploration before using run_command.\n\
@@ -955,6 +959,7 @@ pub async fn agent_chat(
             let _ = app.emit_to(&label, "agent_error", e);
         }
 
+        let _ = app.emit_to(&label, "agent_status", "");
         let _ = app.emit_to(&label, "agent_done", ());
 
         if let Ok(mut sessions) = AGENT_SESSIONS.lock() {
@@ -1062,6 +1067,9 @@ async fn run_agent_loop(
         if cancel_rx.try_recv().is_ok() {
             return Ok(());
         }
+
+        let status_msg = if _turn == 0 { "Thinking..." } else { "Planning next step..." };
+        let _ = app.emit_to(label, "agent_status", status_msg);
 
         let mut request_body = json!({
             "model": model,
@@ -1346,6 +1354,19 @@ async fn run_agent_loop(
                 let _ = app.emit_to(label, "agent_stream", "[DONE]");
                 return Ok(());
             }
+
+            let tool_status = match name.as_str() {
+                "read_file" => "Reading file...",
+                "write_file" => "Writing file...",
+                "edit_file" => "Editing file...",
+                "list_files" => "Exploring files...",
+                "search" => "Searching codebase...",
+                "find_file" => "Finding file...",
+                "run_command" => "Running command...",
+                "change_directory" => "Changing directory...",
+                _ => "Working...",
+            };
+            let _ = app.emit_to(label, "agent_status", tool_status);
 
             // Emit tool_call event to frontend
             let _ = app.emit_to(

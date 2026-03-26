@@ -41,6 +41,10 @@ export async function revealPath(path: string): Promise<void> {
   return invoke("reveal_path", { path });
 }
 
+export async function pasteFile(targetDir: string, fileName: string, contents: number[]): Promise<string> {
+  return invoke("paste_file", { targetDir, fileName, contents });
+}
+
 // AI commands
 export async function aiChat(
   messages: { role: string; content: string }[],

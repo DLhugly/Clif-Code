@@ -195,6 +195,26 @@ pub fn reveal_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn paste_file(
+    target_dir: String,
+    file_name: String,
+    contents: Vec<u8>,
+) -> Result<String, String> {
+    let dir = Path::new(&target_dir);
+    if !dir.is_dir() {
+        return Err(format!("Target directory does not exist: {}", target_dir));
+    }
+    let dest = dir.join(&file_name);
+    if dest.exists() {
+        return Err(format!("File already exists: {}", dest.display()));
+    }
+    tokio::fs::write(&dest, &contents)
+        .await
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub fn watch_dir(
     path: String,
     window: tauri::Window,

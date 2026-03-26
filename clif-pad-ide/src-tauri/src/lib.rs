@@ -111,6 +111,7 @@ pub fn run() {
             commands::fs::delete_entry,
             commands::fs::watch_dir,
             commands::fs::reveal_path,
+            commands::fs::paste_file,
             commands::ai::ai_chat,
             commands::ai::ai_complete,
             commands::ai::get_models,

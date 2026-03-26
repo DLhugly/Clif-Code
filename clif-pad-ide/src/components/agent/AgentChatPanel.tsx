@@ -1,8 +1,9 @@
-import { Component, For, Show, createSignal, createEffect, onMount, onCleanup, lazy, Suspense, type Accessor } from "solid-js";
+import { Component, For, Show, createSignal, createEffect, createMemo, onMount, onCleanup, lazy, Suspense, type Accessor } from "solid-js";
 import {
   agentMessages,
   agentStreaming,
   agentTokens,
+  agentStatus,
   agentTabs,
   activeAgentTab,
   sendAgentMessage,
@@ -14,7 +15,8 @@ import {
   restoreAgentHistory,
 } from "../../stores/agentStore";
 
-import { activeFile, projectRoot } from "../../stores/fileStore";
+import { activeFile, projectRoot, fileTree } from "../../stores/fileStore";
+import type { FileEntry } from "../../types/files";
 import { currentBranch } from "../../stores/gitStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
@@ -130,7 +132,32 @@ const AgentChatPanel: Component = () => {
   const [clifExists, setClifExists] = createSignal<boolean | null>(null); // null = checking
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
   const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
+  const [mentionActive, setMentionActive] = createSignal(false);
+  const [mentionQuery, setMentionQuery] = createSignal("");
+  const [mentionIndex, setMentionIndex] = createSignal(0);
+  const [mentionStart, setMentionStart] = createSignal(0);
 
+  function flattenFileTree(entries: FileEntry[]): string[] {
+    const result: string[] = [];
+    function walk(list: FileEntry[]) {
+      for (const e of list) {
+        if (!e.is_dir) result.push(e.path);
+        if (e.children) walk(e.children);
+      }
+    }
+    walk(entries);
+    return result;
+  }
+
+  const mentionSuggestions = createMemo(() => {
+    if (!mentionActive()) return [];
+    const q = mentionQuery().toLowerCase();
+    const root = projectRoot() || "";
+    return flattenFileTree(fileTree())
+      .map((p) => p.startsWith(root) ? p.slice(root.length + 1) : p)
+      .filter((p) => !q || p.toLowerCase().includes(q))
+      .slice(0, 15);
+  });
 
   // Auto-send queued message when agent finishes (and not while init is running)
   createEffect(() => {
@@ -362,7 +389,43 @@ const AgentChatPanel: Component = () => {
     }
   }
 
+  function selectMention(relPath: string) {
+    const root = projectRoot() || "";
+    const fullPath = root + "/" + relPath;
+    if (!contextFiles().includes(fullPath)) {
+      setContextFiles([...contextFiles(), fullPath]);
+    }
+    const val = inputValue();
+    const before = val.slice(0, mentionStart());
+    const after = val.slice(inputRef?.selectionStart ?? val.length);
+    setInputValue(before + after);
+    setMentionActive(false);
+    inputRef?.focus();
+  }
+
   function handleKeyDown(e: KeyboardEvent) {
+    if (mentionActive() && mentionSuggestions().length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => Math.min(i + 1, mentionSuggestions().length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectMention(mentionSuggestions()[mentionIndex()]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionActive(false);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -1230,6 +1293,17 @@ const AgentChatPanel: Component = () => {
           <For each={agentMessages}>
             {(msg) => <ChatMessage message={msg} pendingCommand={pendingCommand} onApprove={async (sid, approved) => { setPendingCommand(null); await agentApproveCommand(sid, approved); }} />}
           </For>
+          <Show when={agentStreaming() && agentStatus()}>
+            <div
+              class="flex items-center gap-2 px-4 py-2"
+              style={{ color: "var(--text-muted)", "font-size": `${fontSize() - 2}px` }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin shrink-0">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              <span>{agentStatus()}</span>
+            </div>
+          </Show>
           <div ref={messagesEndRef} />
         </Show>
       </div>
@@ -1247,6 +1321,47 @@ const AgentChatPanel: Component = () => {
                 type="file"
                 onRemove={() => removeContextFile(path)}
               />
+            )}
+          </For>
+        </div>
+      </Show>
+
+      {/* @ mention dropdown */}
+      <Show when={mentionActive() && mentionSuggestions().length > 0}>
+        <div
+          class="shrink-0 mx-3 mb-1 rounded-lg overflow-hidden"
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border-default)",
+            "box-shadow": "0 -4px 16px rgba(0,0,0,0.2)",
+            "max-height": "200px",
+            "overflow-y": "auto",
+          }}
+        >
+          <For each={mentionSuggestions()}>
+            {(path, i) => (
+              <button
+                class="flex items-center gap-2 w-full px-3 py-1.5 text-left"
+                style={{
+                  background: i() === mentionIndex() ? "var(--bg-hover)" : "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-primary)",
+                  "font-size": `${fontSize() - 1}px`,
+                  "font-family": "var(--font-mono, monospace)",
+                }}
+                onMouseEnter={() => setMentionIndex(i())}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectMention(path);
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+                  <polyline points="13 2 13 9 20 9" />
+                </svg>
+                <span class="truncate">{path}</span>
+              </button>
             )}
           </For>
         </div>
@@ -1311,9 +1426,25 @@ const AgentChatPanel: Component = () => {
             rows={1}
             value={inputValue()}
             onInput={(e) => {
-              if (queuedMessage()) return; // don't allow typing while message is queued
-              setInputValue(e.currentTarget.value);
+              if (queuedMessage()) return;
+              const val = e.currentTarget.value;
+              setInputValue(val);
               autoResize(e.currentTarget);
+
+              const cursor = e.currentTarget.selectionStart ?? val.length;
+              const textBefore = val.slice(0, cursor);
+              const atIdx = textBefore.lastIndexOf("@");
+              if (atIdx !== -1 && (atIdx === 0 || textBefore[atIdx - 1] === " " || textBefore[atIdx - 1] === "\n")) {
+                const query = textBefore.slice(atIdx + 1);
+                if (!query.includes(" ") && !query.includes("\n")) {
+                  setMentionActive(true);
+                  setMentionQuery(query);
+                  setMentionStart(atIdx);
+                  setMentionIndex(0);
+                  return;
+                }
+              }
+              setMentionActive(false);
             }}
             onKeyDown={handleKeyDown}
           />

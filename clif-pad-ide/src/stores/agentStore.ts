@@ -19,6 +19,7 @@ const [agentStreaming, setAgentStreaming] = createSignal(false);
 const [agentSessionId, setAgentSessionId] = createSignal<string | null>(null);
 const [agentError, setAgentError] = createSignal<string | null>(null);
 const [agentTokens, setAgentTokens] = createSignal({ prompt: 0, completion: 0, context: 0 });
+const [agentStatus, setAgentStatus] = createSignal("");
 const [agentTabs, setAgentTabs] = createStore<AgentTab[]>([]);
 const [activeAgentTab, setActiveAgentTab] = createSignal("default");
 let tabCounter = 0;
@@ -234,6 +235,11 @@ async function initAgentListeners() {
     })
   );
 
+  unlisteners.push(
+    await appWindow.listen<string>("agent_status", (event) => {
+      setAgentStatus(event.payload);
+    })
+  );
 }
 
 async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string) {
@@ -363,6 +369,7 @@ export {
   agentSessionId,
   agentError,
   agentTokens,
+  agentStatus,
   agentTabs,
   activeAgentTab,
   initAgentListeners,

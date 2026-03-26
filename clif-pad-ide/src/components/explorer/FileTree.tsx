@@ -1,6 +1,7 @@
 import { Component, For, Show, createSignal } from "solid-js";
 import { fileTree, projectRoot, refreshFileTree, getRecentFolders, removeRecentFolder } from "../../stores/fileStore";
-import { createFile, createDir, renameEntry } from "../../lib/tauri";
+import { createFile, createDir, renameEntry, pasteFile } from "../../lib/tauri";
+import { showToast } from "../../stores/toastStore";
 import FileTreeItem from "./FileTreeItem";
 
 const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: string) => void; creatingType?: "file" | "folder" | null; onCreateDone?: () => void; searchQuery?: string }> = (props) => {
@@ -31,6 +32,22 @@ const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: str
     }
   }
 
+  async function handlePaste(e: ClipboardEvent) {
+    const root = projectRoot();
+    if (!root || !e.clipboardData?.files?.length) return;
+    e.preventDefault();
+
+    for (const file of Array.from(e.clipboardData.files)) {
+      try {
+        const buf = await file.arrayBuffer();
+        await pasteFile(root, file.name, Array.from(new Uint8Array(buf)));
+      } catch (err) {
+        showToast(`Paste failed: ${err}`, "error");
+      }
+    }
+    await refreshFileTree();
+  }
+
   async function commitRootCreate(name: string) {
     const type = props.creatingType;
     props.onCreateDone?.();
@@ -57,12 +74,14 @@ const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: str
   return (
     <div
       class="flex flex-col h-full"
+      tabIndex={-1}
       onDragOver={(e) => {
         e.preventDefault();
         setIsDragOver(true);
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
+      onPaste={handlePaste}
     >
       <Show
         when={projectRoot()}
