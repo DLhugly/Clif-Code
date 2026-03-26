@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/DLhugly/Clif-Code/compare/v1.40.0...v1.41.0) (2026-03-26)
+
+
+### Features
+
+* file paste, @-mention file picker, agent status indicator ([f92750a](https://github.com/DLhugly/Clif-Code/commit/f92750aa9a00fcb509c3b9453a8067e8a5eb8ccf))
+
 # [1.40.0](https://github.com/DLhugly/Clif-Code/compare/v1.39.0...v1.40.0) (2026-03-25)
 
 
