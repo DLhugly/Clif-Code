@@ -1075,6 +1075,7 @@ async fn run_agent_loop(
             "model": model,
             "messages": conversation,
             "tools": tools,
+            "tool_choice": "auto",
             "stream": true,
             "stream_options": { "include_usage": true },
         });
@@ -1253,8 +1254,31 @@ async fn run_agent_loop(
             }));
         }
 
-        // If no tool calls, we're done
+        // If no tool calls, check if the model narrated tool usage without calling tools
         if tool_calls_map.is_empty() || finish_reason != "tool_calls" {
+            let narrating = assistant_content.contains("Let me read")
+                || assistant_content.contains("Let me edit")
+                || assistant_content.contains("Let me search")
+                || assistant_content.contains("Let me write")
+                || assistant_content.contains("Let me run")
+                || assistant_content.contains("Let me find")
+                || assistant_content.contains("I'll read")
+                || assistant_content.contains("I'll edit")
+                || assistant_content.contains("I'll search");
+
+            if narrating && _turn < max_turns - 1 {
+                conversation.push(json!({
+                    "role": "assistant",
+                    "content": &assistant_content,
+                }));
+                conversation.push(json!({
+                    "role": "system",
+                    "content": "You described using tools but did not actually call them. \
+                        Do not narrate — call the tool functions directly.",
+                }));
+                continue;
+            }
+
             let _ = app.emit_to(label, "agent_stream", "[DONE]");
             return Ok(());
         }
