@@ -1,3 +1,10 @@
+# [1.44.0](https://github.com/DLhugly/Clif-Code/compare/v1.43.0...v1.44.0) (2026-03-27)
+
+
+### Features
+
+* context explorer panel, clickable file links, diff viewer, .clif-ignore support, and tightened proprietary license ([f5fa212](https://github.com/DLhugly/Clif-Code/commit/f5fa212ec40e483cf04efd4a441eabb38824777c))
+
 # [1.43.0](https://github.com/DLhugly/Clif-Code/compare/v1.42.0...v1.43.0) (2026-03-27)
 
 
