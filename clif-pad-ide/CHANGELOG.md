@@ -1,3 +1,11 @@
+# [1.43.0](https://github.com/DLhugly/Clif-Code/compare/v1.42.0...v1.43.0) (2026-03-27)
+
+
+### Features
+
+* add LSP support, fix inline AI, dynamic Ollama model detection ([b3b8566](https://github.com/DLhugly/Clif-Code/commit/b3b856659f42955fc98f70169f365438547ed3f9))
+* set Dawn as default theme and remove fake mockup from homepage ([7c2b0c3](https://github.com/DLhugly/Clif-Code/commit/7c2b0c3d86101ff56b4a0dc6ccf65acf10f32342))
+
 # [1.42.0](https://github.com/DLhugly/Clif-Code/compare/v1.41.1...v1.42.0) (2026-03-27)
 
 
