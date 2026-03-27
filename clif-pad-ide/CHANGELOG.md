@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/DLhugly/Clif-Code/compare/v1.41.1...v1.42.0) (2026-03-27)
+
+
+### Features
+
+* add editor toggle, simplify status bar, improve agent tab management ([26738b5](https://github.com/DLhugly/Clif-Code/commit/26738b5c1867e29169e26d1e858aa10c01f7ceb5))
+
 ## [1.41.1](https://github.com/DLhugly/Clif-Code/compare/v1.41.0...v1.41.1) (2026-03-26)
 
 
