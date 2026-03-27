@@ -1,5 +1,6 @@
 import { Component, Show, For, createSignal, onCleanup } from "solid-js";
 import { theme, applyTheme, fontSize, setUiFontSize, THEMES, applyLayoutPreset, getCurrentPreset, LAYOUT_PRESETS, toggleSidebar, sidebarVisible } from "../../stores/uiStore";
+import { securityEnabled, setSecurityEnabled } from "../../stores/securityStore";
 import type { Theme, LayoutPreset } from "../../stores/uiStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
@@ -641,6 +642,26 @@ const TopBar: Component<{
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
           {sidebarVisible() ? "Hide Git/Files" : "Open Git/Files"}
+        </button>
+
+        {/* Security scan toggle */}
+        <button
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150"
+          style={{
+            background: securityEnabled() ? "var(--bg-active)" : "var(--bg-hover)",
+            color: securityEnabled() ? "var(--accent-green)" : "var(--text-muted)",
+            border: "1px solid var(--border-default)",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = securityEnabled() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+          onClick={() => setSecurityEnabled(!securityEnabled())}
+          title={securityEnabled() ? "Security scan is ON — click to disable" : "Security scan is OFF — click to enable"}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          {securityEnabled() ? "Security Scan On" : "Security Scan Off"}
         </button>
       </div>
     </div>

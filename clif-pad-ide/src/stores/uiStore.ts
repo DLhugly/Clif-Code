@@ -46,6 +46,7 @@ const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
 const [agentWidth, setAgentWidth] = createSignal(380);
 const [agentVisible, setAgentVisible] = createSignal(false);
+const [editorVisible, setEditorVisible] = createSignal(true);
 
 const [leftPanel, setLeftPanel] = createSignal<PanelSlot>("terminal");
 const [rightPanel, setRightPanel] = createSignal<PanelSlot>("sidebar");
@@ -105,6 +106,10 @@ function toggleAgentPanel() {
   setAgentVisible(!agentVisible());
 }
 
+function toggleEditor() {
+  setEditorVisible(!editorVisible());
+}
+
 export {
   terminalWidth,
   setTerminalWidth,
@@ -136,6 +141,9 @@ export {
   agentVisible,
   setAgentVisible,
   toggleAgentPanel,
+  editorVisible,
+  setEditorVisible,
+  toggleEditor,
   applyLayoutPreset,
   getCurrentPreset,
   LAYOUT_PRESETS,

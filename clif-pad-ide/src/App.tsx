@@ -5,7 +5,7 @@ import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
 import ToastContainer from "./components/layout/ToastContainer";
-import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
+import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -213,10 +213,12 @@ const App: Component = () => {
           />
         </Show>
 
-        {/* Editor Panel (always center) */}
-        <div class="flex-1 min-w-0 h-full">
-          <EditorArea />
-        </div>
+        {/* Editor Panel (center) */}
+        <Show when={editorVisible()}>
+          <div class="flex-1 min-w-0 h-full">
+            <EditorArea />
+          </div>
+        </Show>
 
         {/* Right Panel: Sidebar */}
         <Show when={sidebarVisible()}>

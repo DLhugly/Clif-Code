@@ -76,6 +76,7 @@ const POPULAR_MODELS: Record<string, { value: string; label: string }[]> = {
     { value: "codellama", label: "Code Llama" },
     { value: "mistral", label: "Mistral" },
     { value: "deepseek-coder-v2", label: "DeepSeek Coder V2" },
+    { value: "qwen3-coder:30b", label: "qwen3-coder:30b" },
     { value: "qwen2.5-coder", label: "Qwen 2.5 Coder" },
   ],
 };
@@ -754,22 +755,33 @@ const AgentChatPanel: Component = () => {
           </For>
 
           {/* Current session indicator */}
-          <div
-            class="flex items-center shrink-0"
-            style={{
-              height: "28px",
-              padding: "0 10px",
-              "font-size": "11px",
-              color: "var(--text-primary)",
-              background: agentTabs.length > 0 ? "var(--bg-base)" : "transparent",
-              "border-right": agentTabs.length > 0 ? "1px solid var(--border-default)" : "none",
-            }}
-          >
-            <SparkleIcon />
-            <span style={{ "margin-left": "5px", "white-space": "nowrap" }}>
-              {agentMessages.length > 0 ? "Current" : "New Chat"}
-            </span>
-          </div>
+          {(() => {
+            const isCurrentActive = () => !agentTabs.find((t) => t.id === activeAgentTab());
+            return (
+              <div
+                class="flex items-center shrink-0 cursor-pointer"
+                style={{
+                  height: "28px",
+                  padding: "0 10px",
+                  "font-size": "11px",
+                  color: isCurrentActive() ? "var(--text-primary)" : "var(--text-muted)",
+                  background: isCurrentActive() ? "var(--bg-base)" : "transparent",
+                  "border-right": agentTabs.length > 0 ? "1px solid var(--border-default)" : "none",
+                  transition: "color 0.1s, background 0.1s",
+                }}
+                onClick={() => {
+                  if (!isCurrentActive() && !agentStreaming()) {
+                    startNewSession();
+                  }
+                }}
+              >
+                <SparkleIcon />
+                <span style={{ "margin-left": "5px", "white-space": "nowrap", opacity: isCurrentActive() ? "1" : "0.6" }}>
+                  {isCurrentActive() && agentMessages.length > 0 ? "Current" : "New Chat"}
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* New session button */}

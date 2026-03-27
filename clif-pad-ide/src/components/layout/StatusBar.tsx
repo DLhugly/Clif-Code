@@ -3,9 +3,7 @@ import { activeFile, projectRoot } from "../../stores/fileStore";
 
 const hasProject = () => !!projectRoot();
 import { isGitRepo, currentBranch, aheadBehind, fetchRemote } from "../../stores/gitStore";
-import { theme, THEMES, agentVisible, toggleAgentPanel, terminalVisible, toggleTerminal } from "../../stores/uiStore";
-import { securityEnabled, setSecurityEnabled, securityResults, securityScanning, setSecurityScanning, setSecurityResults, setSecurityShowModal, criticalCount, warningCount } from "../../stores/securityStore";
-import { scanRepoSecurity } from "../../lib/tauri";
+import { theme, THEMES, agentVisible, toggleAgentPanel, terminalVisible, toggleTerminal, editorVisible, toggleEditor } from "../../stores/uiStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -117,9 +115,82 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
         "padding-right": "8px",
       }}
     >
-      {/* Left section */}
-      <div class="flex items-center gap-3 min-w-0">
-        {/* Git branch */}
+      {/* Left section — Terminal toggle + git + launch buttons */}
+      <div class="flex items-center gap-2 min-w-0">
+        {/* Terminal toggle */}
+        <button
+          class="flex items-center gap-1.5 rounded-lg shrink-0 transition-all duration-150"
+          style={{
+            background: terminalVisible() ? "var(--bg-active)" : "var(--bg-hover)",
+            color: terminalVisible() ? "var(--text-primary)" : "var(--text-muted)",
+            border: "1px solid var(--border-default)",
+            padding: "3px 12px",
+            cursor: "pointer",
+            "font-size": "12px",
+            "font-family": "var(--font-sans)",
+            "font-weight": "500",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = terminalVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+          onClick={() => toggleTerminal()}
+          title={terminalVisible() ? "Hide terminal" : "Show terminal"}
+        >
+          <TerminalIcon />
+          <span>Launch Terminal</span>
+        </button>
+
+        {/* Launch ClifCode */}
+        <Show when={props.onLaunchClifCode}>
+          <button
+            class="flex items-center gap-1 rounded-lg shrink-0 transition-all duration-150"
+            style={{
+              background: "var(--bg-hover)",
+              color: "var(--text-muted)",
+              border: "1px solid var(--border-default)",
+              padding: "3px 10px",
+              cursor: "pointer",
+              "font-size": "12px",
+              "font-family": "var(--font-sans)",
+              "font-weight": "500",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            onClick={() => props.onLaunchClifCode?.()}
+            title="Launch ClifCode in terminal"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5" />
+            </svg>
+            <span>Launch ClifCode</span>
+          </button>
+        </Show>
+
+        {/* Launch Claude */}
+        <Show when={props.onLaunchClaude}>
+          <button
+            class="flex items-center gap-1 rounded-lg shrink-0 transition-all duration-150"
+            style={{
+              background: "var(--bg-hover)",
+              color: "var(--text-muted)",
+              border: "1px solid var(--border-default)",
+              padding: "3px 10px",
+              cursor: "pointer",
+              "font-size": "12px",
+              "font-family": "var(--font-sans)",
+              "font-weight": "500",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            onClick={() => props.onLaunchClaude?.()}
+            title="Launch Claude Code in terminal"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5" />
+            </svg>
+            <span>Launch Claude</span>
+          </button>
+        </Show>
+
         <Show when={isGitRepo()}>
           <div
             class="flex items-center gap-1.5 shrink-0"
@@ -151,273 +222,73 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
           </div>
         </Show>
 
-        {/* Terminal toggle */}
-        <button
-          class="flex items-center gap-1.5 shrink-0"
-          style={{
-            background: "transparent",
-            border: "none",
-            color: terminalVisible() ? "var(--accent-green)" : "var(--text-muted)",
-            cursor: "pointer",
-            padding: "1px 4px",
-            "border-radius": "3px",
-            "font-size": "12px",
-            "font-family": "var(--font-sans)",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          onClick={() => toggleTerminal()}
-          title={terminalVisible() ? "Hide terminal" : "Show terminal"}
-        >
-          <TerminalIcon />
-          <span>{terminalVisible() ? "Terminal" : "Show Terminal"}</span>
-        </button>
-
-        {/* Divider */}
-        <div style={{ width: "1px", height: "14px", background: "var(--border-default)", opacity: "0.4" }} />
-
-        {/* Launch Clif Terminal */}
-        <button
-          class="flex items-center gap-1.5 shrink-0"
-          style={{
-            background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-            color: hasProject() ? "var(--accent-primary)" : "var(--text-muted)",
-            border: "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)",
-            cursor: hasProject() ? "pointer" : "default",
-            "font-size": "11px",
-            "font-family": "var(--font-sans)",
-            "font-weight": "600",
-            opacity: hasProject() ? "1" : "0.5",
-            padding: "2px 10px",
-            "border-radius": "4px",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { if (hasProject()) { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 22%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-primary)"; } }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 12%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-primary) 25%, transparent)"; }}
-          onClick={() => { if (hasProject()) props.onLaunchClifCode?.(); }}
-          title="Launch ClifCode agent in terminal"
-        >
-          <TerminalIcon />
-          <span>Launch ClifCode</span>
-        </button>
-
-        {/* Launch Claude Terminal */}
-        <button
-          class="flex items-center gap-1.5 shrink-0"
-          style={{
-            background: "color-mix(in srgb, var(--accent-purple, #a855f7) 12%, transparent)",
-            color: hasProject() ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
-            border: "1px solid color-mix(in srgb, var(--accent-purple, #a855f7) 25%, transparent)",
-            cursor: hasProject() ? "pointer" : "default",
-            "font-size": "11px",
-            "font-family": "var(--font-sans)",
-            "font-weight": "600",
-            opacity: hasProject() ? "1" : "0.5",
-            padding: "2px 10px",
-            "border-radius": "4px",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { if (hasProject()) { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-purple, #a855f7) 22%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-purple, #a855f7)"; } }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-purple, #a855f7) 12%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-purple, #a855f7) 25%, transparent)"; }}
-          onClick={() => { if (hasProject()) props.onLaunchClaude?.(); }}
-          title="Launch Claude Code agent in terminal"
-        >
-          <TerminalIcon />
-          <span>Launch Claude</span>
-        </button>
-
-        {/* File path */}
         <Show when={filePath()}>
-          <div
-            class="truncate"
-            style={{
-              color: "var(--text-muted)",
-              "max-width": "300px",
-            }}
-            title={filePath()}
-          >
+          <div class="truncate" style={{ color: "var(--text-muted)", "max-width": "200px" }} title={filePath()}>
             {filePath()}
           </div>
         </Show>
       </div>
 
-      {/* Center spacer */}
-      <div class="flex-1" />
-
-      {/* Right section */}
-      <div class="flex items-center gap-3 shrink-0">
-        <Show when={activeFile()}>
-          <span style={{ color: "var(--text-muted)" }}>
-            Ln 1, Col 1
-          </span>
-        </Show>
+      {/* Center section — Editor toggle + file info */}
+      <div class="flex items-center gap-3">
+        <button
+          class="flex items-center gap-1.5 rounded-lg shrink-0 transition-all duration-150"
+          style={{
+            background: editorVisible() ? "var(--bg-active)" : "var(--bg-hover)",
+            color: editorVisible() ? "var(--text-primary)" : "var(--text-muted)",
+            border: "1px solid var(--border-default)",
+            padding: "3px 12px",
+            cursor: "pointer",
+            "font-size": "12px",
+            "font-family": "var(--font-sans)",
+            "font-weight": "500",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = editorVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+          onClick={() => toggleEditor()}
+          title={editorVisible() ? "Hide editor" : "Show editor"}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+            <polyline points="13 2 13 9 20 9" />
+          </svg>
+          <span>Editor</span>
+        </button>
 
         <Show when={language()}>
-          <span style={{ color: "var(--text-secondary)" }}>
-            {language()}
-          </span>
+          <span style={{ color: "var(--text-muted)", "font-size": "11px" }}>{language()}</span>
         </Show>
 
         <Show when={activeFile()}>
-          <span style={{ color: "var(--text-muted)" }}>
-            UTF-8
-          </span>
+          <span style={{ color: "var(--text-muted)", "font-size": "11px" }}>UTF-8</span>
         </Show>
 
-        {/* Security toggle + scan */}
-        <div class="flex items-center gap-1" style={{ position: "relative" }}>
-          {/* Security mode toggle — with rich tooltip */}
-          <button
-            class="flex items-center gap-1 peer"
-            style={{
-              background: "transparent", border: "none",
-              color: securityEnabled() ? "var(--accent-green)" : "var(--text-muted)",
-              cursor: "pointer", "font-size": "11px", "font-family": "var(--font-sans)",
-              padding: "1px 4px", "border-radius": "3px", transition: "all 0.15s",
-              position: "relative",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-              const tip = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
-              if (tip) tip.style.display = "block";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-              const tip = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement;
-              if (tip) tip.style.display = "none";
-            }}
-            onClick={() => setSecurityEnabled(!securityEnabled())}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            <Show when={securityResults().length > 0 && securityEnabled()}>
-              <span style={{ color: criticalCount() > 0 ? "var(--accent-red)" : "var(--accent-yellow)", "font-weight": "600" }}>
-                {criticalCount() > 0 ? `${criticalCount()} critical` : `${warningCount()} warn`}
-              </span>
-            </Show>
-            <Show when={securityResults().length === 0 || !securityEnabled()}>
-              <span>{securityEnabled() ? "Secure" : "Security off"}</span>
-            </Show>
-          </button>
+      </div>
 
-          {/* Rich tooltip */}
-          <div style={{
-            display: "none",
-            position: "absolute",
-            bottom: "calc(100% + 8px)",
-            right: "0",
-            width: "240px",
-            background: "var(--bg-overlay)",
-            border: "1px solid var(--border-default)",
-            "border-radius": "8px",
-            padding: "10px 12px",
-            "box-shadow": "0 4px 20px rgba(0,0,0,0.3)",
-            "z-index": "500",
-            "pointer-events": "none",
-          }}>
-            <div style={{ "font-size": "12px", "font-weight": "700", color: "var(--text-primary)", "margin-bottom": "4px" }}>
-              ClifCode Security Scanner
-            </div>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "line-height": "1.5" }}>
-              Automatically scans for hardcoded API keys, passwords, private keys, SQL injection, and unsafe code patterns before every git commit.
-            </div>
-            <div style={{ "font-size": "10px", color: "var(--text-muted)", "margin-top": "6px", "border-top": "1px solid var(--border-muted)", "padding-top": "6px" }}>
-              {securityEnabled() ? "✓ Active — scanning staged files on commit" : "⊘ Disabled — click to re-enable"}
-            </div>
-          </div>
-
-          {/* Scan results badge (clickable to open modal) */}
-          <Show when={securityResults().length > 0}>
-            <button
-              style={{
-                background: criticalCount() > 0
-                  ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
-                  : "color-mix(in srgb, var(--accent-yellow) 15%, transparent)",
-                color: criticalCount() > 0 ? "var(--accent-red)" : "var(--accent-yellow)",
-                border: "none", "border-radius": "3px", cursor: "pointer",
-                "font-size": "10px", "font-weight": "700", padding: "1px 5px",
-              }}
-              onClick={() => setSecurityShowModal(true)}
-              title="View security issues"
-            >
-              {securityResults().length} issue{securityResults().length !== 1 ? "s" : ""}
-            </button>
-          </Show>
-
-          {/* Scan repo button */}
-          <Show when={securityEnabled() && !!projectRoot()}>
-            <button
-              class="flex items-center gap-1"
-              style={{
-                background: "transparent", border: "none",
-                color: "var(--text-muted)", cursor: securityScanning() ? "default" : "pointer",
-                "font-size": "11px", "font-family": "var(--font-sans)",
-                padding: "1px 4px", "border-radius": "3px", transition: "all 0.15s",
-                opacity: securityScanning() ? "0.5" : "1",
-              }}
-              onMouseEnter={(e) => { if (!securityScanning()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-              onClick={async () => {
-                if (securityScanning() || !projectRoot()) return;
-                setSecurityScanning(true);
-                try {
-                  const issues = await scanRepoSecurity(projectRoot()!);
-                  setSecurityResults(issues);
-                  // path tracked in store
-                  setSecurityShowModal(true);
-                } catch (e) {
-                  console.error("Security scan failed:", e);
-                } finally {
-                  setSecurityScanning(false);
-                }
-              }}
-              title="Scan entire repo for security issues"
-            >
-              {securityScanning() ? "Scanning..." : "Scan repo"}
-            </button>
-          </Show>
-        </div>
-
-        {/* Agent chat toggle */}
+      {/* Right section — Agent toggle + version */}
+      <div class="flex items-center gap-3 shrink-0">
+        {/* Agent toggle */}
         <button
-          class="flex items-center gap-1.5"
+          class="flex items-center gap-1.5 rounded-lg shrink-0 transition-all duration-150"
           style={{
-            background: agentVisible()
-              ? "var(--accent-primary)"
-              : "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-            color: agentVisible() ? "var(--accent-text)" : "var(--accent-primary)",
-            border: agentVisible()
-              ? "1px solid var(--accent-primary)"
-              : "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)",
-            "border-radius": "4px",
-            padding: "2px 10px",
+            background: agentVisible() ? "var(--bg-active)" : "var(--bg-hover)",
+            color: agentVisible() ? "var(--text-primary)" : "var(--text-muted)",
+            border: "1px solid var(--border-default)",
+            padding: "3px 12px",
             cursor: "pointer",
-            "font-size": "11px",
+            "font-size": "12px",
             "font-family": "var(--font-sans)",
-            "font-weight": "600",
-            transition: "all 0.15s",
+            "font-weight": "500",
           }}
-          onMouseEnter={(e) => {
-            if (!agentVisible()) {
-              (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 22%, transparent)";
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-primary)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!agentVisible()) {
-              (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-primary) 12%, transparent)";
-              (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-primary) 25%, transparent)";
-            }
-          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = agentVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
           onClick={() => toggleAgentPanel()}
-          title={agentVisible() ? "Close agent chat" : "Open agent chat"}
+          title={agentVisible() ? "Close agent" : "Open agent"}
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span>{agentVisible() ? "Close Agent" : "Clif Agent"}</span>
+          <span>Agent</span>
         </button>
 
         {/* Clif label with update indicator */}

@@ -880,7 +880,7 @@ fn build_workspace_snapshot(workspace_dir: &str) -> String {
     {
         let entry = match entry { Ok(e) => e, Err(_) => continue };
         if entry.depth() == 0 { continue; }
-        let rel = entry.path().strip_prefix(root).unwrap_or(entry.path());
+        let _rel = entry.path().strip_prefix(root).unwrap_or(entry.path());
         let indent = "  ".repeat(entry.depth() - 1);
         let name = entry.file_name().to_string_lossy();
         let suffix = if entry.file_type().is_dir() { "/" } else { "" };
@@ -1452,6 +1452,16 @@ async fn run_agent_loop(
             } else {
                 execute_tool(name, &args, &workspace_dir).await
             };
+
+            // Notify frontend of file changes so open tabs, git status, and file tree update
+            // without relying solely on the OS file watcher (which can be delayed on macOS).
+            if matches!(name.as_str(), "write_file" | "edit_file") {
+                if let Some(path_str) = args.get("path").and_then(|v| v.as_str()) {
+                    let full_path = std::path::Path::new(&workspace_dir).join(path_str);
+                    let abs_path = full_path.to_string_lossy().to_string();
+                    let _ = app.emit_to(label, "file-changed", json!({ "path": abs_path, "kind": "modify" }));
+                }
+            }
 
             // Emit full result to frontend (UI can scroll)
             let _ = app.emit_to(

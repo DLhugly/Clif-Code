@@ -314,9 +314,11 @@ function saveCurrentTab() {
   const tokens = agentTokens();
   const idx = agentTabs.findIndex((t) => t.id === currentId);
   if (idx !== -1) {
+    // Update existing tab
     setAgentTabs(idx, "messages", msgs);
     setAgentTabs(idx, "tokens", { ...tokens });
   } else if (msgs.length > 0) {
+    // Only create a new tab entry if there are messages worth saving
     const firstUserMsg = msgs.find((m) => m.role === "user");
     const label = firstUserMsg
       ? firstUserMsg.content.slice(0, 24) + (firstUserMsg.content.length > 24 ? "..." : "")
@@ -327,6 +329,7 @@ function saveCurrentTab() {
 
 function switchAgentTab(tabId: string) {
   if (agentStreaming()) return;
+  if (tabId === activeAgentTab()) return; // already on this tab
   saveCurrentTab();
   const tab = agentTabs.find((t) => t.id === tabId);
   if (tab) {
@@ -335,32 +338,72 @@ function switchAgentTab(tabId: string) {
     setAgentTokens(tab.tokens);
     setAgentError(null);
   }
+  scheduleSave();
 }
 
 function removeAgentTab(tabId: string) {
   if (agentStreaming()) return;
+
+  const isActive = activeAgentTab() === tabId;
+
+  // Determine which tab to switch to BEFORE removing, so we read from the current state
+  let nextTabId: string | null = null;
+  if (isActive) {
+    const idx = agentTabs.findIndex((t) => t.id === tabId);
+    // Prefer the tab to the right, then to the left
+    if (idx < agentTabs.length - 1) {
+      nextTabId = agentTabs[idx + 1].id;
+    } else if (idx > 0) {
+      nextTabId = agentTabs[idx - 1].id;
+    }
+    // If nextTabId is still null, there's no other tab — we'll start fresh
+  }
+
+  // Remove the tab from the store
   setAgentTabs(produce((tabs) => {
     const idx = tabs.findIndex((t) => t.id === tabId);
     if (idx !== -1) tabs.splice(idx, 1);
   }));
-  if (activeAgentTab() === tabId) {
-    const remaining = agentTabs[0];
-    if (remaining) {
-      switchAgentTab(remaining.id);
+
+  // If we removed the active tab, switch to the next one (or start fresh)
+  if (isActive) {
+    if (nextTabId) {
+      // Load the next tab directly without re-saving the just-removed tab
+      const tab = agentTabs.find((t) => t.id === nextTabId);
+      if (tab) {
+        setActiveAgentTab(nextTabId);
+        setAgentMessages(tab.messages);
+        setAgentTokens(tab.tokens);
+        setAgentError(null);
+      } else {
+        // Fallback: start fresh
+        _resetToNewSession();
+      }
     } else {
-      startNewSession();
+      _resetToNewSession();
     }
   }
+  scheduleSave();
 }
 
-function startNewSession() {
-  saveCurrentTab();
+/** Internal helper: reset state to a blank session without saving current tab */
+function _resetToNewSession() {
   const newId = `chat-${++tabCounter}`;
   setActiveAgentTab(newId);
   setAgentMessages([]);
   setAgentError(null);
   setAgentSessionId(null);
   setAgentTokens({ prompt: 0, completion: 0, context: 0 });
+}
+
+function startNewSession() {
+  if (agentStreaming()) return;
+  // Only save current tab if it has messages
+  if (agentMessages.length > 0) {
+    saveCurrentTab();
+  }
+  _resetToNewSession();
+  scheduleSave();
 }
 
 export {
