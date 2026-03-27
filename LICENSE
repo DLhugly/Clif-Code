@@ -1,100 +1,128 @@
-# Functional Source License, Version 1.1, ALv2 Future License
+# ClifCode Proprietary Source License, Version 1.0
 
-## Abbreviation
+## Copyright
 
-FSL-1.1-ALv2
+Copyright 2026 James Lawrence. All rights reserved.
 
-## Notice
+## Definitions
 
-Copyright 2026 James Lawrence
+**"Software"** means ClifCode, ClifPad, ClifCode TUI, and all associated source
+code, binaries, assets, documentation, and build tooling made available in this
+repository.
 
-## Terms and Conditions
+**"Licensor"** means James Lawrence, the sole copyright holder of the Software.
 
-### Licensor ("We")
+**"You"** means the individual or legal entity exercising the rights granted
+under this License.
 
-The party offering the Software under these Terms and Conditions.
+**"Non-Commercial Use"** means use that is not primarily intended for or directed
+toward commercial advantage or monetary compensation of any kind.
 
-### The Software
+**"Contribution"** means any original work of authorship, including modifications
+or additions to the Software, that You intentionally submit to the Licensor for
+inclusion in the Software via pull request, patch, issue, or any other form of
+communication.
 
-The "Software" is each version of the software that we make available under
-these Terms and Conditions, as indicated by our inclusion of these Terms and
-Conditions with the Software.
+---
 
-### License Grant
+## Grant of Rights
 
-Subject to your compliance with this License Grant and the Patents,
-Redistribution and Trademark clauses below, we hereby grant you the right to
-use, copy, modify, create derivative works, publicly perform, publicly display
-and redistribute the Software for any Permitted Purpose identified below.
+Subject to the terms and conditions of this License, the Licensor grants You a
+limited, non-exclusive, non-transferable, non-sublicensable, royalty-free
+license to:
 
-### Permitted Purpose
+1. **View and study** the source code for personal educational purposes;
+2. **Fork and modify** the Software solely for Non-Commercial Use on your own
+   machines or private infrastructure;
+3. **Submit Contributions** to the Licensor for potential inclusion in the
+   official Software under the terms of Section 4 (Contributor Agreement).
 
-A Permitted Purpose is any purpose other than a Competing Use. A Competing Use
-means making the Software available to others in a commercial product or
-service that:
+No other rights are granted. All rights not explicitly granted here are reserved
+exclusively by the Licensor.
 
-1. substitutes for the Software;
-2. substitutes for any other product or service we offer using the Software
-that exists as of the date we make the Software available; or
-3. offers the same or substantially similar functionality as the Software.
+---
 
-Permitted Purposes specifically include using the Software:
+## Restrictions
 
-1. for your internal use and access;
-2. for non-commercial education;
-3. for non-commercial research; and
-4. in connection with professional services that you provide to a licensee
-using the Software in accordance with these Terms and Conditions.
+You may **NOT**, without prior written permission from the Licensor:
 
-### Patents
+1. **Distribute** the Software or any derivative work, publicly or privately,
+   to any third party;
+2. **Offer the Software commercially** — including as a SaaS product, hosted
+   service, bundled product, or paid tool — in whole or in part;
+3. **Sell, sublicense, or transfer** any rights in the Software;
+4. **Remove or obscure** any copyright notice, license header, or attribution
+   in the Software;
+5. **Use the name "ClifCode", "ClifPad", or "Clif"** or any confusingly similar
+   name in any product, service, domain, or marketing material;
+6. **Deploy the Software** in any production environment as a commercial or
+   revenue-generating service, even if offered for free to end users;
+7. **Re-license** the Software or any derivative work under any other license.
 
-To the extent your use for a Permitted Purpose would necessarily infringe our
-patents, the license grant above includes a license under our patents. If you
-make a claim against any party that the Software infringes or contributes to
-the infringement of any patent, then your patent license to the Software ends
-immediately.
+---
 
-### Redistribution
+## Contributor Agreement
 
-The Terms and Conditions apply to all copies, modifications and derivatives of
-the Software.
+By submitting a Contribution to this repository You agree that:
 
-If you redistribute any copies, modifications or derivatives of the Software,
-you must include a copy of or a link to these Terms and Conditions and not
-remove any copyright notices provided in or with the Software.
+1. You are the original author of the Contribution and have the right to grant
+   these rights;
+2. You irrevocably assign and transfer to the Licensor full copyright ownership
+   of the Contribution, including all intellectual property rights therein;
+3. The Licensor may incorporate, modify, relicense, and commercialize Your
+   Contribution as part of the Software without restriction and without
+   additional compensation to You;
+4. You retain no ownership claim over any Contribution once submitted.
 
-### Disclaimer
+This Contributor License Agreement ("CLA") is a condition of participation. Do
+not submit Contributions if you do not agree to these terms.
 
-THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF FITNESS FOR A PARTICULAR
-PURPOSE, MERCHANTABILITY, TITLE OR NON-INFRINGEMENT.
+---
 
-IN NO EVENT WILL WE HAVE ANY LIABILITY TO YOU ARISING OUT OF OR RELATED TO THE
-SOFTWARE, INCLUDING INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES,
-EVEN IF WE HAVE BEEN INFORMED OF THEIR POSSIBILITY IN ADVANCE.
+## No Warranty
 
-### Trademarks
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, TITLE, OR NON-INFRINGEMENT.
 
-Except for displaying the License Details and identifying us as the origin of
-the Software, you have no right under these Terms and Conditions to use our
-trademarks, trade names, service marks or product names.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY — WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE — ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-## Grant of Future License
+---
 
-We hereby irrevocably grant you an additional license to use the Software under
-the Apache License, Version 2.0 that is effective on the second anniversary of
-the date we make the Software available. On or after that date, you may use the
-Software under the Apache License, Version 2.0, in which case the following
-will apply:
+## Termination
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License.
+Your rights under this License terminate automatically and immediately if You:
 
-You may obtain a copy of the License at
+1. Breach any term of this License;
+2. Initiate any patent, copyright, or intellectual property claim against the
+   Licensor or any user of the Software;
+3. Distribute or commercialize the Software in violation of Section 3.
 
-http://www.apache.org/licenses/LICENSE-2.0
+Upon termination You must immediately destroy all copies of the Software in
+your possession or control.
 
-Unless required by applicable law or agreed to in writing, software distributed
-under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
+---
+
+## Governing Law
+
+This License shall be governed by and construed in accordance with the laws of
+the jurisdiction in which the Licensor resides, without regard to conflict of
+law principles.
+
+---
+
+## Contact
+
+To request a commercial license, distribution rights, or written permission for
+uses not covered by this License, contact:
+
+**James Lawrence**
+https://clifcode.io
+
+---
+
+*This is not an open source license as defined by the Open Source Initiative.
+This is not a free software license as defined by the Free Software Foundation.*

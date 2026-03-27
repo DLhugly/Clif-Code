@@ -1,6 +1,7 @@
-import { Component, Show, createSignal, createMemo, type Accessor } from "solid-js";
+import { Component, Show, createSignal, createMemo, For, type Accessor } from "solid-js";
 import { marked } from "marked";
 import { fontSize } from "../../stores/uiStore";
+import { openFile } from "../../stores/fileStore";
 import type { AgentMessage } from "../../types/agent";
 
 export interface PendingCommand {
@@ -57,6 +58,98 @@ const CopyButton: Component<{ text: string }> = (props) => {
 };
 
 marked.setOptions({ async: false, breaks: true, gfm: true });
+
+// ── Feature #15: Diff Viewer ──────────────────────────────────────────────────
+// Parses unified diff format and renders +/- lines with colour highlighting.
+const DiffViewer: Component<{ diff: string }> = (props) => {
+  const lines = () => props.diff.split("\n");
+  return (
+    <div
+      style={{
+        "font-family": "var(--font-mono, monospace)",
+        "font-size": "0.8em",
+        "border-radius": "6px",
+        overflow: "hidden",
+        border: "1px solid var(--border-muted)",
+        "margin-top": "6px",
+      }}
+    >
+      <For each={lines()}>
+        {(line) => {
+          const isAdd = line.startsWith("+") && !line.startsWith("+++");
+          const isDel = line.startsWith("-") && !line.startsWith("---");
+          const isHunk = line.startsWith("@@");
+          return (
+            <div
+              style={{
+                padding: "1px 8px",
+                background: isAdd
+                  ? "color-mix(in srgb, var(--accent-green) 15%, transparent)"
+                  : isDel
+                  ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
+                  : isHunk
+                  ? "color-mix(in srgb, var(--accent-blue) 10%, transparent)"
+                  : "transparent",
+                color: isAdd
+                  ? "var(--accent-green)"
+                  : isDel
+                  ? "var(--accent-red)"
+                  : isHunk
+                  ? "var(--accent-blue)"
+                  : "var(--text-muted)",
+                "white-space": "pre",
+                "word-break": "break-all",
+              }}
+            >
+              {line || " "}
+            </div>
+          );
+        }}
+      </For>
+    </div>
+  );
+};
+
+// ── Feature #3: Clickable File Links ─────────────────────────────────────────
+// Detects `path:line` or bare file path patterns in tool result text and
+// renders them as clickable spans that open the file in the editor.
+const FILE_LINK_RE = /([^\s"'`]+\.[a-zA-Z0-9]+)(?::(\d+))?/g;
+
+function renderWithFileLinks(text: string, fs: typeof fontSize) {
+  const parts: (string | { path: string; line?: number; raw: string })[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  FILE_LINK_RE.lastIndex = 0;
+
+  while ((match = FILE_LINK_RE.exec(text)) !== null) {
+    const [raw, path, lineStr] = match;
+    // Only linkify if it looks like a real file path (has a / or starts with src/etc.)
+    const looksLikePath = path.includes("/") || path.startsWith("src") || path.startsWith("lib");
+    if (!looksLikePath) continue;
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    parts.push({ path, line: lineStr ? parseInt(lineStr, 10) : undefined, raw });
+    last = match.index + raw.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+
+  return parts.map((p) => {
+    if (typeof p === "string") return p;
+    return (
+      <span
+        style={{
+          color: "var(--accent-primary)",
+          cursor: "pointer",
+          "text-decoration": "underline",
+          "text-underline-offset": "2px",
+        }}
+        onClick={() => openFile(p.path)}
+        title={`Open ${p.path}${p.line ? `:${p.line}` : ""}`}
+      >
+        {p.raw}
+      </span>
+    );
+  });
+}
 
 const ToolCallCard: Component<{
   message: AgentMessage;
@@ -254,16 +347,28 @@ const ToolCallCard: Component<{
               style={{
                 color: "var(--text-secondary)",
                 "border-top": "1px solid var(--border-muted)",
-                "max-height": "200px",
+                "max-height": "300px",
                 "overflow-y": "auto",
               }}
             >
-              <pre
-                class="whitespace-pre-wrap break-all"
-                style={{ margin: "0" }}
+              {/* Feature #15: Show coloured diff for edit_file results */}
+              <Show
+                when={props.message.toolName === "edit_file" && (() => {
+                  try { return JSON.parse(toolCall()!.result ?? "{}").diff_preview; } catch { return null; }
+                })()}
+                fallback={
+                  <pre class="whitespace-pre-wrap break-all" style={{ margin: "0" }}>
+                    {/* Feature #3: render file paths as clickable links */}
+                    {renderWithFileLinks(toolCall()!.result ?? "", fontSize)}
+                  </pre>
+                }
               >
-                {toolCall()!.result}
-              </pre>
+                {(_) => {
+                  let diffStr = "";
+                  try { diffStr = JSON.parse(toolCall()!.result ?? "{}").diff_preview ?? ""; } catch {}
+                  return <DiffViewer diff={diffStr} />;
+                }}
+              </Show>
             </div>
           </Show>
         </div>

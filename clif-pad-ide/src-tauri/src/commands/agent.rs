@@ -465,6 +465,9 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
             };
 
+            // Feature #4: load .clif-ignore and filter results
+            let clif_ignore = load_clif_ignore(workspace_dir);
+
             let results = crate::commands::search::search_files(full_path.to_string_lossy().to_string(), query.to_string(), None);
             match results {
                 Ok(items) => {
@@ -473,6 +476,15 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                     } else {
                         items
                             .iter()
+                            .filter(|r| {
+                                if clif_ignore.is_empty() { return true; }
+                                // Get the filename portion for pattern matching
+                                let file_name = std::path::Path::new(&r.file)
+                                    .file_name()
+                                    .map(|n| n.to_string_lossy().to_string())
+                                    .unwrap_or_default();
+                                !is_clif_ignored(&file_name, &r.file, &clif_ignore)
+                            })
                             .take(50)
                             .map(|r| format!("{}:{}: {}", r.file, r.line, r.content.trim()))
                             .collect::<Vec<_>>()
@@ -860,10 +872,51 @@ fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens
     conversation.extend(tail);
 }
 
+/// Load patterns from `.clif-ignore` in the workspace root.
+/// Falls back to an empty list if the file doesn't exist.
+fn load_clif_ignore(workspace_dir: &str) -> Vec<String> {
+    let path = std::path::Path::new(workspace_dir).join(".clif-ignore");
+    match std::fs::read_to_string(path) {
+        Ok(content) => content
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Returns true if the given relative path or filename should be ignored
+/// based on the patterns loaded from `.clif-ignore`.
+/// Supports exact name matches and simple glob-style `*` prefix/suffix patterns.
+fn is_clif_ignored(name: &str, rel_path: &str, patterns: &[String]) -> bool {
+    for pattern in patterns {
+        let p = pattern.as_str();
+        if p == name || p == rel_path {
+            return true;
+        }
+        // Simple glob: starts with `*` → suffix match
+        if let Some(suffix) = p.strip_prefix('*') {
+            if name.ends_with(suffix) || rel_path.ends_with(suffix) {
+                return true;
+            }
+        }
+        // Simple glob: ends with `*` → prefix match
+        if let Some(prefix) = p.strip_suffix('*') {
+            if name.starts_with(prefix) || rel_path.starts_with(prefix) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn build_workspace_snapshot(workspace_dir: &str) -> String {
     use walkdir::WalkDir;
     let root = std::path::Path::new(workspace_dir);
-    let skip = ["node_modules", ".git", "target", "dist", ".next", "__pycache__", ".venv", "build", "out"];
+    let builtin_skip = ["node_modules", ".git", "target", "dist", ".next", "__pycache__", ".venv", "build", "out"];
+    // Feature #4: load user-defined ignore patterns from .clif-ignore
+    let clif_ignore = load_clif_ignore(workspace_dir);
     let mut lines = Vec::new();
     let cap = 3000;
 
@@ -874,7 +927,11 @@ fn build_workspace_snapshot(workspace_dir: &str) -> String {
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
             if e.depth() > 0 && name.starts_with('.') { return false; }
-            if e.file_type().is_dir() && skip.contains(&name.as_ref()) { return false; }
+            if e.file_type().is_dir() && builtin_skip.contains(&name.as_ref()) { return false; }
+            // Check user-defined ignore patterns
+            let rel = e.path().strip_prefix(root).unwrap_or(e.path())
+                .to_string_lossy().to_string();
+            if is_clif_ignored(&name, &rel, &clif_ignore) { return false; }
             true
         })
     {
