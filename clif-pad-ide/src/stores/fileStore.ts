@@ -4,6 +4,7 @@ import type { FileEntry, OpenFile } from "../types/files";
 import { readDir, readFile, writeFile, watchDir, onFileChanged, gitShow } from "../lib/tauri";
 import { getLanguageFromExtension, getFileName, getFileExtension } from "../lib/utils";
 import { showToast } from "./toastStore";
+import { clearAgentState } from "./agentStore";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 // Files above this size (bytes) skip auto-diff and get large-file treatment
@@ -76,6 +77,8 @@ async function loadDirectory(path: string): Promise<FileEntry[]> {
 }
 
 async function openProject(path: string) {
+  // Cancel any pending agent saves from the previous project before switching
+  clearAgentState();
   setProjectRoot(path);
   addRecentFolder(path);
   const entries = await loadDirectory(path);

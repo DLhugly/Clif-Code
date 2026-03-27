@@ -34,6 +34,19 @@ pub fn kill_all_agent_sessions() {
     }
 }
 
+/// Strip OpenAI-only fields that cause 400 errors on other providers
+fn strip_openai_fields(mut tools: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
+    for tool in &mut tools {
+        if let Some(func) = tool.get_mut("function").and_then(|f| f.as_object_mut()) {
+            func.remove("strict");
+            if let Some(params) = func.get_mut("parameters").and_then(|p| p.as_object_mut()) {
+                params.remove("additionalProperties");
+            }
+        }
+    }
+    tools
+}
+
 /// Tool definitions for OpenAI function-calling format
 fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
@@ -1081,7 +1094,8 @@ async fn run_agent_loop(
         }));
     }
 
-    let tools = tool_definitions();
+    let raw_tools = tool_definitions();
+    let tools = if provider == "openai" { raw_tools } else { strip_openai_fields(raw_tools) };
     let client = reqwest::Client::new();
     let max_turns = 200; // Safety limit — compaction handles context
 
@@ -1634,7 +1648,8 @@ pub async fn clif_init_project(
         json!({ "role": "user", "content": "Analyze this project and write .clif/CLIF.md now." }),
     ];
 
-    let tools = tool_definitions();
+    let raw_tools = tool_definitions();
+    let tools = if provider == "openai" { raw_tools } else { strip_openai_fields(raw_tools) };
     let client = reqwest::Client::new();
     let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
     let session_id = uuid::Uuid::new_v4().to_string();

@@ -406,6 +406,27 @@ function startNewSession() {
   scheduleSave();
 }
 
+/**
+ * Called when switching to a new project. Cancels any pending save timer
+ * so stale state from the previous project cannot overwrite the new one,
+ * then resets all agent state to a clean baseline.
+ */
+function clearAgentState() {
+  if (saveDebounceTimer) {
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = null;
+  }
+  setAgentMessages([]);
+  setAgentTabs([]);
+  setAgentError(null);
+  setAgentSessionId(null);
+  setAgentStreaming(false);
+  setAgentTokens({ prompt: 0, completion: 0, context: 0 });
+  setAgentStatus("");
+  setActiveAgentTab("default");
+  tabCounter = 0;
+}
+
 export {
   agentMessages,
   agentStreaming,
@@ -423,4 +444,5 @@ export {
   switchAgentTab,
   removeAgentTab,
   restoreAgentHistory,
+  clearAgentState,
 };

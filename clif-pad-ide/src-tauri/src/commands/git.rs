@@ -188,12 +188,17 @@ pub fn git_fetch(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn git_pull(path: String) -> Result<String, String> {
-    let output = Command::new("git")
-        .args(["pull"])
-        .current_dir(&path)
-        .output()
-        .map_err(|e| format!("Failed to run git pull: {}", e))?;
+pub async fn git_pull(path: String) -> Result<String, String> {
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        tokio::process::Command::new("git")
+            .args(["pull"])
+            .current_dir(&path)
+            .output(),
+    )
+    .await
+    .map_err(|_| "git pull timed out after 60s".to_string())?
+    .map_err(|e| format!("Failed to run git pull: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -205,12 +210,17 @@ pub fn git_pull(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn git_push(path: String) -> Result<String, String> {
-    let output = Command::new("git")
-        .args(["push"])
-        .current_dir(&path)
-        .output()
-        .map_err(|e| format!("Failed to run git push: {}", e))?;
+pub async fn git_push(path: String) -> Result<String, String> {
+    let output = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        tokio::process::Command::new("git")
+            .args(["push"])
+            .current_dir(&path)
+            .output(),
+    )
+    .await
+    .map_err(|_| "git push timed out after 60s".to_string())?
+    .map_err(|e| format!("Failed to run git push: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
