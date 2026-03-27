@@ -16,6 +16,7 @@ interface Settings {
   aiModel: string;
   leftPanel: PanelSlot;
   rightPanel: PanelSlot;
+  inlineAiEnabled: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -32,6 +33,7 @@ const defaultSettings: Settings = {
   aiModel: "anthropic/claude-sonnet-4",
   leftPanel: "terminal",
   rightPanel: "sidebar",
+  inlineAiEnabled: true,
 };
 
 const [settings, setSettingsLocal] = createSignal<Settings>(defaultSettings);

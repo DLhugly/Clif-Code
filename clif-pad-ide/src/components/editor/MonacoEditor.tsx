@@ -1,11 +1,12 @@
 import { Component, onMount, onCleanup, createEffect } from "solid-js";
 import * as monaco from "monaco-editor";
-import { activeFile, updateFileContent, saveActiveFile } from "../../stores/fileStore";
+import { activeFile, updateFileContent, saveActiveFile, projectRoot } from "../../stores/fileStore";
 import { theme, fontSize } from "../../stores/uiStore";
 import { settings } from "../../stores/settingsStore";
 import { monacoThemes } from "../../lib/themes";
 import { registerGhostTextProvider } from "./GhostText";
 import { showToast } from "../../stores/toastStore";
+import { startLspForFile, stopAllLspClients } from "../../lib/lsp";
 import type { Theme } from "../../stores/uiStore";
 
 // Model + viewstate cache
@@ -82,6 +83,16 @@ const MonacoEditor: Component = () => {
       tabSize: 2,
       automaticLayout: true,
       theme: getMonacoThemeName(theme()),
+      // Enable inline AI ghost text suggestions (Tab to accept)
+      inlineSuggest: {
+        enabled: true,
+        mode: "prefix",
+      },
+      quickSuggestions: {
+        other: true,
+        comments: false,
+        strings: false,
+      },
     });
 
     // Register FIM ghost text completions
@@ -148,6 +159,12 @@ const MonacoEditor: Component = () => {
       const value = model.getValue();
       updateFileContent(file.path, value);
     });
+
+    // Start LSP for this file's language if not already running
+    const root = projectRoot();
+    if (root && editorInstance) {
+      startLspForFile(file.path, root, editorInstance);
+    }
   });
 
   // Watch theme changes
@@ -174,6 +191,16 @@ const MonacoEditor: Component = () => {
     }
   });
 
+  // Watch inline AI toggle
+  createEffect(() => {
+    const enabled = settings().inlineAiEnabled;
+    if (editorInstance) {
+      editorInstance.updateOptions({
+        inlineSuggest: { enabled, mode: "prefix" },
+      });
+    }
+  });
+
   onCleanup(() => {
     if (currentPath && editorInstance) {
       const state = editorInstance.saveViewState();
@@ -185,6 +212,8 @@ const MonacoEditor: Component = () => {
     if (ghostTextDisposable) {
       ghostTextDisposable.dispose();
     }
+
+    stopAllLspClients();
 
     if (onChangeDisposable) {
       onChangeDisposable.dispose();

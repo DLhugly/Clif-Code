@@ -20,7 +20,7 @@ import type { FileEntry } from "../../types/files";
 import { currentBranch } from "../../stores/gitStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
-import { getApiKey, setApiKey as saveApiKey, agentApproveCommand, clifProjectInitialized, clifReadContext, clifInitProject } from "../../lib/tauri";
+import { getApiKey, setApiKey as saveApiKey, agentApproveCommand, clifProjectInitialized, clifReadContext, clifInitProject, getModels } from "../../lib/tauri";
 import ChatMessage from "./ChatMessage";
 import ContextChip from "./ContextChip";
 import type { AgentContext } from "../../types/agent";
@@ -122,6 +122,7 @@ const AgentChatPanel: Component = () => {
   const [savingKey, setSavingKey] = createSignal(false);
   const [modelDropdownOpen, setModelDropdownOpen] = createSignal(false);
   const [openRouterModels, setOpenRouterModels] = createSignal<OpenRouterModel[]>([]);
+  const [ollamaModels, setOllamaModels] = createSignal<{value: string, label: string}[]>([]);
   const [modelSearch, setModelSearch] = createSignal("");
   const [fetchingModels, setFetchingModels] = createSignal(false);
   const [modelSort, setModelSort] = createSignal<"name" | "price-asc" | "price-desc" | "ctx">("name");
@@ -137,6 +138,7 @@ const AgentChatPanel: Component = () => {
   const [mentionQuery, setMentionQuery] = createSignal("");
   const [mentionIndex, setMentionIndex] = createSignal(0);
   const [mentionStart, setMentionStart] = createSignal(0);
+  const [loadingOllamaModels, setLoadingOllamaModels] = createSignal(false);
 
   function flattenFileTree(entries: FileEntry[]): string[] {
     const result: string[] = [];
@@ -263,10 +265,53 @@ const AgentChatPanel: Component = () => {
     }
   });
 
+  async function loadOllamaModels() {
+    if (settings().aiProvider !== "ollama") return;
+    
+    try {
+      setLoadingOllamaModels(true);
+      const models = await getModels("ollama", null);
+      
+      const ollamaList = models.map(model => ({
+        value: model.id,
+        label: model.name
+      }));
+      
+      setOllamaModels(ollamaList);
+      // Auto-select first model if current isn't available
+      const currentModel = settings().aiModel;
+      const hasCurrentModel = ollamaList.some(m => m.value === currentModel);
+      if (!hasCurrentModel && ollamaList.length > 0) {
+        updateSettings({ aiModel: ollamaList[0].value });
+      }
+    } catch (error) {
+      console.warn("Failed to load Ollama models:", error);
+      // Fallback to hardcoded list
+      setOllamaModels([
+        { value: "llama3.1", label: "Llama 3.1" },
+        { value: "codellama", label: "Code Llama" },
+        { value: "mistral", label: "Mistral" },
+        { value: "deepseek-coder-v2", label: "DeepSeek Coder V2" },
+        { value: "qwen3-coder:30b", label: "qwen3-coder:30b" },
+        { value: "qwen2.5-coder", label: "Qwen 2.5 Coder" },
+      ]);
+    } finally {
+      setLoadingOllamaModels(false);
+    }
+  }
+
+  // Call when provider changes to Ollama
+  createEffect(() => {
+    if (settings().aiProvider === "ollama") {
+      loadOllamaModels();
+    }
+  });
+
   async function checkApiKey() {
     const provider = settings().aiProvider;
     if (provider === "ollama") {
       setHasApiKey(true); // Ollama doesn't need a key
+      await loadOllamaModels(); // Fetch available models
       return;
     }
     try {
@@ -514,7 +559,7 @@ const AgentChatPanel: Component = () => {
             value={settings().aiModel}
             onChange={(e) => handleModelChange(e.currentTarget.value)}
           >
-            <For each={POPULAR_MODELS[settings().aiProvider] || []}>
+            <For each={settings().aiProvider === "ollama" ? ollamaModels() : (POPULAR_MODELS[settings().aiProvider] || [])}>
               {(m) => <option value={m.value}>{m.label}</option>}
             </For>
           </select>
@@ -640,7 +685,7 @@ const AgentChatPanel: Component = () => {
             value={settings().aiModel}
             onChange={(e) => handleModelChange(e.currentTarget.value)}
           >
-            <For each={POPULAR_MODELS[settings().aiProvider] || []}>
+            <For each={settings().aiProvider === "ollama" ? ollamaModels() : (POPULAR_MODELS[settings().aiProvider] || [])}>
               {(m) => <option value={m.value}>{m.label}</option>}
             </For>
           </select>
@@ -691,6 +736,45 @@ const AgentChatPanel: Component = () => {
             </Show>
           </div>
         </Show>
+
+        {/* Inline AI toggle */}
+        <div class="flex items-center justify-between">
+          <div>
+            <span style={{ "font-size": "11px", color: "var(--text-muted)", "font-weight": "500" }}>
+              Inline AI Completions
+            </span>
+            <p style={{ "font-size": "10px", color: "var(--text-muted)", margin: "2px 0 0 0", opacity: "0.7" }}>
+              Ghost text as you type · Tab to accept
+            </p>
+          </div>
+          <button
+            onClick={() => updateSettings({ inlineAiEnabled: !settings().inlineAiEnabled })}
+            class="rounded-full transition-colors shrink-0"
+            style={{
+              width: "32px",
+              height: "18px",
+              background: settings().inlineAiEnabled ? "var(--accent-primary)" : "var(--bg-hover)",
+              border: "none",
+              cursor: "pointer",
+              position: "relative",
+            }}
+            title={settings().inlineAiEnabled ? "Disable inline AI" : "Enable inline AI"}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: "2px",
+                left: settings().inlineAiEnabled ? "16px" : "2px",
+                width: "14px",
+                height: "14px",
+                "border-radius": "50%",
+                background: "#fff",
+                transition: "left 0.15s ease",
+                display: "block",
+              }}
+            />
+          </button>
+        </div>
       </div>
     );
   }
@@ -1097,29 +1181,45 @@ const AgentChatPanel: Component = () => {
           {/* Model list */}
           <div style={{ "overflow-y": "auto", flex: "1", padding: "6px 8px" }}>
             <Show when={settings().aiProvider === "ollama"}>
-              <For each={POPULAR_MODELS.ollama}>
-                {(m) => {
-                  const isActive = () => settings().aiModel === m.value;
-                  return (
-                    <button
-                      class="flex items-center justify-between w-full rounded-lg px-3 py-2.5 transition-colors"
-                      style={{
-                        background: isActive() ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
-                        border: isActive() ? "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)" : "1px solid transparent",
-                        cursor: "pointer", "text-align": "left", "margin-bottom": "2px",
-                      }}
-                      onMouseEnter={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-                      onMouseLeave={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                      onClick={() => { handleModelChange(m.value); setModelDropdownOpen(false); setModelSearch(""); }}
-                    >
-                      <span style={{ "font-size": "13px", "font-weight": "500", color: isActive() ? "var(--accent-primary)" : "var(--text-primary)" }}>{m.label}</span>
-                      <Show when={isActive()}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </Show>
-                    </button>
-                  );
-                }}
-              </For>
+              <Show when={loadingOllamaModels()}>
+                <div style={{ padding: "32px", "text-align": "center", color: "var(--text-muted)", "font-size": "12px" }}>Loading Ollama models...</div>
+              </Show>
+              <Show when={!loadingOllamaModels()}>
+                <For each={ollamaModels()}>
+                  {(m) => {
+                    const isActive = () => settings().aiModel === m.value;
+                    return (
+                      <button
+                        class="flex items-center justify-between w-full rounded-lg px-3 py-2.5 transition-colors"
+                        style={{
+                          background: isActive() ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
+                          border: isActive() ? "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)" : "1px solid transparent",
+                          cursor: "pointer", "text-align": "left", "margin-bottom": "2px",
+                        }}
+                        onMouseEnter={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                        onMouseLeave={(e) => { if (!isActive()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        onClick={() => { handleModelChange(m.value); setModelDropdownOpen(false); setModelSearch(""); }}
+                      >
+                        <span style={{ "font-size": "13px", "font-weight": "500", color: isActive() ? "var(--accent-primary)" : "var(--text-primary)" }}>{m.label}</span>
+                        <Show when={isActive()}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </Show>
+                      </button>
+                    );
+                  }}
+                </For>
+                <button
+                  type="button"
+                  class="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 transition-colors border-t border-gray-600"
+                  style={{ color: "var(--text-muted)", "border-top": "1px solid var(--border-muted)", "margin-top": "8px", cursor: "pointer" }}
+                  onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"}
+                  onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                  onClick={loadOllamaModels}
+                  disabled={loadingOllamaModels()}
+                >
+                  🔄 Refresh Models
+                </button>
+              </Show>
             </Show>
 
             <Show when={settings().aiProvider === "openrouter"}>

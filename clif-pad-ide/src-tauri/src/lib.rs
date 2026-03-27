@@ -2,6 +2,7 @@ mod commands;
 mod services;
 mod state;
 
+use commands::lsp::LspState;
 use commands::pty::PtyState;
 use services::file_watcher::WatcherState;
 use tauri::{Emitter, Manager};
@@ -63,6 +64,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(PtyState::new())
+        .manage(LspState::default())
         .manage(WatcherState::new())
         .setup(|app| {
             let menu = build_menu(app.handle())?;
@@ -156,6 +158,10 @@ pub fn run() {
             commands::agent::clif_init_project,
             commands::security::scan_files_security,
             commands::security::scan_repo_security,
+            commands::lsp::lsp_start,
+            commands::lsp::lsp_send,
+            commands::lsp::lsp_stop,
+            commands::lsp::lsp_check_servers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
