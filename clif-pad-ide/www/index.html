@@ -8,26 +8,49 @@
   <meta property="og:title" content="ClifCode — AI code editor + terminal agent, built in Rust">
   <meta property="og:description" content="Native AI code editor with built-in coding agent. Works with any LLM. 20MB binary, no Electron, no subscription.">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#0a0a0f">
+  <meta name="theme-color" content="#fafafa">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+    /* ── Ayu Dawn (default/light) ── */
     :root {
-      --bg: #0a0a0f;
-      --bg2: #12121a;
-      --bg3: #1a1a24;
-      --text: #e8e8ef;
-      --muted: #6b6b80;
-      --accent: #6366f1;
-      --accent2: #a855f7;
-      --green: #34d399;
-      --red: #f87171;
-      --yellow: #fbbf24;
-      --blue: #60a5fa;
-      --radius: 16px;
+      --bg: #fafafa;
+      --bg2: #f3f4f6;
+      --bg3: #e8eaed;
+      --bg4: #dde1e7;
+      --text: #1a1e24;
+      --muted: #787b80;
+      --accent: #a15000;
+      --accent2: #cf6a00;
+      --green: #3d8f3d;
+      --red: #c6313a;
+      --yellow: #a15000;
+      --blue: #0a6ea3;
+      --purple: #7040a0;
+      --border: rgba(0,0,0,0.08);
+      --radius: 12px;
+    }
+
+    /* ── Ayu Dark ── */
+    [data-theme="dark"] {
+      --bg: #0a0e14;
+      --bg2: #0d1117;
+      --bg3: #131721;
+      --bg4: #1a1f2b;
+      --text: #bfbdb6;
+      --muted: #737880;
+      --accent: #ffb454;
+      --accent2: #ff8f40;
+      --green: #7fd962;
+      --red: #f07178;
+      --yellow: #ffb454;
+      --blue: #39bae6;
+      --purple: #d2a6ff;
+      --border: rgba(255,255,255,0.06);
+      --radius: 12px;
     }
 
     html { scroll-behavior: smooth; }
@@ -46,9 +69,12 @@
     /* ─── NAV ─── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: rgba(10, 10, 15, 0.8);
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: rgba(250, 250, 250, 0.85);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    [data-theme="dark"] nav {
+      background: rgba(10, 14, 20, 0.85);
     }
     nav .container {
       display: flex; align-items: center; justify-content: space-between;
@@ -56,9 +82,9 @@
     }
     .nav-logo {
       font-weight: 800; font-size: 18px; letter-spacing: -0.5px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      color: var(--text);
     }
+    .nav-logo span { color: var(--accent); }
     .nav-links { display: flex; gap: 28px; align-items: center; }
     .nav-links a {
       color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
@@ -82,9 +108,12 @@
     .hero-orb {
       position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
       width: 800px; height: 800px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.08) 40%, transparent 70%);
+      background: radial-gradient(circle, rgba(161,80,0,0.10) 0%, rgba(207,106,0,0.05) 40%, transparent 70%);
       filter: blur(60px); animation: orb-pulse 8s ease-in-out infinite;
       pointer-events: none;
+    }
+    [data-theme="dark"] .hero-orb {
+      background: radial-gradient(circle, rgba(255,180,84,0.12) 0%, rgba(255,143,64,0.06) 40%, transparent 70%);
     }
     @keyframes orb-pulse {
       0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.6; }
@@ -94,9 +123,13 @@
     .hero-badge {
       display: inline-flex; align-items: center; gap: 6px;
       font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;
-      color: var(--accent); background: rgba(99,102,241,0.1);
-      border: 1px solid rgba(99,102,241,0.2); padding: 5px 14px;
+      color: var(--accent); background: rgba(161,80,0,0.07);
+      border: 1px solid rgba(161,80,0,0.2); padding: 5px 14px;
       border-radius: 20px; margin-bottom: 28px;
+    }
+    [data-theme="dark"] .hero-badge {
+      background: rgba(255,180,84,0.08);
+      border-color: rgba(255,180,84,0.2);
     }
     .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
     .hero h1 {
@@ -104,7 +137,11 @@
       letter-spacing: -2.5px; line-height: 1.05; margin-bottom: 20px;
     }
     .hero h1 .gradient {
-      background: linear-gradient(135deg, var(--accent), var(--accent2), #ec4899);
+      background: linear-gradient(135deg, #a15000, #cf6a00, #c6313a);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    [data-theme="dark"] .hero h1 .gradient {
+      background: linear-gradient(135deg, #ffb454, #ff8f40, #f07178);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .hero .tagline {
@@ -120,15 +157,21 @@
       border-radius: 10px; text-decoration: none; transition: all 0.2s;
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff; box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+      background: linear-gradient(135deg, #ffb454, #ff8f40);
+      color: #0a0e14; box-shadow: 0 4px 20px rgba(255,180,84,0.25);
     }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.4); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255,180,84,0.35); }
+    [data-theme="dawn"] .btn-primary {
+      background: linear-gradient(135deg, #a15000, #cf6a00);
+      color: #fff; box-shadow: 0 4px 20px rgba(161,80,0,0.25);
+    }
     .btn-secondary {
       background: rgba(255,255,255,0.06); color: var(--text);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid var(--border);
     }
     .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+    [data-theme="dawn"] .btn-secondary { background: rgba(0,0,0,0.04); }
+    [data-theme="dawn"] .btn-secondary:hover { background: rgba(0,0,0,0.08); }
     .btn .mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
     .btn svg { width: 16px; height: 16px; }
 
@@ -136,32 +179,18 @@
     .plat-btn {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,0.04); color: var(--muted);
-      border: 1px solid rgba(255,255,255,0.06); font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); font-size: 12px; font-weight: 600;
       padding: 8px 14px; border-radius: 8px; text-decoration: none; transition: all 0.15s;
     }
     .plat-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    [data-theme="dawn"] .plat-btn { background: rgba(0,0,0,0.03); }
+    [data-theme="dawn"] .plat-btn:hover { background: rgba(0,0,0,0.07); }
     .plat-btn svg { width: 14px; height: 14px; }
 
     .dl-note { font-size: 12px; color: var(--muted); margin-bottom: 60px; }
     .dl-note a { color: var(--accent); text-decoration: none; }
 
-    /* ─── SCREENSHOT ─── */
-    .screenshot-wrap {
-      max-width: 920px; margin: 0 auto 120px; position: relative;
-    }
-    .screenshot-glow {
-      position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
-      width: 80%; height: 200px;
-      background: radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%);
-      filter: blur(40px); pointer-events: none;
-    }
-    .screenshot-frame {
-      border-radius: 12px; overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
-      position: relative;
-    }
-    .screenshot-frame img { width: 100%; display: block; }
+
 
     /* ─── SECTIONS ─── */
     .section { padding: 100px 0; }
@@ -189,8 +218,9 @@
     .feat-icon {
       width: 36px; height: 36px; border-radius: 10px; margin-bottom: 14px;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(99,102,241,0.1); color: var(--accent);
+      background: rgba(255,180,84,0.1); color: var(--accent);
     }
+    [data-theme="dawn"] .feat-icon { background: rgba(161,80,0,0.08); }
     .feat h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
     .feat p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
@@ -331,6 +361,60 @@
       .theme-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
     }
 
+    /* ─── STATS BAR ─── */
+    .stats-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; margin: 0 auto 48px; flex-wrap: wrap;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; padding: 20px 32px;
+      max-width: 680px;
+    }
+    .stat-item {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0 28px; gap: 4px;
+    }
+    .stat-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px; font-weight: 700; color: var(--text);
+      letter-spacing: -0.5px;
+    }
+    .stat-label {
+      font-size: 11px; color: var(--muted); font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .stat-divider {
+      width: 1px; height: 36px;
+      background: rgba(255,255,255,0.07);
+    }
+    @media (max-width: 600px) {
+      .stats-bar { gap: 16px; padding: 16px; }
+      .stat-divider { display: none; }
+      .stat-item { padding: 0 12px; }
+    }
+
+    /* ─── INVESTOR CTA ─── */
+    .investor-section {
+      padding: 80px 0; text-align: center;
+    }
+    .investor-card {
+      background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08));
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 20px; padding: 56px 40px; max-width: 640px;
+      margin: 0 auto;
+    }
+    .investor-card h2 {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+    .investor-card p {
+      color: var(--muted); font-size: 15px; line-height: 1.7;
+      margin-bottom: 28px;
+    }
+    .investor-links {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+
     /* ─── FADE IN ─── */
     .fade-in {
       opacity: 0; transform: translateY(20px);
@@ -348,17 +432,18 @@
 
   <nav>
     <div class="container">
-      <div class="nav-logo">ClifCode</div>
+      <div class="nav-logo">Clif<span>Code</span></div>
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#themes">Themes</a>
         <a href="#agent">Agent</a>
         <a href="#download">Download</a>
+        <button id="theme-toggle" onclick="toggleTheme()" title="Toggle Dawn / Ayu Dark" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--muted);padding:7px 10px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1;transition:all 0.15s;" onmouseover="this.style.color=getComputedStyle(document.documentElement).getPropertyValue('--text')" onmouseout="this.style.color=getComputedStyle(document.documentElement).getPropertyValue('--muted')">🌙</button>
         <a href="https://github.com/DLhugly/Clif-Code" class="nav-gh">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           GitHub
         </a>
-      </div>
+
     </div>
   </nav>
 
@@ -366,9 +451,9 @@
   <section class="hero" id="download">
     <div class="hero-orb"></div>
     <div class="container hero-content">
-      <div class="hero-badge fade-in"><span class="dot"></span> Built in Rust</div>
-      <h1 class="fade-in delay-1">Code with <span class="gradient">AI.</span><br>Ship fast.</h1>
-      <p class="tagline fade-in delay-2">Native code editor + terminal coding agent. Works with any LLM. 20MB binary, 20 themes, real terminal, git, agent sidebar with tool calling.</p>
+      <div class="hero-badge fade-in"><span class="dot"></span> Native · No Electron · No Subscription</div>
+      <h1 class="fade-in delay-1">The AI code editor<br>that <span class="gradient">works at the speed of thought.</span></h1>
+      <p class="tagline fade-in delay-2">ClifPad is a hyper-fast native IDE powered by your choice of AI. Instant codebase generation. Context-aware completions. Built-in terminal and Git. Say goodbye to Electron bloat and cloud lock-in.</p>
 
       <div class="ctas fade-in delay-3">
         <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="btn btn-primary">
@@ -388,22 +473,28 @@
         <a href="https://github.com/DLhugly/Clif-Code/releases/latest" class="plat-btn">npm i -g clifcode</a>
       </div>
 
-      <p class="dl-note"><a href="https://github.com/DLhugly/Clif-Code/releases">All releases &amp; checksums</a></p>
+      <p class="dl-note"><a href="https://github.com/DLhugly/Clif-Code/releases">All releases &amp; checksums</a> · Free &amp; open source · FSL-1.1 → Apache 2.0</p>
 
-      <div class="screenshot-wrap">
-        <div class="screenshot-glow"></div>
-        <div class="screenshot-frame">
-          <img src="https://raw.githubusercontent.com/DLhugly/Clif-Code/main/SplashScreen.png" alt="ClifPad editor" loading="lazy">
-        </div>
+      <!-- STATS BAR -->
+      <div class="stats-bar fade-in delay-3">
+        <div class="stat-item"><span class="stat-num">20MB</span><span class="stat-label">binary</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat-item"><span class="stat-num">0ms</span><span class="stat-label">latency</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat-item"><span class="stat-num">100+</span><span class="stat-label">LLMs supported</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Rust + Native</span></div>
       </div>
+
+
     </div>
   </section>
 
   <!-- FEATURES -->
   <section class="section" id="features">
     <div class="container">
-      <div class="section-label">ClifPad</div>
-      <h2>Everything. 20MB.</h2>
+      <div class="section-label">A Real IDE</div>
+      <h2>Not just a wrapper. A true environment.</h2>
       <p class="sub">Full IDE with Monaco editing, multi-terminal, git, and an AI agent sidebar. All native Rust.</p>
 
       <div class="feat-grid">
@@ -437,8 +528,8 @@
           <h3>Any LLM</h3>
           <p>OpenRouter (100+ models), OpenAI, Anthropic, Ollama (fully local). Bring your own key, pick your model.</p>
         </div>
-        <div class="feat" style={{ "grid-column": "1 / -1" }}>
-          <div class="feat-icon" style={{ background: "rgba(248,113,113,0.1)", color: "var(--red)" }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="feat" style="grid-column: 1 / -1;">
+          <div class="feat-icon" style="background: rgba(248,113,113,0.1); color: var(--red);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
           <h3>Security Scanner</h3>
           <p>Detects hardcoded API keys, private keys, passwords, SQL injection, eval/exec, and more. Runs before every git commit. Full repo scan from the status bar. The AI checks its own work.</p>
         </div>
@@ -629,17 +720,74 @@
     </div>
   </section>
 
+  <!-- INVESTOR CTA -->
+  <section class="investor-section">
+    <div class="container">
+      <div class="investor-card">
+        <div class="hero-badge" style="margin: 0 auto 20px; width: fit-content;"><span class="dot"></span> We're building the future of AI-native development</div>
+        <h2>Interested in <span class="gradient">partnering</span> or investing?</h2>
+        <p>ClifPad and ClifCode are growing fast. We're building native, privacy-first AI tooling for developers who want power without compromise. If you're an investor, accelerator, or strategic partner — let's talk.</p>
+        <div class="investor-links">
+          <a href="mailto:james@clifcode.io" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            Get in Touch
+          </a>
+          <a href="https://github.com/DLhugly/Clif-Code" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer>
     <div class="container">
-      <p class="tagline">Code with AI. Built in Rust.</p>
-      <p>
-        <a href="https://github.com/DLhugly/Clif-Code">GitHub</a> · 
-        <a href="https://github.com/DLhugly/Clif-Code/releases">Releases</a> · 
-        <a href="https://github.com/DLhugly/Clif-Code/blob/main/LICENSE">FSL-1.1-ALv2</a>
-      </p>
-      <p style="margin-top: 8px;">Built by <a href="https://github.com/DLhugly">James Lawrence</a></p>
+      <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:16px;">
+        <div class="nav-logo" style="font-size:16px;">ClifCode</div>
+      </div>
+      <div style="display:flex; gap:24px; justify-content:center; margin-bottom:16px; flex-wrap:wrap;">
+        <a href="#features" style="color:var(--muted);text-decoration:none;font-size:13px;">Features</a>
+        <a href="#themes" style="color:var(--muted);text-decoration:none;font-size:13px;">Themes</a>
+        <a href="#agent" style="color:var(--muted);text-decoration:none;font-size:13px;">Terminal Agent</a>
+        <a href="https://github.com/DLhugly/Clif-Code" style="color:var(--muted);text-decoration:none;font-size:13px;">GitHub</a>
+        <a href="https://github.com/DLhugly/Clif-Code/releases" style="color:var(--muted);text-decoration:none;font-size:13px;">Releases</a>
+        <a href="https://github.com/DLhugly/Clif-Code/blob/main/LICENSE" style="color:var(--muted);text-decoration:none;font-size:13px;">License</a>
+      </div>
+      <p style="font-size:12px;color:var(--muted);">FSL-1.1-ALv2 · Converts to Apache 2.0 after 2 years · Built by <a href="https://github.com/DLhugly" style="color:var(--accent);">James Lawrence</a></p>
+      <p style="font-size:11px;color:rgba(107,107,128,0.5);margin-top:8px;">© 2025 ClifCode. No telemetry. No subscription. No Electron.</p>
     </div>
   </footer>
 
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const btn = document.getElementById('theme-toggle');
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        html.removeAttribute('data-theme');
+        btn.textContent = '🌙';
+        btn.title = 'Switch to Ayu Dark';
+        localStorage.setItem('clif-theme', 'dawn');
+      } else {
+        html.setAttribute('data-theme', 'dark');
+        btn.textContent = '☀';
+        btn.title = 'Switch to Dawn (light)';
+        localStorage.setItem('clif-theme', 'dark');
+      }
+    }
+    // Restore preference on load (Default to Dawn)
+    (function() {
+      const saved = localStorage.getItem('clif-theme') || 'dawn';
+      const btn = document.getElementById('theme-toggle');
+      if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (btn) { btn.textContent = '☀'; btn.title = 'Switch to Dawn (light)'; }
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        if (btn) { btn.textContent = '🌙'; btn.title = 'Switch to Ayu Dark'; }
+      }
+    })();
+  </script>
 </body>
 </html>
