@@ -1,3 +1,10 @@
+# [1.45.0](https://github.com/DLhugly/Clif-Code/compare/v1.44.0...v1.45.0) (2026-03-27)
+
+
+### Features
+
+* **ui:** refactor panel management system for reliability ([b1f03c3](https://github.com/DLhugly/Clif-Code/commit/b1f03c32f2557907c73761fa1a253f3198b484ff))
+
 # [1.44.0](https://github.com/DLhugly/Clif-Code/compare/v1.43.0...v1.44.0) (2026-03-27)
 
 
