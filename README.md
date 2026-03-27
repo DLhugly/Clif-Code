@@ -37,7 +37,19 @@ Two products, one monorepo:
 Both use any LLM via OpenRouter, OpenAI, Anthropic, or Ollama (fully local). No Electron. No telemetry. No subscription.
 
 <p align="center">
-  <img src="SplashScreen.png" alt="ClifPad Screenshot" width="800" />
+  <img src="clif-pad-ide/www/117shots_so.png" alt="ClifPad Screenshot 1" width="800" />
+</p>
+
+<p align="center">
+  <img src="clif-pad-ide/www/30shots_so.png" alt="ClifPad Screenshot 2" width="800" />
+</p>
+
+<p align="center">
+  <img src="clif-pad-ide/www/900shots_so.png" alt="ClifPad Screenshot 3" width="800" />
+</p>
+
+<p align="center">
+  <img src="SplashScreen.png" alt="ClifPad Logo" width="800" />
 </p>
 
 ---

@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { getSettings, setSettings } from "../lib/tauri";
-import type { Theme, PanelSlot } from "./uiStore";
+import type { Theme } from "./uiStore";
 
 interface Settings {
   theme: Theme;
@@ -14,8 +14,6 @@ interface Settings {
   vimMode: boolean;
   aiProvider: string;
   aiModel: string;
-  leftPanel: PanelSlot;
-  rightPanel: PanelSlot;
   inlineAiEnabled: boolean;
 }
 
@@ -31,8 +29,6 @@ const defaultSettings: Settings = {
   vimMode: false,
   aiProvider: "openrouter",
   aiModel: "anthropic/claude-sonnet-4",
-  leftPanel: "terminal",
-  rightPanel: "sidebar",
   inlineAiEnabled: true,
 };
 

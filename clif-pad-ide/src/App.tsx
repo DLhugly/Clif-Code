@@ -5,7 +5,7 @@ import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
 import ToastContainer from "./components/layout/ToastContainer";
-import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, leftPanel, rightPanel, setLeftPanel, setRightPanel } from "./stores/uiStore";
+import { terminalWidth, setTerminalWidth, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -136,9 +136,7 @@ const App: Component = () => {
     applyTheme(s.theme);
     setUiFontSize(s.fontSize);
 
-    // Restore layout from settings
-    if (s.leftPanel) setLeftPanel(s.leftPanel);
-    if (s.rightPanel) setRightPanel(s.rightPanel);
+    // Note: Panel visibility is now managed directly via toggles
 
     // Load and apply saved fonts
     loadGoogleFont(s.editorFont);

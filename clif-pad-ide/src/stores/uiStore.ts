@@ -1,9 +1,8 @@
-import { createSignal } from "solid-js";
+import { createSignal, createEffect } from "solid-js";
 
 export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai" | "nord" | "dracula" | "one-dark" | "tokyo-night" | "catppuccin" | "rose-pine" | "ayu-dark" | "vesper" | "poimandres" | "pale-fire";
 
-export type PanelSlot = "terminal" | "agent" | "sidebar" | "none";
-export type LayoutPreset = "default" | "agent-mode" | "terminal-only" | "sidebar-only" | "zen";
+export type Panel = "terminal" | "agent" | "files" | "editor";
 
 export interface ThemeMeta {
   label: string;
@@ -35,45 +34,58 @@ export const THEMES: Record<Theme, ThemeMeta> = {
   "pale-fire":       { label: "Pale Fire",        accent: "#b4637a", bg: "#faf4ed", isDark: false },
 };
 
+// Panel visibility — single source of truth
+const [visiblePanels, setVisiblePanels] = createSignal<Set<Panel>>(new Set(["terminal", "files", "editor"]));
+
+// Panel sizes
 const [terminalWidth, setTerminalWidth] = createSignal(50);
-const [terminalVisible, setTerminalVisible] = createSignal(true);
-const [sidebarVisible, setSidebarVisible] = createSignal(true);
 const [sidebarWidth, setSidebarWidth] = createSignal(240);
+const [agentWidth, setAgentWidth] = createSignal(380);
+
+// UI state
 const [theme, setTheme] = createSignal<Theme>("midnight");
 const [fontSize, setFontSize] = createSignal(14);
 const [showCommandPalette, setShowCommandPalette] = createSignal(false);
 const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
-const [agentWidth, setAgentWidth] = createSignal(380);
-const [agentVisible, setAgentVisible] = createSignal(false);
-const [editorVisible, setEditorVisible] = createSignal(true);
 
-const [leftPanel, setLeftPanel] = createSignal<PanelSlot>("terminal");
-const [rightPanel, setRightPanel] = createSignal<PanelSlot>("sidebar");
+// Derived visibility signals for backward compatibility
+const terminalVisible = () => visiblePanels().has("terminal");
+const agentVisible = () => visiblePanels().has("agent");
+const sidebarVisible = () => visiblePanels().has("files");
+const editorVisible = () => visiblePanels().has("editor");
 
-const LAYOUT_PRESETS: Record<LayoutPreset, { left: PanelSlot; right: PanelSlot }> = {
-  "default": { left: "terminal", right: "sidebar" },
-  "agent-mode": { left: "terminal", right: "agent" },
-  "terminal-only": { left: "terminal", right: "none" },
-  "sidebar-only": { left: "none", right: "sidebar" },
-  "zen": { left: "none", right: "none" },
-};
-
-function applyLayoutPreset(preset: LayoutPreset) {
-  const config = LAYOUT_PRESETS[preset];
-  setLeftPanel(config.left);
-  setRightPanel(config.right);
-  setTerminalVisible(config.left === "terminal");
-  setSidebarVisible(config.right === "sidebar");
+// Helper functions to toggle panels
+function togglePanel(panel: Panel) {
+  setVisiblePanels(prev => {
+    const next = new Set(prev);
+    if (next.has(panel)) {
+      next.delete(panel);
+    } else {
+      next.add(panel);
+    }
+    return next;
+  });
 }
 
-function getCurrentPreset(): LayoutPreset | null {
-  const l = leftPanel();
-  const r = rightPanel();
-  for (const [key, val] of Object.entries(LAYOUT_PRESETS)) {
-    if (val.left === l && val.right === r) return key as LayoutPreset;
-  }
-  return null;
+function showPanel(panel: Panel) {
+  setVisiblePanels(prev => {
+    const next = new Set(prev);
+    next.add(panel);
+    return next;
+  });
+}
+
+function hidePanel(panel: Panel) {
+  setVisiblePanels(prev => {
+    const next = new Set(prev);
+    next.delete(panel);
+    return next;
+  });
+}
+
+function setPanelVisibility(panels: Panel[]) {
+  setVisiblePanels(new Set(panels));
 }
 
 const VALID_THEMES = Object.keys(THEMES) as Theme[];
@@ -94,57 +106,82 @@ function setUiFontSize(size: number) {
   document.documentElement.style.setProperty("--ui-font-size", `${clamped}px`);
 }
 
+// Backward-compatible toggle functions
 function toggleTerminal() {
-  setTerminalVisible(!terminalVisible());
+  togglePanel("terminal");
 }
 
 function toggleSidebar() {
-  setSidebarVisible(!sidebarVisible());
+  togglePanel("files");
 }
 
 function toggleAgentPanel() {
-  setAgentVisible(!agentVisible());
+  togglePanel("agent");
 }
 
 function toggleEditor() {
-  setEditorVisible(!editorVisible());
+  togglePanel("editor");
+}
+
+// Backward-compatible setter functions (deprecated, but kept for compatibility)
+function setTerminalVisible(visible: boolean) {
+  visible ? showPanel("terminal") : hidePanel("terminal");
+}
+
+function setSidebarVisible(visible: boolean) {
+  visible ? showPanel("files") : hidePanel("files");
+}
+
+function setAgentVisible(visible: boolean) {
+  visible ? showPanel("agent") : hidePanel("agent");
+}
+
+function setEditorVisible(visible: boolean) {
+  visible ? showPanel("editor") : hidePanel("editor");
 }
 
 export {
-  terminalWidth,
-  setTerminalWidth,
+  // Panel visibility
+  visiblePanels,
   terminalVisible,
-  setTerminalVisible,
+  agentVisible,
   sidebarVisible,
-  setSidebarVisible,
-  sidebarWidth,
-  setSidebarWidth,
-  theme,
-  setTheme,
-  fontSize,
-  setUiFontSize,
-  showCommandPalette,
-  setShowCommandPalette,
-  applyTheme,
+  editorVisible,
+  togglePanel,
+  showPanel,
+  hidePanel,
+  setPanelVisibility,
   toggleTerminal,
   toggleSidebar,
+  toggleAgentPanel,
+  toggleEditor,
+  setTerminalVisible,
+  setSidebarVisible,
+  setAgentVisible,
+  setEditorVisible,
+  
+  // Panel sizes
+  terminalWidth,
+  setTerminalWidth,
+  sidebarWidth,
+  setSidebarWidth,
+  agentWidth,
+  setAgentWidth,
+  
+  // Theme
+  theme,
+  setTheme,
+  applyTheme,
+  
+  // Font
+  fontSize,
+  setUiFontSize,
+  
+  // Other UI state
+  showCommandPalette,
+  setShowCommandPalette,
   devDrawerOpen,
   setDevDrawerOpen,
   devDrawerHeight,
   setDevDrawerHeight,
-  leftPanel,
-  setLeftPanel,
-  rightPanel,
-  setRightPanel,
-  agentWidth,
-  setAgentWidth,
-  agentVisible,
-  setAgentVisible,
-  toggleAgentPanel,
-  editorVisible,
-  setEditorVisible,
-  toggleEditor,
-  applyLayoutPreset,
-  getCurrentPreset,
-  LAYOUT_PRESETS,
 };
