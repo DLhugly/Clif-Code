@@ -1,5 +1,5 @@
 import { Component, Show, For, createSignal, onCleanup } from "solid-js";
-import { theme, applyTheme, fontSize, setUiFontSize, THEMES, toggleSidebar, sidebarVisible, toggleAgentPanel, agentVisible } from "../../stores/uiStore";
+import { theme, applyTheme, fontSize, setUiFontSize, THEMES, toggleSidebar, sidebarVisible } from "../../stores/uiStore";
 import { securityEnabled, setSecurityEnabled } from "../../stores/securityStore";
 import type { Theme } from "../../stores/uiStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
@@ -232,17 +232,24 @@ const TopBar: Component<{
         class="flex items-center gap-3"
         style={{ "flex-shrink": "0", "padding-left": "2px", "margin-right": "16px" }}
       >
-        <svg width="22" height="22" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="topbar-logo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#6366f1"/>
-              <stop offset="100%" style="stop-color:#a855f7"/>
-            </linearGradient>
-          </defs>
-          <rect width="1024" height="1024" rx="200" ry="200" fill="url(#topbar-logo-bg)"/>
-          <polyline points="640 768 880 512 640 256" fill="none" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="384 256 144 512 384 768" fill="none" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <div
+          style={{
+            width: "36px",
+            height: "28px",
+            background: "var(--accent-primary)",
+            "border-radius": "6px",
+            display: "flex",
+            "align-items": "center",
+            "justify-content": "center",
+            "font-family": '"Fira Code", "JetBrains Mono", "SF Mono", monospace',
+            "font-size": "18px",
+            "font-weight": "900",
+            color: "var(--accent-text, #fff)",
+            "letter-spacing": "-1px",
+          }}
+        >
+          {"< >"}
+        </div>
         <span
           class="text-sm font-semibold"
           style={{ color: "var(--text-primary)", "white-space": "nowrap" }}
@@ -274,7 +281,7 @@ const TopBar: Component<{
         {/* Font size slider */}
         <div
           class="flex items-center gap-2"
-          style={{ color: "var(--text-secondary)" }}
+          style={{ color: "var(--text-secondary)", "margin-left": "-12px" }}
         >
           <span style={{ "font-size": "11px", "font-weight": "600", opacity: "0.7" }}>A</span>
           <input
@@ -312,6 +319,7 @@ const TopBar: Component<{
           value={settings().editorFont}
           options={MONO_FONTS}
           onChange={handleFontFamilyChange}
+          style={{ "margin-left": "-12px" }}
         />
 
         {/* Divider */}
@@ -459,29 +467,6 @@ const TopBar: Component<{
             </div>
           </Show>
         </div>
-
-        {/* Divider */}
-        <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
-
-        {/* Agent toggle */}
-        <button
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150"
-          style={{
-            background: agentVisible() ? "var(--bg-active)" : "var(--bg-hover)",
-            color: agentVisible() ? "var(--text-primary)" : "var(--text-muted)",
-            border: "1px solid var(--border-default)",
-            cursor: "pointer",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = agentVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
-          onClick={() => toggleAgentPanel()}
-          title={agentVisible() ? "Hide Agent panel" : "Open Agent panel"}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          {agentVisible() ? "Hide Agent" : "Open Agent"}
-        </button>
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />

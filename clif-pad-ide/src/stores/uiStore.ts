@@ -35,10 +35,10 @@ export const THEMES: Record<Theme, ThemeMeta> = {
 };
 
 // Panel visibility — single source of truth
-const [visiblePanels, setVisiblePanels] = createSignal<Set<Panel>>(new Set(["terminal", "files", "editor"]));
+const [visiblePanels, setVisiblePanels] = createSignal<Set<Panel>>(new Set(["files", "editor"]));
 
 // Panel sizes
-const [terminalWidth, setTerminalWidth] = createSignal(50);
+const [terminalHeight, setTerminalHeight] = createSignal(30);
 const [sidebarWidth, setSidebarWidth] = createSignal(240);
 const [agentWidth, setAgentWidth] = createSignal(380);
 
@@ -161,8 +161,8 @@ export {
   setEditorVisible,
   
   // Panel sizes
-  terminalWidth,
-  setTerminalWidth,
+  terminalHeight,
+  setTerminalHeight,
   sidebarWidth,
   setSidebarWidth,
   agentWidth,
