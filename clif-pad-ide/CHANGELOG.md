@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/DLhugly/Clif-Code/compare/v1.45.1...v1.46.0) (2026-03-28)
+
+
+### Features
+
+* enhance terminal UX and improve top bar styling ([e6f2eb3](https://github.com/DLhugly/Clif-Code/commit/e6f2eb39af1ee4fd4abf442a9b88d4c3ce1504ed))
+
 ## [1.45.1](https://github.com/DLhugly/Clif-Code/compare/v1.45.0...v1.45.1) (2026-03-27)
 
 
