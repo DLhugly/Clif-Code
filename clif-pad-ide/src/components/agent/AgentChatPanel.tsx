@@ -25,6 +25,8 @@ import ChatMessage from "./ChatMessage";
 import ContextChip from "./ContextChip";
 import type { AgentContext } from "../../types/agent";
 
+import { SectionHeader } from "../ui";
+
 // Extracted sub-components
 import { SparkleIcon, SendIcon, StopIcon, KeyIcon, GearIcon } from "./icons";
 import { PROVIDERS, POPULAR_MODELS, formatPrice, modelProviderLabel, type OpenRouterModel } from "./constants";
@@ -870,48 +872,13 @@ const AgentChatPanel: Component = () => {
           const [collapsed, setCollapsed] = createSignal(false);
           const root = () => projectRoot() || "";
           return (
-            <div
-              class="shrink-0"
-              style={{ "border-top": "1px solid var(--border-muted)" }}
-            >
-              {/* Header row */}
-              <button
-                class="flex items-center gap-1.5 w-full px-3 py-1"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--text-muted)",
-                  "font-size": `${fontSize() - 3}px`,
-                  "font-weight": "600",
-                  "letter-spacing": "0.04em",
-                  "text-transform": "uppercase",
-                }}
-                onClick={() => setCollapsed((c) => !c)}
-                title={collapsed() ? "Show context files" : "Collapse context files"}
-              >
-                {/* Chevron */}
-                <svg
-                  width="9" height="9" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="3"
-                  stroke-linecap="round" stroke-linejoin="round"
-                  style={{ transform: collapsed() ? "rotate(0deg)" : "rotate(90deg)", transition: "transform 0.15s" }}
-                >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-                <span>In Context</span>
-                <span
-                  class="rounded-full px-1.5"
-                  style={{
-                    background: "var(--bg-active)",
-                    color: "var(--accent-primary)",
-                    "font-size": `${fontSize() - 4}px`,
-                    "font-weight": "700",
-                  }}
-                >
-                  {contextFiles().length}
-                </span>
-              </button>
+            <div class="shrink-0" style={{ "border-top": "1px solid var(--border-muted)" }}>
+              <SectionHeader
+                title="In Context"
+                count={contextFiles().length}
+                collapsed={collapsed()}
+                onToggle={() => setCollapsed((c) => !c)}
+              />
 
               {/* File list */}
               <Show when={!collapsed()}>

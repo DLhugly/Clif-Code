@@ -5,6 +5,7 @@ import StatusBar from "./components/layout/StatusBar";
 import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
 import ToastContainer from "./components/layout/ToastContainer";
+import { ResizeHandle } from "./components/ui";
 import { terminalHeight, setTerminalHeight, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
@@ -20,10 +21,12 @@ const AgentChatPanel = lazy(() => import("./components/agent/AgentChatPanel"));
 
 const App: Component = () => {
   let terminalRef: TerminalPanelRef | undefined;
+  let sidebarContainerRef: HTMLDivElement | undefined;
   const [isDraggingTerminal, setIsDraggingTerminal] = createSignal(false);
   const [isDraggingSidebar, setIsDraggingSidebar] = createSignal(false);
   const [isDraggingAgent, setIsDraggingAgent] = createSignal(false);
   const [showAbout, setShowAbout] = createSignal(false);
+  const isDraggingAny = () => isDraggingTerminal() || isDraggingSidebar() || isDraggingAgent();
 
   function handleLaunchClaude() {
     if (terminalRef && projectRoot()) {
@@ -61,18 +64,25 @@ const App: Component = () => {
   function handleTerminalResize(e: MouseEvent) {
     e.preventDefault();
     setIsDraggingTerminal(true);
+    document.body.style.cursor = "row-resize";
+    let rafId = 0;
 
     const onMouseMove = (e: MouseEvent) => {
-      const windowHeight = window.innerHeight;
-      const statusBarHeight = 24;
-      const topBarHeight = 40;
-      const availableHeight = windowHeight - statusBarHeight - topBarHeight;
-      const pct = ((windowHeight - e.clientY) / availableHeight) * 100;
-      setTerminalHeight(Math.max(15, Math.min(70, pct)));
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const windowHeight = window.innerHeight;
+        const statusBarHeight = 24;
+        const topBarHeight = 40;
+        const availableHeight = windowHeight - statusBarHeight - topBarHeight;
+        const pct = ((windowHeight - e.clientY) / availableHeight) * 100;
+        setTerminalHeight(Math.max(15, Math.min(70, pct)));
+      });
     };
 
     const onMouseUp = () => {
+      cancelAnimationFrame(rafId);
       setIsDraggingTerminal(false);
+      document.body.style.cursor = "";
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
@@ -84,14 +94,26 @@ const App: Component = () => {
   function handleSidebarResize(e: MouseEvent) {
     e.preventDefault();
     setIsDraggingSidebar(true);
+    document.body.style.cursor = "col-resize";
+    let rafId = 0;
+
+    // Capture the right edge of the sidebar container at drag start
+    const sidebarRight = sidebarContainerRef
+      ? sidebarContainerRef.getBoundingClientRect().right
+      : window.innerWidth;
 
     const onMouseMove = (e: MouseEvent) => {
-      const width = window.innerWidth - e.clientX;
-      setSidebarWidth(Math.max(180, Math.min(500, width)));
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const width = sidebarRight - e.clientX;
+        setSidebarWidth(Math.max(180, Math.min(500, width)));
+      });
     };
 
     const onMouseUp = () => {
+      cancelAnimationFrame(rafId);
       setIsDraggingSidebar(false);
+      document.body.style.cursor = "";
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
@@ -103,14 +125,21 @@ const App: Component = () => {
   function handleAgentResize(e: MouseEvent) {
     e.preventDefault();
     setIsDraggingAgent(true);
+    document.body.style.cursor = "col-resize";
+    let rafId = 0;
 
     const onMouseMove = (e: MouseEvent) => {
-      const width = window.innerWidth - e.clientX;
-      setAgentWidth(Math.max(280, Math.min(window.innerWidth - 100, width)));
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const width = window.innerWidth - e.clientX;
+        setAgentWidth(Math.max(280, Math.min(window.innerWidth - 100, width)));
+      });
     };
 
     const onMouseUp = () => {
+      cancelAnimationFrame(rafId);
       setIsDraggingAgent(false);
+      document.body.style.cursor = "";
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
@@ -166,6 +195,18 @@ const App: Component = () => {
       class="flex flex-col w-full h-screen overflow-hidden"
       style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
     >
+      {/* Transparent overlay during drag to prevent Monaco/xterm from stealing mouse events */}
+      <Show when={isDraggingAny()}>
+        <div
+          style={{
+            position: "fixed",
+            inset: "0",
+            "z-index": "9999",
+            cursor: isDraggingTerminal() ? "row-resize" : "col-resize",
+          }}
+        />
+      </Show>
+
       {/* Top Bar */}
       <TopBar onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
 
@@ -182,26 +223,7 @@ const App: Component = () => {
 
           {/* Bottom Panel: Terminal (only under editor) */}
           <Show when={terminalVisible()}>
-            {/* Terminal Resize Handle (draggable top border) */}
-            <div
-              class="shrink-0 cursor-row-resize"
-              style={{
-                height: "5px",
-                background: isDraggingTerminal() ? "var(--accent-primary)" : "var(--border-default)",
-                transition: isDraggingTerminal() ? "none" : "background 0.15s",
-              }}
-              onMouseDown={handleTerminalResize}
-              onMouseEnter={(e) => {
-                if (!isDraggingTerminal()) {
-                  (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isDraggingTerminal()) {
-                  (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
-                }
-              }}
-            />
+            <ResizeHandle direction="row" isDragging={isDraggingTerminal()} onMouseDown={handleTerminalResize} />
 
             <div
               style={{ height: `${terminalHeight()}%` }}
@@ -225,28 +247,10 @@ const App: Component = () => {
 
         {/* Right Panel: Sidebar */}
         <Show when={sidebarVisible()}>
-          {/* Sidebar Resize Handle */}
-          <div
-            class="shrink-0 cursor-col-resize"
-            style={{
-              width: "5px",
-              background: isDraggingSidebar() ? "var(--accent-primary)" : "var(--border-default)",
-              transition: isDraggingSidebar() ? "none" : "background 0.15s",
-            }}
-            onMouseDown={handleSidebarResize}
-            onMouseEnter={(e) => {
-              if (!isDraggingSidebar()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isDraggingSidebar()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
-              }
-            }}
-          />
+          <ResizeHandle direction="col" isDragging={isDraggingSidebar()} onMouseDown={handleSidebarResize} />
 
           <div
+            ref={sidebarContainerRef}
             style={{ width: `${sidebarWidth()}px` }}
             class="h-full shrink-0"
           >
@@ -262,25 +266,7 @@ const App: Component = () => {
 
         {/* Agent Panel (independent, on the far right) */}
         <Show when={agentVisible()}>
-          <div
-            class="shrink-0 cursor-col-resize"
-            style={{
-              width: "5px",
-              background: isDraggingAgent() ? "var(--accent-primary)" : "var(--border-default)",
-              transition: isDraggingAgent() ? "none" : "background 0.15s",
-            }}
-            onMouseDown={handleAgentResize}
-            onMouseEnter={(e) => {
-              if (!isDraggingAgent()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--accent-primary)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isDraggingAgent()) {
-                (e.currentTarget as HTMLElement).style.background = "var(--border-default)";
-              }
-            }}
-          />
+          <ResizeHandle direction="col" isDragging={isDraggingAgent()} onMouseDown={handleAgentResize} />
 
           <div
             style={{ width: `${agentWidth()}px` }}
