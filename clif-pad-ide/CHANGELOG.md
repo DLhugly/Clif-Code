@@ -1,3 +1,10 @@
+## [1.46.2](https://github.com/DLhugly/Clif-Code/compare/v1.46.1...v1.46.2) (2026-03-29)
+
+
+### Bug Fixes
+
+* resolve TypeScript errors breaking CI build (FontDropdown style prop, uiStore test API mismatch) ([dadcb50](https://github.com/DLhugly/Clif-Code/commit/dadcb50914721cd556b6d5207e8d634fb136b777))
+
 ## [1.46.1](https://github.com/DLhugly/Clif-Code/compare/v1.46.0...v1.46.1) (2026-03-29)
 
 
