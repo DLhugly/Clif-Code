@@ -1,3 +1,10 @@
+## [1.46.3](https://github.com/DLhugly/Clif-Code/compare/v1.46.2...v1.46.3) (2026-03-29)
+
+
+### Bug Fixes
+
+* Node 24 actions, create-dmg fallback, drop cross for native ARM64 linker ([ee007f4](https://github.com/DLhugly/Clif-Code/commit/ee007f44cfa8f71ab7a1d75cd41fd942a4ab604f))
+
 ## [1.46.2](https://github.com/DLhugly/Clif-Code/compare/v1.46.1...v1.46.2) (2026-03-29)
 
 
