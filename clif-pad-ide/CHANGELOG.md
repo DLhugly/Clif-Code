@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/DLhugly/Clif-Code/compare/v1.46.4...v1.47.0) (2026-03-29)
+
+
+### Features
+
+* extract shared components and fix choppy sidebar resize ([d3ca4f5](https://github.com/DLhugly/Clif-Code/commit/d3ca4f5030925bed47ab04992a76e3fba0fcac6f))
+
 ## [1.46.4](https://github.com/DLhugly/Clif-Code/compare/v1.46.3...v1.46.4) (2026-03-29)
 
 

@@ -1,6 +1,6 @@
 [package]
 name = "clifpad"
-version = "1.46.4"
+version = "1.47.0"
 edition = "2021"
 
 [lib]
