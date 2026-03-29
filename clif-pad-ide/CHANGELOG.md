@@ -1,3 +1,10 @@
+## [1.46.4](https://github.com/DLhugly/Clif-Code/compare/v1.46.3...v1.46.4) (2026-03-29)
+
+
+### Bug Fixes
+
+* extract AgentChatPanel into modular sub-components ([4029a37](https://github.com/DLhugly/Clif-Code/commit/4029a3727602a184a12d10d2ffa2abf08a05f8e3))
+
 ## [1.46.3](https://github.com/DLhugly/Clif-Code/compare/v1.46.2...v1.46.3) (2026-03-29)
 
 
