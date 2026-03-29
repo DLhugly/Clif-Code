@@ -1,6 +1,6 @@
 [package]
 name = "clifcode"
-version = "0.1.0"
+version = "1.45.1"
 edition = "2021"
 description = "Open-source AI coding agent for your terminal — tool-calling loop, streaming, sessions, any provider"
 license = "FSL-1.1-ALv2"

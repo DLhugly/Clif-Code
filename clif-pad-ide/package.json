@@ -55,7 +55,7 @@
       [
         "@semantic-release/exec",
         {
-          "prepareCmd": "node scripts/bump-version.js ${nextRelease.version} && node ../clif-code-tui/scripts/bump-version.js ${nextRelease.version}"
+          "prepareCmd": "node scripts/bump-version.js ${nextRelease.version} && node ../clif-code-tui/scripts/bump-version.mjs ${nextRelease.version}"
         }
       ],
       [

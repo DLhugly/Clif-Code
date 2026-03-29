@@ -41,10 +41,15 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
 
     // Delay update check so it doesn't block startup
     setTimeout(async () => {
-      const update = await checkForUpdate();
-      if (update) {
-        setPendingUpdate(update);
-        setUpdateStatus({ state: "available", version: update.version, update });
+      try {
+        const update = await checkForUpdate();
+        if (update) {
+          setPendingUpdate(update);
+          setUpdateStatus({ state: "available", version: update.version, update });
+        }
+      } catch {
+        // Updater endpoint is unreachable or returned a bad manifest —
+        // fail silently on startup; user can retry by clicking the version chip
       }
     }, 3000);
   });
@@ -92,8 +97,12 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
         setUpdateStatus({ state: "up-to-date" });
         setTimeout(() => setUpdateStatus({ state: "idle" }), 3000);
       }
-    } catch {
-      setUpdateStatus({ state: "idle" });
+    } catch (e) {
+      setUpdateStatus({
+        state: "error",
+        message: e instanceof Error ? e.message : "Could not reach update server",
+      });
+      setTimeout(() => setUpdateStatus({ state: "idle" }), 4000);
     }
   }
 

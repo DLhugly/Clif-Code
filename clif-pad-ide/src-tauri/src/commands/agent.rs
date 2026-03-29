@@ -1088,9 +1088,38 @@ async fn run_agent_loop(
     }
 
     for msg in &initial_messages {
+        // Build content as vision multi-part array when images are present,
+        // otherwise use a plain string (cheaper tokens, wider model compat).
+        let content_value = if let Some(images) = &msg.images {
+            if !images.is_empty() {
+                let mut parts: Vec<serde_json::Value> = vec![
+                    json!({ "type": "text", "text": &msg.content }),
+                ];
+                for data_url in images {
+                    // data_url is "data:image/png;base64,<b64>" — extract media type + data
+                    if let Some(comma_pos) = data_url.find(',') {
+                        let header = &data_url[5..comma_pos]; // strip "data:"
+                        let (media_type, _) = header.split_once(';').unwrap_or((header, ""));
+                        let b64_data = &data_url[comma_pos + 1..];
+                        parts.push(json!({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": format!("data:{};base64,{}", media_type, b64_data)
+                            }
+                        }));
+                    }
+                }
+                serde_json::Value::Array(parts)
+            } else {
+                serde_json::Value::String(msg.content.clone())
+            }
+        } else {
+            serde_json::Value::String(msg.content.clone())
+        };
+
         conversation.push(json!({
             "role": msg.role,
-            "content": msg.content,
+            "content": content_value,
         }));
     }
 
@@ -1142,11 +1171,19 @@ async fn run_agent_loop(
         let status_msg = if _turn == 0 { "Thinking..." } else { "Planning next step..." };
         let _ = app.emit_to(label, "agent_status", status_msg);
 
+        // On the first turn, check if the last user message contains images.
+        // If so, use tool_choice "none" — many providers reject vision + tool_choice:"auto"
+        // in the same request, and the model should describe the image first anyway.
+        let has_vision_turn = _turn == 0 && conversation.iter().rev().any(|m| {
+            m.get("role").and_then(|r| r.as_str()) == Some("user")
+            && m.get("content").map(|c| c.is_array()).unwrap_or(false)
+        });
+
         let mut request_body = json!({
             "model": model,
             "messages": conversation,
             "tools": tools,
-            "tool_choice": "auto",
+            "tool_choice": if has_vision_turn { "none" } else { "auto" },
             "stream": true,
             "stream_options": { "include_usage": true },
         });
@@ -1323,6 +1360,19 @@ async fn run_agent_loop(
                 "completion_tokens": turn_completion_tokens,
                 "estimated_context": estimated_ctx,
             }));
+        }
+
+        // If the model returned nothing at all (empty content, no tool calls) —
+        // most likely a vision-incapable model silently ignored the image.
+        if assistant_content.is_empty() && tool_calls_map.is_empty() {
+            let hint = if has_vision_turn {
+                "⚠️ The model returned an empty response. This usually means it doesn't support vision/images. Try switching to **GPT-4o**, **Claude 3.5 Sonnet**, or **Gemini 1.5 Pro** which support image input."
+            } else {
+                "⚠️ The model returned an empty response. Try rephrasing your message or switching models."
+            };
+            let _ = app.emit_to(label, "agent_stream", hint);
+            let _ = app.emit_to(label, "agent_stream", "[DONE]");
+            return Ok(());
         }
 
         // If no tool calls, check if the model narrated tool usage without calling tools

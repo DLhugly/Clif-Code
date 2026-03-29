@@ -242,13 +242,14 @@ async function initAgentListeners() {
   );
 }
 
-async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string) {
+async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string, images?: string[]) {
   if (agentStreaming()) return;
 
   const userMsg: AgentMessage = {
     id: genId(),
     role: "user",
     content,
+    images: images && images.length > 0 ? images : undefined,
     timestamp: Date.now(),
     status: "done",
   };
@@ -257,10 +258,10 @@ async function sendAgentMessage(content: string, context?: AgentContext, modelOv
   setAgentStreaming(true);
   setAgentError(null);
 
-  // Build messages array for backend
+  // Build messages array for backend — include images for vision-capable models
   const messages = [...agentMessages]
     .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ role: m.role as string, content: m.content }));
+    .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
 
   const s = settings();
   const workspaceDir = projectRoot() || "";

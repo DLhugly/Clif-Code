@@ -2,6 +2,7 @@ export interface AgentMessage {
   id: string;
   role: "user" | "assistant" | "tool_call" | "tool_result" | "system";
   content: string;
+  images?: string[]; // base64 data URLs for pasted/attached images
   timestamp: number;
   toolName?: string;
   toolCallId?: string;

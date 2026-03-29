@@ -448,7 +448,30 @@ const ChatMessage: Component<{
         }}
       >
         <Show when={isUser()}>
-          <div class="whitespace-pre-wrap" style={{ "user-select": "text", "-webkit-user-select": "text" }}>{props.message.content}</div>
+          {/* Image attachments shown above the text */}
+          <Show when={props.message.images && props.message.images.length > 0}>
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <For each={props.message.images}>
+                {(img) => (
+                  <img
+                    src={img}
+                    alt="attachment"
+                    style={{
+                      "max-width": "200px",
+                      "max-height": "160px",
+                      "object-fit": "contain",
+                      "border-radius": "6px",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      display: "block",
+                    }}
+                  />
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show when={props.message.content}>
+            <div class="whitespace-pre-wrap" style={{ "user-select": "text", "-webkit-user-select": "text" }}>{props.message.content}</div>
+          </Show>
         </Show>
         <Show when={isAssistant()}>
           <div class="agent-markdown" innerHTML={renderedHtml()} />

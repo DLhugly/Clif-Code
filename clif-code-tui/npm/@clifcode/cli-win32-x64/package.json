@@ -1,13 +1,19 @@
 {
   "name": "@clifcode/cli-win32-x64",
-  "version": "0.1.0",
+  "version": "1.45.1",
   "description": "ClifCode binary for Windows x86_64",
   "license": "FSL-1.1-ALv2",
   "repository": {
     "type": "git",
     "url": "https://github.com/DLhugly/Clif-Code"
   },
-  "os": ["win32"],
-  "cpu": ["x64"],
-  "files": ["bin/clifcode.exe"]
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/clifcode.exe"
+  ]
 }

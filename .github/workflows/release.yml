@@ -235,6 +235,7 @@ jobs:
           projectPath: clif-pad-ide
           args: --target ${{ matrix.target }}
           includeUpdaterJson: true
+          updaterJsonKeepUniversal: true
 
       - name: Generate Checksums
         run: |
@@ -312,6 +313,7 @@ jobs:
           prerelease: false
           projectPath: clif-pad-ide
           includeUpdaterJson: true
+          updaterJsonKeepUniversal: true
 
       - name: Generate Checksums
         shell: bash
@@ -402,6 +404,7 @@ jobs:
           prerelease: false
           projectPath: clif-pad-ide
           includeUpdaterJson: true
+          updaterJsonKeepUniversal: true
 
       - name: Generate Checksums
         run: |

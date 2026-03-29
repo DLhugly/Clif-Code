@@ -139,6 +139,7 @@ const AgentChatPanel: Component = () => {
   const [mentionIndex, setMentionIndex] = createSignal(0);
   const [mentionStart, setMentionStart] = createSignal(0);
   const [loadingOllamaModels, setLoadingOllamaModels] = createSignal(false);
+  const [pastedImages, setPastedImages] = createSignal<string[]>([]); // base64 data URLs
 
   function flattenFileTree(entries: FileEntry[]): string[] {
     const result: string[] = [];
@@ -413,7 +414,8 @@ const AgentChatPanel: Component = () => {
 
   async function handleSend() {
     const text = inputValue().trim();
-    if (!text) return;
+    const imgs = pastedImages();
+    if (!text && imgs.length === 0) return;
 
     // If agent is running OR project is being scanned, queue the message
     if (agentStreaming() || clifInitializing()) {
@@ -427,11 +429,13 @@ const AgentChatPanel: Component = () => {
     if (inputRef) inputRef.style.height = "auto";
     const ctx = buildContext();
     setContextFiles([]);
+    const imagesToSend = imgs.slice();
+    setPastedImages([]);
     if (webSearchEnabled() && settings().aiProvider === "openrouter") {
       const baseModel = settings().aiModel.replace(/:online$/, "");
-      await sendAgentMessage(text, ctx, baseModel + ":online");
+      await sendAgentMessage(text, ctx, baseModel + ":online", imagesToSend);
     } else {
-      await sendAgentMessage(text, ctx);
+      await sendAgentMessage(text, ctx, undefined, imagesToSend);
     }
   }
 
@@ -476,6 +480,29 @@ const AgentChatPanel: Component = () => {
       e.preventDefault();
       handleSend();
     }
+  }
+
+  function handlePaste(e: ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageItems = Array.from(items).filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length === 0) return;
+    // We have image(s) — prevent default only if we're consuming image data
+    e.preventDefault();
+    imageItems.forEach((item) => {
+      const blob = item.getAsFile();
+      if (!blob) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setPastedImages((imgs) => [...imgs, dataUrl]);
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function removePastedImage(idx: number) {
+    setPastedImages((imgs) => imgs.filter((_, i) => i !== idx));
   }
 
   function addActiveFileAsContext() {
@@ -1603,6 +1630,49 @@ const AgentChatPanel: Component = () => {
         class="shrink-0 px-3 py-2"
         style={{ "border-top": "1px solid var(--border-default)" }}
       >
+        {/* Pasted image previews */}
+        <Show when={pastedImages().length > 0}>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <For each={pastedImages()}>
+              {(img, idx) => (
+                <div class="relative shrink-0" style={{ width: "64px", height: "64px" }}>
+                  <img
+                    src={img}
+                    alt="pasted"
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      "object-fit": "cover",
+                      "border-radius": "6px",
+                      border: "1px solid var(--border-default)",
+                    }}
+                  />
+                  <button
+                    class="absolute flex items-center justify-center"
+                    style={{
+                      top: "-5px",
+                      right: "-5px",
+                      width: "16px",
+                      height: "16px",
+                      "border-radius": "50%",
+                      background: "var(--bg-overlay)",
+                      border: "1px solid var(--border-default)",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      "font-size": "10px",
+                      "line-height": "1",
+                    }}
+                    onClick={() => removePastedImage(idx())}
+                    title="Remove image"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+
         <div
           class="flex items-end gap-2 rounded-xl px-3 py-2"
           style={{
@@ -1652,7 +1722,7 @@ const AgentChatPanel: Component = () => {
                 ? `Queued: "${queuedMessage()!.slice(0, 40)}${queuedMessage()!.length > 40 ? "…" : ""}"`
                 : (agentStreaming() || clifInitializing())
                 ? "Type to queue next message..."
-                : "Ask the agent..."
+                : "Ask the agent... (paste images with ⌘V)"
             }
             rows={1}
             value={inputValue()}
@@ -1678,6 +1748,7 @@ const AgentChatPanel: Component = () => {
               setMentionActive(false);
             }}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
           />
 
           {/* Send / Stop streaming button */}
@@ -1724,15 +1795,15 @@ const AgentChatPanel: Component = () => {
             <button
               class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
               style={{
-                background: inputValue().trim()
+                background: (inputValue().trim() || pastedImages().length > 0)
                   ? "var(--accent-primary)"
                   : "var(--bg-hover)",
-                color: inputValue().trim() ? "#fff" : "var(--text-muted)",
+                color: (inputValue().trim() || pastedImages().length > 0) ? "#fff" : "var(--text-muted)",
                 border: "none",
-                cursor: inputValue().trim() ? "pointer" : "default",
+                cursor: (inputValue().trim() || pastedImages().length > 0) ? "pointer" : "default",
               }}
               onClick={handleSend}
-              disabled={!inputValue().trim()}
+              disabled={!inputValue().trim() && pastedImages().length === 0}
               title="Send message"
             >
               <SendIcon />

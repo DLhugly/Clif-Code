@@ -370,7 +370,6 @@ pub fn git_log(path: String, count: Option<usize>) -> Result<Vec<GitLogEntry>, S
     let output = Command::new("git")
         .args([
             "log",
-            "--all",
             &format!("--max-count={}", n),
             "--format=%H\x1f%h\x1f%s\x1f%an\x1f%ar\x1f%D\x1f%P",
         ])

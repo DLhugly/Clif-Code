@@ -7,6 +7,8 @@ use tauri::{Emitter, Manager};
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
+    /// Optional base64 data URLs for image attachments (vision models)
+    pub images: Option<Vec<String>>,
 }
 
 #[derive(serde::Serialize)]
