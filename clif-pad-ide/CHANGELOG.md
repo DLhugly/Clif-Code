@@ -1,3 +1,10 @@
+## [1.46.1](https://github.com/DLhugly/Clif-Code/compare/v1.46.0...v1.46.1) (2026-03-29)
+
+
+### Bug Fixes
+
+* git log current branch only, image paste in agent chat, restore auto-updater pipeline ([2292844](https://github.com/DLhugly/Clif-Code/commit/22928442bb1c33605a59ba0f2841fd7160368f52))
+
 # [1.46.0](https://github.com/DLhugly/Clif-Code/compare/v1.45.1...v1.46.0) (2026-03-28)
 
 
