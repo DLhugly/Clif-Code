@@ -7,12 +7,12 @@ const {
   showPanel,
   hidePanel,
   setPanelVisibility,
-  resetPanels,
 } = await import("../uiStore");
 
 describe("Panel visibility — togglePanel", () => {
   beforeEach(() => {
-    resetPanels?.();
+    // Reset to a known state before each test
+    setPanelVisibility(["editor", "terminal", "files", "agent"]);
   });
 
   it("toggling a visible panel hides it", () => {
@@ -71,13 +71,13 @@ describe("Panel visibility — showPanel / hidePanel", () => {
 });
 
 describe("Panel visibility — setPanelVisibility", () => {
-  it("sets to true", () => {
-    setPanelVisibility("agent", true);
+  it("sets exactly the provided panels as visible", () => {
+    setPanelVisibility(["agent"]);
     expect(visiblePanels().has("agent")).toBe(true);
   });
 
-  it("sets to false", () => {
-    setPanelVisibility("agent", false);
+  it("hides panels not in the provided list", () => {
+    setPanelVisibility(["editor"]);
     expect(visiblePanels().has("agent")).toBe(false);
   });
 });

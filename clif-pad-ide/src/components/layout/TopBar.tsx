@@ -314,13 +314,14 @@ const TopBar: Component<{
 
         {/* Font dropdown */}
         <span style={{ "font-size": "11px", color: "var(--text-muted)", "font-weight": "500" }}>Fonts:</span>
-        <FontDropdown
-          label="Font"
-          value={settings().editorFont}
-          options={MONO_FONTS}
-          onChange={handleFontFamilyChange}
-          style={{ "margin-left": "-12px" }}
-        />
+        <div style={{ "margin-left": "-12px" }}>
+          <FontDropdown
+            label="Font"
+            value={settings().editorFont}
+            options={MONO_FONTS}
+            onChange={handleFontFamilyChange}
+          />
+        </div>
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
