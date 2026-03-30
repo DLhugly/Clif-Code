@@ -35,7 +35,14 @@ interface TerminalInstance {
 
 const instances = new Map<string, TerminalInstance>();
 
-const TerminalPanel: Component<{ ref?: (ref: TerminalPanelRef) => void; workingDir?: string }> = (props) => {
+interface TerminalPanelProps {
+  ref?: (ref: TerminalPanelRef) => void;
+  workingDir?: string;
+  onLaunchClifCode?: () => void;
+  onLaunchClaude?: () => void;
+}
+
+const TerminalPanel: Component<TerminalPanelProps> = (props) => {
   let wrapperRef!: HTMLDivElement;
   let resizeObserver: ResizeObserver | undefined;
 
@@ -329,8 +336,52 @@ const TerminalPanel: Component<{ ref?: (ref: TerminalPanelRef) => void; workingD
           </For>
         </div>
 
-        {/* New terminal + Clear buttons */}
-        <div class="flex items-center shrink-0" style={{ padding: "0 6px", gap: "2px" }}>
+        {/* Launch Terminal Agents + New terminal + Clear buttons */}
+        <div class="flex items-center shrink-0" style={{ padding: "0 6px", gap: "4px" }}>
+          <Show when={props.onLaunchClifCode && props.onLaunchClaude}>
+            <span style={{ "font-size": "10px", color: "var(--text-muted)", "margin-right": "2px" }}>Launch:</span>
+            <button
+              class="flex items-center justify-center"
+              style={{
+                height: "20px",
+                padding: "0 6px",
+                "border-radius": "4px",
+                border: "none",
+                background: "transparent",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                "font-size": "10px",
+                "white-space": "nowrap",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              onClick={props.onLaunchClifCode}
+              title="Launch ClifCode AI agent in terminal"
+            >
+              ClifCode
+            </button>
+            <button
+              class="flex items-center justify-center"
+              style={{
+                height: "20px",
+                padding: "0 6px",
+                "border-radius": "4px",
+                border: "none",
+                background: "transparent",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                "font-size": "10px",
+                "white-space": "nowrap",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              onClick={props.onLaunchClaude}
+              title="Launch Claude Code in terminal"
+            >
+              Claude
+            </button>
+            <div style={{ width: "1px", height: "14px", background: "var(--border-default)", margin: "0 4px" }} />
+          </Show>
           <button
             class="flex items-center justify-center"
             style={{

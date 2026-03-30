@@ -241,7 +241,12 @@ function handleSidebarResize(e: MouseEvent) {
                   </div>
                 }
               >
-                <TerminalPanel ref={(r) => (terminalRef = r)} workingDir={projectRoot() || undefined} />
+                <TerminalPanel
+                ref={(r) => (terminalRef = r)}
+                workingDir={projectRoot() || undefined}
+                onLaunchClifCode={handleLaunchClifCode}
+                onLaunchClaude={handleLaunchClaude}
+              />
               </Suspense>
             </div>
           </Show>
@@ -291,7 +296,7 @@ function handleSidebarResize(e: MouseEvent) {
       </div>
 
       {/* Status Bar */}
-      <StatusBar onShowAbout={() => setShowAbout(true)} onLaunchClifCode={handleLaunchClifCode} onLaunchClaude={handleLaunchClaude} />
+      <StatusBar onShowAbout={() => setShowAbout(true)} />
 
       {/* About Modal */}
       <AboutModal open={showAbout()} onClose={() => setShowAbout(false)} />

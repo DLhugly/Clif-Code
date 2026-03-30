@@ -21,7 +21,7 @@ const SparkleIcon = () => (
   </svg>
 );
 
-const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => void; onLaunchClaude?: () => void }> = (props) => {
+const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
   const [appVersion, setAppVersion] = createSignal("...");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
   const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
@@ -147,58 +147,6 @@ const StatusBar: Component<{ onShowAbout?: () => void; onLaunchClifCode?: () => 
           <TerminalIcon />
           <span>Launch Terminal</span>
         </button>
-
-        {/* Launch ClifCode */}
-        <Show when={props.onLaunchClifCode}>
-          <button
-            class="flex items-center gap-1 rounded-lg shrink-0 transition-all duration-150"
-            style={{
-              background: "var(--bg-hover)",
-              color: "var(--text-muted)",
-              border: "1px solid var(--border-default)",
-              padding: "3px 10px",
-              cursor: "pointer",
-              "font-size": "12px",
-              "font-family": "var(--font-sans)",
-              "font-weight": "500",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-            onClick={() => props.onLaunchClifCode?.()}
-            title="Launch ClifCode in terminal"
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 17 10 11 4 5" />
-            </svg>
-            <span>Launch ClifCode</span>
-          </button>
-        </Show>
-
-        {/* Launch Claude */}
-        <Show when={props.onLaunchClaude}>
-          <button
-            class="flex items-center gap-1 rounded-lg shrink-0 transition-all duration-150"
-            style={{
-              background: "var(--bg-hover)",
-              color: "var(--text-muted)",
-              border: "1px solid var(--border-default)",
-              padding: "3px 10px",
-              cursor: "pointer",
-              "font-size": "12px",
-              "font-family": "var(--font-sans)",
-              "font-weight": "500",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-            onClick={() => props.onLaunchClaude?.()}
-            title="Launch Claude Code in terminal"
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 17 10 11 4 5" />
-            </svg>
-            <span>Launch Claude</span>
-          </button>
-        </Show>
 
         <Show when={isGitRepo()}>
           <div
