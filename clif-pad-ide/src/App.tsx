@@ -6,7 +6,7 @@ import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
 import ToastContainer from "./components/layout/ToastContainer";
 import { ResizeHandle } from "./components/ui";
-import { terminalHeight, setTerminalHeight, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, clampPanelWidth } from "./stores/uiStore";
+import { terminalHeight, setTerminalHeight, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, setAgentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, clampPanelWidth } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -55,6 +55,8 @@ const App: Component = () => {
           terminalRef.sendCommand(`cd ${JSON.stringify(selected)}\n`);
         }
         await initGit();
+        // Auto-open agent panel when project is opened
+        setAgentVisible(true);
       }
     } catch {
       console.warn("Tauri dialog plugin not available");

@@ -24,10 +24,7 @@ import { settings, updateSettings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
 import { getApiKey, setApiKey as saveApiKey, agentApproveCommand, clifProjectInitialized, clifReadContext, clifInitProject, getModels } from "../../lib/tauri";
 import ChatMessage from "./ChatMessage";
-import ContextChip from "./ContextChip";
 import type { AgentContext } from "../../types/agent";
-
-import { SectionHeader } from "../ui";
 
 // Extracted sub-components
 import { SparkleIcon, SendIcon, StopIcon, KeyIcon, GearIcon } from "./icons";
@@ -36,6 +33,13 @@ import SetupView from "./SetupView";
 import SettingsPanel from "./SettingsPanel";
 import ModelBrowser from "./ModelBrowser";
 import AgentMarkdownStyles from "./AgentMarkdownStyles";
+import ContextFilesPanel from "./ContextFilesPanel";
+import MentionDropdown from "./MentionDropdown";
+import ChatInputArea from "./ChatInputArea";
+import AgentTabs from "./AgentTabs";
+import InitProjectBanner from "./InitProjectBanner";
+import ProviderModelSelector from "./ProviderModelSelector";
+import EmptyState from "./EmptyState";
 
 
 
@@ -462,76 +466,7 @@ const AgentChatPanel: Component = () => {
           background: "var(--bg-surface)",
         }}
       >
-        <div class="flex items-center flex-1 min-w-0 overflow-x-auto" style={{ "padding-left": "4px" }}>
-          {/* Saved tabs */}
-          <For each={agentTabs}>
-            {(tab) => (
-              <div
-                class="flex items-center shrink-0 cursor-pointer group"
-                style={{
-                  height: "28px",
-                  padding: "0 8px 0 10px",
-                  "font-size": "11px",
-                  color: activeAgentTab() === tab.id ? "var(--text-primary)" : "var(--text-muted)",
-                  background: activeAgentTab() === tab.id ? "var(--bg-base)" : "transparent",
-                  "border-right": "1px solid var(--border-default)",
-                  transition: "color 0.1s, background 0.1s",
-                }}
-                onClick={() => switchAgentTab(tab.id)}
-                title={tab.label}
-              >
-                <span style={{ opacity: activeAgentTab() === tab.id ? "1" : "0.6", "white-space": "nowrap", "max-width": "100px", overflow: "hidden", "text-overflow": "ellipsis", display: "inline-block" }}>
-                  {tab.label}
-                </span>
-                <button
-                  class="flex items-center justify-center"
-                  style={{
-                    width: "16px", height: "16px", "margin-left": "4px",
-                    "border-radius": "3px", border: "none",
-                    background: "transparent", color: "var(--text-muted)",
-                    cursor: "pointer", "font-size": "12px",
-                    opacity: "0", transition: "opacity 0.1s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "0"; e.currentTarget.style.background = "transparent"; }}
-                  onClick={(e) => { e.stopPropagation(); removeAgentTab(tab.id); }}
-                  title="Close tab"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </For>
-
-          {/* Current session indicator */}
-          {(() => {
-            const isCurrentActive = () => !agentTabs.find((t) => t.id === activeAgentTab());
-            return (
-              <div
-                class="flex items-center shrink-0 cursor-pointer"
-                style={{
-                  height: "28px",
-                  padding: "0 10px",
-                  "font-size": "11px",
-                  color: isCurrentActive() ? "var(--text-primary)" : "var(--text-muted)",
-                  background: isCurrentActive() ? "var(--bg-base)" : "transparent",
-                  "border-right": agentTabs.length > 0 ? "1px solid var(--border-default)" : "none",
-                  transition: "color 0.1s, background 0.1s",
-                }}
-                onClick={() => {
-                  if (!isCurrentActive() && !agentStreaming()) {
-                    startNewSession();
-                  }
-                }}
-              >
-                <SparkleIcon />
-                <span style={{ "margin-left": "5px", "white-space": "nowrap", opacity: isCurrentActive() ? "1" : "0.6" }}>
-                  {isCurrentActive() && agentMessages.length > 0 ? "Current" : "New Chat"}
-                </span>
-              </div>
-            );
-          })()}
-        </div>
+        <AgentTabs />
 
         {/* New session button */}
         <button
@@ -586,91 +521,16 @@ const AgentChatPanel: Component = () => {
       </div>
 
       {/* Header row 2: provider + model selectors (always visible) */}
-      <div
-        class="flex items-center gap-1.5 shrink-0 px-2 py-1.5"
-        style={{ "border-bottom": "1px solid var(--border-default)" }}
-      >
-        {/* Provider toggle */}
-        <div class="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border-muted)" }}>
-          <For each={PROVIDERS}>
-            {(p) => (
-              <button
-                class="px-2 py-1 transition-colors"
-                style={{
-                  background: settings().aiProvider === p.value ? "var(--accent-primary)" : "var(--bg-base)",
-                  color: settings().aiProvider === p.value ? "#fff" : "var(--text-muted)",
-                  border: "none",
-                  cursor: "pointer",
-                  "font-size": "11px",
-                  "font-weight": "500",
-                }}
-                onClick={() => handleProviderChange(p.value)}
-                title={p.hint}
-              >
-                {p.label}
-              </button>
-            )}
-          </For>
-        </div>
-
-        {/* Model selector — opens full-panel browser */}
-        <button
-          class="flex items-center gap-1.5 flex-1 min-w-0 rounded-md px-2 py-1 transition-colors group"
-          style={{
-            background: modelDropdownOpen() ? "var(--bg-active)" : "var(--bg-hover)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-default)",
-            "font-size": "11px",
-            cursor: "pointer",
-            "font-family": "var(--font-mono, monospace)",
-            "text-align": "left",
-          }}
-          onClick={() => {
-            const next = !modelDropdownOpen();
-            setModelDropdownOpen(next);
-            if (next && settings().aiProvider === "openrouter") fetchOpenRouterModels();
-          }}
-          title="Browse and select a model"
-        >
-          {/* Grid icon to signal "opens browser" */}
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{ "flex-shrink": "0", color: "var(--text-muted)" }}>
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-          </svg>
-          <span class="flex-1 truncate" style={{ "min-width": "0" }}>
-            {(() => {
-              const current = settings().aiModel;
-              const live = openRouterModels().find(m => m.id === current);
-              const name = live?.name || (POPULAR_MODELS[settings().aiProvider] || []).find(m => m.value === current)?.label || current;
-              // Strip provider prefix like "Anthropic: " or "OpenAI: "
-              return name.replace(/^[^:]+:\s*/, "");
-            })()}
-          </span>
-          <span style={{ "font-size": "9px", color: "var(--text-muted)", "flex-shrink": "0", "font-family": "var(--font-sans)" }}>Browse</span>
-        </button>
-
-        {/* API key indicator / button */}
-        <Show when={settings().aiProvider !== "ollama"}>
-          <button
-            class="flex items-center justify-center shrink-0 rounded-md p-1 transition-colors"
-            style={{
-              background: showSettings() ? "var(--bg-hover)" : "transparent",
-              color: hasApiKey() ? "var(--accent-green)" : "var(--accent-yellow)",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-            }}
-            onMouseLeave={(e) => {
-              if (!showSettings()) (e.currentTarget as HTMLElement).style.background = "transparent";
-            }}
-            onClick={() => setShowSettings(!showSettings())}
-            title={hasApiKey() ? "API key configured — click to change" : "Set API key"}
-          >
-            <KeyIcon />
-          </button>
-        </Show>
-      </div>
+      <ProviderModelSelector
+        modelDropdownOpen={modelDropdownOpen}
+        setModelDropdownOpen={setModelDropdownOpen}
+        openRouterModels={openRouterModels}
+        fetchOpenRouterModels={fetchOpenRouterModels}
+        hasApiKey={hasApiKey}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        handleProviderChange={handleProviderChange}
+      />
 
       {/* API key input (toggled by key icon) */}
       <Show when={showSettings() && settings().aiProvider !== "ollama"}>
@@ -716,45 +576,7 @@ const AgentChatPanel: Component = () => {
 
       {/* Non-blocking init banner — appears at top of messages when scanning */}
       <Show when={clifInitializing()}>
-        <div
-          class="shrink-0 px-3 py-2"
-          style={{
-            background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
-            "border-bottom": "1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-          }}
-        >
-          {/* Top row: icon + message + elapsed */}
-          <div class="flex items-center gap-2 mb-1.5">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" class="animate-spin shrink-0">
-              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-            </svg>
-            <span style={{ "font-size": "11px", color: "var(--accent-primary)", flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
-              {clifInitProgress().message || "Scanning codebase..."}
-            </span>
-            <span style={{ "font-size": "10px", color: "var(--text-muted)", "flex-shrink": "0" }}>
-              {clifInitProgress().elapsed_secs > 0 ? `${clifInitProgress().elapsed_secs}s` : ""}
-            </span>
-          </div>
-          {/* Progress bar */}
-          <div style={{ height: "3px", background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)", "border-radius": "2px", overflow: "hidden" }}>
-            <div style={{
-              height: "100%",
-              width: `${Math.min(100, (clifInitProgress().step / clifInitProgress().total) * 100)}%`,
-              background: "var(--accent-primary)",
-              "border-radius": "2px",
-              transition: "width 0.4s ease",
-            }} />
-          </div>
-          {/* Bottom row: step count + hint */}
-          <div class="flex items-center justify-between mt-1">
-            <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>
-              Step {clifInitProgress().step} / ~{clifInitProgress().total} — building .clif/CLIF.md
-            </span>
-            <span style={{ "font-size": "10px", color: "var(--text-muted)" }}>
-              You can chat while this runs
-            </span>
-          </div>
-        </div>
+        <InitProjectBanner progress={clifInitProgress()} />
       </Show>
 
       {/* placeholder for future ready indicator */}
@@ -784,65 +606,11 @@ const AgentChatPanel: Component = () => {
         <Show
           when={agentMessages.length > 0}
           fallback={
-            <div class="flex flex-col items-center justify-center h-full gap-3 px-6">
-              <div
-                class="rounded-full p-3"
-                style={{ background: "var(--bg-hover)" }}
-              >
-                <SparkleIcon />
-              </div>
-              <Show
-                when={hasApiKey() || settings().aiProvider === "ollama"}
-                fallback={
-                  <>
-                    <p
-                      class="text-center"
-                      style={{ color: "var(--text-primary)", "font-size": "14px", "font-weight": "500" }}
-                    >
-                      Set your API key to get started
-                    </p>
-                    <p
-                      class="text-center"
-                      style={{ color: "var(--text-muted)", "font-size": "12px", "line-height": "1.5" }}
-                    >
-                      Pick a provider above, then click the
-                      <span style={{ color: "var(--accent-yellow)" }}> key icon </span>
-                      to enter your API key.
-                    </p>
-                    <Show when={settings().aiProvider === "openrouter"}>
-                      <p
-                        class="text-center"
-                        style={{ color: "var(--text-muted)", "font-size": "11px" }}
-                      >
-                        Get a key at openrouter.ai
-                      </p>
-                    </Show>
-                  </>
-                }
-              >
-                <p
-                  class="text-center"
-                  style={{ color: "var(--text-muted)", "font-size": "13px" }}
-                >
-                  <Show when={clifInitializing()}
-                    fallback="Ask the agent to help with your code. It can read files, search, edit, and run commands."
-                  >
-                    Scanning your codebase in the background...
-                  </Show>
-                </p>
-                <Show when={!projectRoot()}>
-                  <p
-                    class="text-center"
-                    style={{
-                      color: "var(--accent-yellow)",
-                      "font-size": "12px",
-                    }}
-                  >
-                    Open a project folder to enable file tools.
-                  </p>
-                </Show>
-              </Show>
-            </div>
+            <EmptyState
+              hasApiKey={hasApiKey}
+              clifInitializing={clifInitializing}
+              projectRoot={projectRoot}
+            />
           }
         >
           <For each={agentMessages}>
@@ -863,147 +631,25 @@ const AgentChatPanel: Component = () => {
         </Show>
       </div>
 
-      {/* ── Feature #1: Files In Context Panel ─────────────────────────── */}
+      {/* Files In Context Panel */}
       <Show when={contextFiles().length > 0}>
-        {(() => {
-          const [collapsed, setCollapsed] = createSignal(false);
-          const root = () => projectRoot() || "";
-          return (
-            <div class="shrink-0" style={{ "border-top": "1px solid var(--border-muted)" }}>
-              <SectionHeader
-                title="In Context"
-                count={contextFiles().length}
-                collapsed={collapsed()}
-                onToggle={() => setCollapsed((c) => !c)}
-              />
-
-              {/* File list */}
-              <Show when={!collapsed()}>
-                <div class="flex flex-col pb-1">
-                  <For each={contextFiles()}>
-                    {(path) => {
-                      const relPath = () =>
-                        path.startsWith(root()) ? path.slice(root().length + 1) : path;
-                      const fileName = () => path.split("/").pop() || path;
-                      return (
-                        <div
-                          class="flex items-center gap-2 px-3 py-0.5 group"
-                          style={{
-                            "font-size": `${fontSize() - 2}px`,
-                            "font-family": "var(--font-mono, monospace)",
-                          }}
-                        >
-                          {/* File icon */}
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                            stroke="var(--accent-primary)" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round"
-                            style={{ "flex-shrink": "0" }}
-                          >
-                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
-                            <polyline points="13 2 13 9 20 9" />
-                          </svg>
-                          {/* Filename (bold) + directory (muted) */}
-                          <span
-                            class="truncate flex-1"
-                            style={{ color: "var(--text-secondary)" }}
-                            title={relPath()}
-                          >
-                            <span style={{ color: "var(--text-primary)", "font-weight": "500" }}>
-                              {fileName()}
-                            </span>
-                            <Show when={relPath() !== fileName()}>
-                              <span style={{ color: "var(--text-muted)", "font-size": "0.85em" }}>
-                                {" · " + relPath().slice(0, relPath().lastIndexOf("/"))}
-                              </span>
-                            </Show>
-                          </span>
-                          {/* Remove button */}
-                          <button
-                            class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            style={{
-                              background: "transparent",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "var(--text-muted)",
-                              padding: "0 2px",
-                            }}
-                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent-red)"; }}
-                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-                            onClick={() => removeContextFile(path)}
-                            title="Remove from context"
-                          >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                              stroke="currentColor" stroke-width="3" stroke-linecap="round"
-                            >
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        </div>
-                      );
-                    }}
-                  </For>
-                </div>
-              </Show>
-
-              {/* Compact chips row (shown when collapsed) */}
-              <Show when={collapsed()}>
-                <div class="flex flex-wrap gap-1 px-3 pb-1.5">
-                  <For each={contextFiles()}>
-                    {(path) => (
-                      <ContextChip
-                        label={path.split("/").pop() || path}
-                        type="file"
-                        onRemove={() => removeContextFile(path)}
-                      />
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </div>
-          );
-        })()}
+        <ContextFilesPanel
+          files={contextFiles()}
+          projectRoot={projectRoot() || ""}
+          onRemove={removeContextFile}
+          fontSize={fontSize()}
+        />
       </Show>
 
       {/* @ mention dropdown */}
       <Show when={mentionActive() && mentionSuggestions().length > 0}>
-        <div
-          class="shrink-0 mx-3 mb-1 rounded-lg overflow-hidden"
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-default)",
-            "box-shadow": "0 -4px 16px rgba(0,0,0,0.2)",
-            "max-height": "200px",
-            "overflow-y": "auto",
-          }}
-        >
-          <For each={mentionSuggestions()}>
-            {(path, i) => (
-              <button
-                class="flex items-center gap-2 w-full px-3 py-1.5 text-left"
-                style={{
-                  background: i() === mentionIndex() ? "var(--bg-hover)" : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--text-primary)",
-                  "font-size": `${fontSize() - 1}px`,
-                  "font-family": "var(--font-mono, monospace)",
-                }}
-                onMouseEnter={() => setMentionIndex(i())}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  selectMention(path);
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
-                  <polyline points="13 2 13 9 20 9" />
-                </svg>
-                <span class="truncate">{path}</span>
-              </button>
-            )}
-          </For>
-        </div>
+        <MentionDropdown
+          suggestions={mentionSuggestions()}
+          selectedIndex={mentionIndex()}
+          onSelect={selectMention}
+          onHover={setMentionIndex}
+          fontSize={fontSize()}
+        />
       </Show>
 
       {/* Input area */}
