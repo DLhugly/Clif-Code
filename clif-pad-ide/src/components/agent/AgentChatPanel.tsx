@@ -397,13 +397,8 @@ const AgentChatPanel: Component = () => {
         return;
       }
     }
-    // Shift+Enter: force push (cancel current agent, send immediately)
-    if (e.key === "Enter" && e.shiftKey) {
-      e.preventDefault();
-      handleSend(true);
-      return;
-    }
-    // Enter: normal send (queue if agent running)
+    // Enter: send message (queue if agent running)
+    // Shift+Enter: newline (default browser behavior - do nothing)
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -858,6 +853,11 @@ const AgentChatPanel: Component = () => {
             </Show>
           </div>
 
+          {/* Center: keyboard hint */}
+          <div class="flex items-center" style={{ opacity: 0.6, "font-size": "11px" }}>
+            <span>Enter to send · Shift+Enter for new line</span>
+          </div>
+
           {/* Right: web search + tokens */}
           <div class="flex items-center gap-4" style={{ "flex-shrink": "0" }}>
             <Show when={settings().aiProvider === "openrouter"}>
@@ -885,17 +885,15 @@ const AgentChatPanel: Component = () => {
               </button>
             </Show>
 
-            <Show when={agentTokens().prompt > 0}>
-              <span style={{ "font-family": "var(--font-mono, monospace)", opacity: 0.8, "font-size": "12px" }}>
-                {(() => {
-                  const t = agentTokens();
-                  const total = t.prompt + t.completion;
-                  const cost = (t.prompt * 3 + t.completion * 15) / 1_000_000;
-                  const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
-                  return `${totalStr} · $${cost.toFixed(4)}`;
-                })()}
-              </span>
-            </Show>
+            <span style={{ "font-family": "var(--font-mono, monospace)", opacity: 0.8, "font-size": "12px" }}>
+              {(() => {
+                const t = agentTokens();
+                const total = t.prompt + t.completion;
+                const cost = (t.prompt * 3 + t.completion * 15) / 1_000_000;
+                const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
+                return `${totalStr} · $${cost.toFixed(2)}`;
+              })()}
+            </span>
           </div>
         </div>
       </div>
