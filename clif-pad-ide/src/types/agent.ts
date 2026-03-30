@@ -7,7 +7,7 @@ export interface AgentMessage {
   toolName?: string;
   toolCallId?: string;
   toolCalls?: ToolCall[];
-  status?: "streaming" | "done" | "error";
+  status?: "streaming" | "done" | "error" | "pending";
 }
 
 export interface ToolCall {

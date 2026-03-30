@@ -68,7 +68,7 @@ jobs:
             runner: macos-14
           - label: Intel
             target: x86_64-apple-darwin
-            runner: macos-13
+            runner: macos-15
 
     steps:
       - uses: actions/checkout@v4
