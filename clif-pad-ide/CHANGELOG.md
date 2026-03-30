@@ -1,3 +1,10 @@
+# [1.53.0](https://github.com/DLhugly/Clif-Code/compare/v1.52.1...v1.53.0) (2026-03-30)
+
+
+### Features
+
+* add magic wand commit message generator, fix git graph styling, and add force stop button ([748a8db](https://github.com/DLhugly/Clif-Code/commit/748a8db2649123451b87b62d2e3ec1af47b125e8))
+
 ## [1.52.1](https://github.com/DLhugly/Clif-Code/compare/v1.52.0...v1.52.1) (2026-03-30)
 
 
