@@ -1,3 +1,10 @@
+## [1.51.1](https://github.com/DLhugly/Clif-Code/compare/v1.51.0...v1.51.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* refactor AgentChatPanel into modular components ([bdac0a3](https://github.com/DLhugly/Clif-Code/commit/bdac0a3aceac6dcb018b195dfc7b924efc460eff))
+
 # [1.51.0](https://github.com/DLhugly/Clif-Code/compare/v1.50.0...v1.51.0) (2026-03-30)
 
 
