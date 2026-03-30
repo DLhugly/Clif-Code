@@ -649,58 +649,6 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                 </button>
               </div>
 
-              {/* Scan buttons row */}
-              <div class="shrink-0 px-2 py-1.5 flex items-center gap-2" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
-                <div class="flex items-center gap-1.5">
-                  <div
-                    class="flex items-center gap-1 px-1.5 py-0.5 rounded"
-                    style={{
-                      background: "var(--bg-base)",
-                      border: "1px solid var(--border-muted)",
-                    }}
-                    title="Security scan enabled (runs automatically on commit)"
-                  >
-                    <div
-                      class="rounded-full"
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        background: securityEnabled() ? "var(--accent-green)" : "var(--text-muted)",
-                        "box-shadow": securityEnabled() ? "0 0 6px var(--accent-green)" : "none",
-                      }}
-                    />
-                    <span style={{ "font-size": "0.75em", color: "var(--text-muted)" }}>Security</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={isAiReviewing() ? cancelAiReview : handleAiReview}
-                    disabled={!isAiReviewing() && stagedFiles().length === 0}
-                    title={isAiReviewing() ? "Cancel AI review" : "Run AI code review on staged files"}
-                    class="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
-                    style={{
-                      background: isAiReviewing() ? "var(--accent-red)" : "var(--bg-base)",
-                      border: "1px solid var(--border-muted)",
-                      color: isAiReviewing() ? "#fff" : "var(--text-muted)",
-                      cursor: isAiReviewing() || stagedFiles().length === 0 ? "pointer" : "pointer",
-                      opacity: !isAiReviewing() && stagedFiles().length === 0 ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => { if (!isAiReviewing() && stagedFiles().length > 0) (e.currentTarget as HTMLElement).style.background = "var(--accent-blue)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
-                    onMouseLeave={(e) => { if (!isAiReviewing()) { (e.currentTarget as HTMLElement).style.background = "var(--bg-base)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; } }}
-                  >
-                    <div
-                      class="rounded-full"
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        background: isAiReviewing() ? "#fff" : "var(--accent-blue)",
-                        "box-shadow": isAiReviewing() ? "0 0 6px #fff" : "0 0 6px var(--accent-blue)",
-                      }}
-                    />
-                    <span style={{ "font-size": "0.75em" }}>{isAiReviewing() ? "Cancel" : "AI Scan"}</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Commit input */}
               <div class="shrink-0 p-2" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
                 <div style={{ position: "relative" }}>
