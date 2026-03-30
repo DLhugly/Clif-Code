@@ -1,3 +1,10 @@
+# [1.56.0](https://github.com/DLhugly/Clif-Code/compare/v1.55.0...v1.56.0) (2026-03-30)
+
+
+### Features
+
+* fix git graph continuous line, improve theme color inheritance ([cdb3f55](https://github.com/DLhugly/Clif-Code/commit/cdb3f557793885730c1cfdb1bba825c984bc845b))
+
 # [1.55.0](https://github.com/DLhugly/Clif-Code/compare/v1.54.0...v1.55.0) (2026-03-30)
 
 
