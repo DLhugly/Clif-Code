@@ -6,7 +6,7 @@ const TabBar: Component = () => {
   return (
     <Show when={openFiles.length > 0}>
       <div
-        class="flex items-center bg-[var(--sidebar-bg)] border-b border-[var(--border-color)] overflow-x-auto overflow-y-hidden"
+        class="flex items-center w-full min-w-0 bg-[var(--sidebar-bg)] border-b border-[var(--border-color)] overflow-x-auto overflow-y-hidden scrollbar-hide"
         style={{ height: "var(--tab-height, 36px)", "min-height": "var(--tab-height, 36px)" }}
       >
         <For each={openFiles}>

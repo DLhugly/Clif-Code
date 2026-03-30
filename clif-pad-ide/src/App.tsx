@@ -6,7 +6,7 @@ import RightSidebar from "./components/layout/RightSidebar";
 import AboutModal from "./components/layout/AboutModal";
 import ToastContainer from "./components/layout/ToastContainer";
 import { ResizeHandle } from "./components/ui";
-import { terminalHeight, setTerminalHeight, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette } from "./stores/uiStore";
+import { terminalHeight, setTerminalHeight, terminalVisible, sidebarVisible, sidebarWidth, setSidebarWidth, agentWidth, setAgentWidth, agentVisible, editorVisible, applyTheme, setUiFontSize, toggleTerminal, toggleSidebar, setShowCommandPalette, clampPanelWidth } from "./stores/uiStore";
 import { loadSettings, settings } from "./stores/settingsStore";
 import { registerKeybinding, initKeybindings } from "./lib/keybindings";
 import { saveActiveFile, projectRoot, openProject, openBrowser, togglePreview } from "./stores/fileStore";
@@ -90,13 +90,11 @@ const App: Component = () => {
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   }
-
-  function handleSidebarResize(e: MouseEvent) {
+function handleSidebarResize(e: MouseEvent) {
     e.preventDefault();
     setIsDraggingSidebar(true);
     document.body.style.cursor = "col-resize";
     let rafId = 0;
-
     // Capture the right edge of the sidebar container at drag start
     const sidebarRight = sidebarContainerRef
       ? sidebarContainerRef.getBoundingClientRect().right
@@ -105,8 +103,10 @@ const App: Component = () => {
     const onMouseMove = (e: MouseEvent) => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        const width = sidebarRight - e.clientX;
-        setSidebarWidth(Math.max(180, Math.min(500, width)));
+        const rawWidth = sidebarRight - e.clientX;
+        const otherPanelWidth = agentVisible() ? agentWidth() : 0;
+        const width = clampPanelWidth(rawWidth, "sidebar", window.innerWidth, otherPanelWidth);
+        setSidebarWidth(width);
       });
     };
 
@@ -131,8 +131,10 @@ const App: Component = () => {
     const onMouseMove = (e: MouseEvent) => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        const width = window.innerWidth - e.clientX;
-        setAgentWidth(Math.max(280, Math.min(window.innerWidth - 100, width)));
+        const rawWidth = window.innerWidth - e.clientX;
+        const otherPanelWidth = sidebarVisible() ? sidebarWidth() : 0;
+        const width = clampPanelWidth(rawWidth, "agent", window.innerWidth, otherPanelWidth);
+        setAgentWidth(width);
       });
     };
 
@@ -211,9 +213,9 @@ const App: Component = () => {
       <TopBar onOpenFolder={handleOpenFolder} onOpenBrowser={openBrowser} />
 
       {/* Main content: Editor (with terminal) + Sidebar + Agent */}
-      <div class="flex flex-1 min-h-0">
+      <div class="flex flex-1 min-h-0 w-full max-w-full overflow-hidden">
         {/* Editor Area (with terminal at bottom) */}
-        <div class="flex flex-col flex-1 min-h-0">
+        <div class="flex flex-col flex-1 min-h-0 min-w-0">
           {/* Editor Panel (center) */}
           <Show when={editorVisible()}>
             <div class="flex-1 min-w-0 min-h-0">

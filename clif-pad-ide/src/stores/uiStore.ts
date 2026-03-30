@@ -42,6 +42,24 @@ const [terminalHeight, setTerminalHeight] = createSignal(30);
 const [sidebarWidth, setSidebarWidth] = createSignal(240);
 const [agentWidth, setAgentWidth] = createSignal(380);
 
+// Clamp panel width to ensure it doesn't push other panels off screen
+export function clampPanelWidth(
+  panelWidth: number,
+  panelType: "sidebar" | "agent",
+  windowWidth: number,
+  otherPanelWidth: number
+): number {
+  const minWidth = 200;
+  const maxWidth = panelType === "agent" ? 500 : 600;
+
+  // Calculate available space
+  const totalPanelWidth = panelWidth + otherPanelWidth;
+  const availableWidth = windowWidth - 200; // Reserve 200px for editor minimum
+  const maxAllowedWidth = Math.min(maxWidth, availableWidth - otherPanelWidth);
+
+  return Math.max(minWidth, Math.min(panelWidth, maxAllowedWidth));
+}
+
 // UI state
 const [theme, setTheme] = createSignal<Theme>("midnight");
 const [fontSize, setFontSize] = createSignal(14);
@@ -159,7 +177,7 @@ export {
   setSidebarVisible,
   setAgentVisible,
   setEditorVisible,
-  
+
   // Panel sizes
   terminalHeight,
   setTerminalHeight,
@@ -167,16 +185,16 @@ export {
   setSidebarWidth,
   agentWidth,
   setAgentWidth,
-  
+
   // Theme
   theme,
   setTheme,
   applyTheme,
-  
+
   // Font
   fontSize,
   setUiFontSize,
-  
+
   // Other UI state
   showCommandPalette,
   setShowCommandPalette,

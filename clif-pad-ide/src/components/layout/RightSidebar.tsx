@@ -13,7 +13,7 @@ import {
 } from "../../stores/gitStore";
 import { open } from "@tauri-apps/plugin-shell";
 import type { GitLogEntry } from "../../types/git";
-import { FileRow, GitGraphRow } from "../git";
+import { FileRow, GitGraphRow, PlusIcon } from "../git";
 import { ResizeHandle, GitSyncButton, SidebarToolbarButton } from "../ui";
 
 const FileTree = lazy(() => import("../explorer/FileTree"));

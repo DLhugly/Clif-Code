@@ -22,6 +22,7 @@ const [agentTokens, setAgentTokens] = createSignal({ prompt: 0, completion: 0, c
 const [agentStatus, setAgentStatus] = createSignal("");
 const [agentTabs, setAgentTabs] = createStore<AgentTab[]>([]);
 const [activeAgentTab, setActiveAgentTab] = createSignal("default");
+const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 let tabCounter = 0;
 
 let unlisteners: UnlistenFn[] = [];
@@ -72,6 +73,57 @@ function genId(): string {
   return `msg_${Date.now()}_${++messageIdCounter}`;
 }
 
+function _doSendAgentMessage(
+  userMessage: string,
+  modelOverride?: string,
+  context?: AgentContext
+) {
+  const userMsg: AgentMessage = {
+    id: genId(),
+    role: "user",
+    content: userMessage,
+    timestamp: Date.now(),
+    status: "done",
+  };
+
+  setAgentMessages((prev) => [...prev, userMsg]);
+  setAgentError(null);
+  setAgentStreaming(true);
+  scheduleSave();
+
+  const messages = [...agentMessages]
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+
+  const s = settings();
+  const workspaceDir = projectRoot() || "";
+
+  invoke("agent_chat", {
+    messages,
+    model: modelOverride || s.aiModel,
+    apiKey: null,
+    provider: s.aiProvider,
+    workspaceDir,
+    context: context ? JSON.stringify(context) : null,
+  })
+    .then((sid) => setAgentSessionId(sid as string))
+    .catch((e) => {
+      setAgentStreaming(false);
+      setAgentError(String(e));
+      setAgentMessages(
+        produce((msgs) => {
+          msgs.push({
+            id: genId(),
+            role: "system",
+            content: `Failed to send message: ${e}`,
+            timestamp: Date.now(),
+            status: "error",
+          });
+        })
+      );
+    });
+}
+
 type UnlistenFn = () => void;
 
 async function initAgentListeners() {
@@ -96,6 +148,13 @@ async function initAgentListeners() {
           })
         );
         setAgentStreaming(false);
+        // Process queued messages
+        const queue = queuedMessages();
+        if (queue.length > 0) {
+          const nextMsg = queue[0];
+          setQueuedMessages(prev => prev.slice(1));
+          setTimeout(() => _doSendAgentMessage(nextMsg), 100);
+        }
         return;
       }
       // Append to last assistant message or create one
@@ -221,6 +280,57 @@ async function initAgentListeners() {
         })
       );
       scheduleSave(); // persist after each completed turn
+      // Process queued messages
+      const queue = queuedMessages();
+      if (queue.length > 0) {
+        const nextMsg = queue[0];
+        setQueuedMessages(prev => prev.slice(1));
+        setTimeout(() => {
+          const userMsg: AgentMessage = {
+            id: genId(),
+            role: "user",
+            content: nextMsg,
+            timestamp: Date.now(),
+            status: "done",
+          };
+          setAgentMessages(produce((msgs) => msgs.push(userMsg)));
+          scheduleSave();
+          setAgentStreaming(true);
+          setAgentError(null);
+
+          const messages = [...agentMessages]
+            .filter((m) => m.role === "user" || m.role === "assistant")
+            .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+
+          const s = settings();
+          const workspaceDir = projectRoot() || "";
+
+          invoke("agent_chat", {
+            messages,
+            model: s.aiModel,
+            apiKey: null,
+            provider: s.aiProvider,
+            workspaceDir,
+            context: null,
+          })
+            .then((sid) => setAgentSessionId(sid as string))
+            .catch((e) => {
+              setAgentStreaming(false);
+              setAgentError(String(e));
+              setAgentMessages(
+                produce((msgs) => {
+                  msgs.push({
+                    id: genId(),
+                    role: "system",
+                    content: `Failed to send message: ${e}`,
+                    timestamp: Date.now(),
+                    status: "error",
+                  });
+                })
+              );
+            });
+        }, 100);
+      }
     })
   );
 
@@ -243,7 +353,11 @@ async function initAgentListeners() {
 }
 
 async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string, images?: string[]) {
-  if (agentStreaming()) return;
+  // If agent is running, queue the message
+  if (agentStreaming()) {
+    setQueuedMessages(prev => [...prev, content]);
+    return;
+  }
 
   const userMsg: AgentMessage = {
     id: genId(),
@@ -302,6 +416,67 @@ async function stopAgent() {
     }
   }
   setAgentStreaming(false);
+}
+
+async function forcePushAgent(content: string, context?: AgentContext, modelOverride?: string, images?: string[]) {
+  // Stop current agent and clear queue
+  const sid = agentSessionId();
+  if (sid) {
+    try {
+      await invoke("agent_stop", { sessionId: sid });
+    } catch {
+      // ignore
+    }
+  }
+  setAgentStreaming(false);
+  setQueuedMessages([]);
+
+  // Send new message immediately
+  const userMsg: AgentMessage = {
+    id: genId(),
+    role: "user",
+    content,
+    images: images && images.length > 0 ? images : undefined,
+    timestamp: Date.now(),
+    status: "done",
+  };
+  setAgentMessages(produce((msgs) => msgs.push(userMsg)));
+  scheduleSave();
+  setAgentStreaming(true);
+  setAgentError(null);
+
+  // Build messages array for backend — include images for vision-capable models
+  const messages = [...agentMessages]
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+
+  const s = settings();
+  const workspaceDir = projectRoot() || "";
+
+  try {
+    await invoke("agent_chat", {
+      messages,
+      model: modelOverride || s.aiModel,
+      apiKey: null,
+      provider: s.aiProvider,
+      workspaceDir,
+      context: context ? JSON.stringify(context) : null,
+    });
+  } catch (e) {
+    setAgentStreaming(false);
+    setAgentError(String(e));
+    setAgentMessages(
+      produce((msgs) => {
+        msgs.push({
+          id: genId(),
+          role: "system",
+          content: `Failed to send message: ${e}`,
+          timestamp: Date.now(),
+          status: "error",
+        });
+      })
+    );
+  }
 }
 
 function clearAgentMessages() {
@@ -426,6 +601,7 @@ function clearAgentState() {
   setAgentStatus("");
   setActiveAgentTab("default");
   tabCounter = 0;
+  setQueuedMessages([]);
 }
 
 export {
@@ -440,10 +616,12 @@ export {
   initAgentListeners,
   sendAgentMessage,
   stopAgent,
+  forcePushAgent,
   clearAgentMessages,
   startNewSession,
   switchAgentTab,
   removeAgentTab,
   restoreAgentHistory,
   clearAgentState,
+  queuedMessages,
 };

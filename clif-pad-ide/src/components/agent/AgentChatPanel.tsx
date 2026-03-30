@@ -8,11 +8,13 @@ import {
   activeAgentTab,
   sendAgentMessage,
   stopAgent,
+  forcePushAgent,
   startNewSession,
   switchAgentTab,
   removeAgentTab,
   initAgentListeners,
   restoreAgentHistory,
+  queuedMessages,
 } from "../../stores/agentStore";
 
 import { activeFile, projectRoot, fileTree } from "../../stores/fileStore";
@@ -60,7 +62,6 @@ const AgentChatPanel: Component = () => {
   const [clifInitProgress, setClifInitProgress] = createSignal<{ step: number; total: number; message: string; elapsed_secs: number }>({ step: 0, total: 15, message: "", elapsed_secs: 0 });
   const [clifExists, setClifExists] = createSignal<boolean | null>(null); // null = checking
   const [webSearchEnabled, setWebSearchEnabled] = createSignal(false);
-  const [queuedMessage, setQueuedMessage] = createSignal<string | null>(null);
   const [mentionActive, setMentionActive] = createSignal(false);
   const [mentionQuery, setMentionQuery] = createSignal("");
   const [mentionIndex, setMentionIndex] = createSignal(0);
@@ -88,24 +89,6 @@ const AgentChatPanel: Component = () => {
       .map((p) => p.startsWith(root) ? p.slice(root.length + 1) : p)
       .filter((p) => !q || p.toLowerCase().includes(q))
       .slice(0, 15);
-  });
-
-  // Auto-send queued message when agent finishes (and not while init is running)
-  createEffect(() => {
-    if (!agentStreaming() && !clifInitializing() && queuedMessage()) {
-      const msg = queuedMessage()!;
-      setQueuedMessage(null);
-      setInputValue("");
-      if (inputRef) inputRef.style.height = "auto";
-      const ctx = buildContext();
-      setContextFiles([]);
-      if (webSearchEnabled() && settings().aiProvider === "openrouter") {
-        const baseModel = settings().aiModel.replace(/:online$/, "");
-        sendAgentMessage(msg, ctx, baseModel + ":online");
-      } else {
-        sendAgentMessage(msg, ctx);
-      }
-    }
   });
 
   async function fetchOpenRouterModels() {
@@ -339,18 +322,10 @@ const AgentChatPanel: Component = () => {
     }
   }
 
-  async function handleSend() {
+  async function handleSend(force = false) {
     const text = inputValue().trim();
     const imgs = pastedImages();
     if (!text && imgs.length === 0) return;
-
-    // If agent is running OR project is being scanned, queue the message
-    if (agentStreaming() || clifInitializing()) {
-      setQueuedMessage(text);
-      setInputValue("");
-      if (inputRef) inputRef.style.height = "auto";
-      return;
-    }
 
     setInputValue("");
     if (inputRef) inputRef.style.height = "auto";
@@ -358,11 +333,26 @@ const AgentChatPanel: Component = () => {
     setContextFiles([]);
     const imagesToSend = imgs.slice();
     setPastedImages([]);
-    if (webSearchEnabled() && settings().aiProvider === "openrouter") {
-      const baseModel = settings().aiModel.replace(/:online$/, "");
-      await sendAgentMessage(text, ctx, baseModel + ":online", imagesToSend);
+
+    if (force) {
+      // Force push: cancel current agent, clear queue, send immediately
+      if (webSearchEnabled() && settings().aiProvider === "openrouter") {
+        const baseModel = settings().aiModel.replace(/:online$/, "");
+        await forcePushAgent(text, ctx, baseModel + ":online", imagesToSend);
+      } else {
+        await forcePushAgent(text, ctx, undefined, imagesToSend);
+      }
+    } else if (agentStreaming() || clifInitializing()) {
+      // Queue the message
+      sendAgentMessage(text, ctx, undefined, imagesToSend);
     } else {
-      await sendAgentMessage(text, ctx, undefined, imagesToSend);
+      // Send immediately
+      if (webSearchEnabled() && settings().aiProvider === "openrouter") {
+        const baseModel = settings().aiModel.replace(/:online$/, "");
+        await sendAgentMessage(text, ctx, baseModel + ":online", imagesToSend);
+      } else {
+        await sendAgentMessage(text, ctx, undefined, imagesToSend);
+      }
     }
   }
 
@@ -403,6 +393,13 @@ const AgentChatPanel: Component = () => {
         return;
       }
     }
+    // Shift+Enter: force push (cancel current agent, send immediately)
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      handleSend(true);
+      return;
+    }
+    // Enter: normal send (queue if agent running)
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -1099,11 +1096,11 @@ const AgentChatPanel: Component = () => {
               "min-height": "20px",
               "max-height": "150px",
               "font-family": "inherit",
-              opacity: queuedMessage() ? "0.6" : "1",
+              opacity: queuedMessages().length > 0 ? "0.6" : "1",
             }}
             placeholder={
-              queuedMessage()
-                ? `Queued: "${queuedMessage()!.slice(0, 40)}${queuedMessage()!.length > 40 ? "…" : ""}"`
+              queuedMessages().length > 0
+                ? `Message queued (${queuedMessages().length} in line) — Shift+Enter to force push`
                 : (agentStreaming() || clifInitializing())
                 ? "Type to queue next message..."
                 : "Ask the agent... (paste images with ⌘V)"
@@ -1111,7 +1108,7 @@ const AgentChatPanel: Component = () => {
             rows={1}
             value={inputValue()}
             onInput={(e) => {
-              if (queuedMessage()) return;
+              if (queuedMessages().length > 0) return;
               const val = e.currentTarget.value;
               setInputValue(val);
               autoResize(e.currentTarget);
@@ -1135,6 +1132,30 @@ const AgentChatPanel: Component = () => {
             onPaste={handlePaste}
           />
 
+          {/* Queued messages badge */}
+          <Show when={queuedMessages().length > 0}>
+            <button
+              class="absolute top-[-8px] right-[-8px] z-10 flex items-center justify-center rounded-full"
+              style={{
+                background: "var(--accent-primary)",
+                color: "#fff",
+                "font-size": "11px",
+                "min-width": "20px",
+                height: "20px",
+                padding: "0 6px",
+                "font-weight": "600",
+                border: "2px solid var(--bg-base)",
+                cursor: "pointer",
+              }}
+              onClick={() => handleSend(true)}
+              title={`Force push: cancel current agent and send next message (${queuedMessages().length} queued)`}
+            >
+              {queuedMessages().length}
+            </button>
+          </Show>
+        </div>
+
+        <div class="flex items-center justify-between mt-1 px-1">
           {/* Send / Stop streaming button */}
           <Show
             when={!agentStreaming()}
@@ -1166,7 +1187,7 @@ const AgentChatPanel: Component = () => {
                     border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
                     cursor: "pointer",
                   }}
-                  onClick={handleSend}
+                  onClick={() => handleSend(false)}
                   title="Queue message — sends when agent finishes"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1186,7 +1207,7 @@ const AgentChatPanel: Component = () => {
                 border: "none",
                 cursor: (inputValue().trim() || pastedImages().length > 0) ? "pointer" : "default",
               }}
-              onClick={handleSend}
+                onClick={() => handleSend(false)}
               disabled={!inputValue().trim() && pastedImages().length === 0}
               title="Send message"
             >
