@@ -89,30 +89,39 @@ export async function generateCommitMessage(
   return invoke("generate_commit_message", { diff, stagedFiles, model, apiKey, provider });
 }
 
-// AI Code Review
-export interface CodeReviewSuggestion {
-  file: string;
-  line: number | null;
-  severity: "warning" | "info" | "suggestion";
-  title: string;
-  description: string;
-  suggestion: string | null;
-}
-
-export interface CodeReviewResult {
-  files_scanned: string[];
-  suggestions: CodeReviewSuggestion[];
-  summary: string;
-}
-
+// AI Code Review (streams via events)
 export async function aiReviewCode(
   diff: string,
   stagedFiles: string[],
   model: string,
   apiKey: string | null,
   provider: string
-): Promise<CodeReviewResult> {
+): Promise<void> {
   return invoke("ai_review_code", { diff, stagedFiles, model, apiKey, provider });
+}
+
+export function onCodeReviewStart(
+  callback: (files: string[]) => void
+): Promise<UnlistenFn> {
+  return listen<string[]>("code_review_start", (event) => callback(event.payload));
+}
+
+export function onCodeReviewStream(
+  callback: (chunk: string) => void
+): Promise<UnlistenFn> {
+  return listen<string>("code_review_stream", (event) => callback(event.payload));
+}
+
+export function onCodeReviewDone(
+  callback: (content: string) => void
+): Promise<UnlistenFn> {
+  return listen<string>("code_review_done", (event) => callback(event.payload));
+}
+
+export function onCodeReviewError(
+  callback: (error: string) => void
+): Promise<UnlistenFn> {
+  return listen<string>("code_review_error", (event) => callback(event.payload));
 }
 
 // Git commands

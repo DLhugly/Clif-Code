@@ -1,6 +1,6 @@
-import { Component, Show, For, createSignal, createMemo, lazy, Suspense } from "solid-js";
+import { Component, Show, For, createSignal, createMemo, lazy, Suspense, onCleanup } from "solid-js";
 import { projectRoot, openFile, openDiff, refreshFileTree } from "../../stores/fileStore";
-import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, generateCommitMessage, getApiKey, aiReviewCode, type CodeReviewResult } from "../../lib/tauri";
+import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, generateCommitMessage, getApiKey, aiReviewCode, onCodeReviewStart, onCodeReviewStream, onCodeReviewDone, onCodeReviewError } from "../../lib/tauri";
 import { securityEnabled, setSecurityResults, setSecurityShowModal, securityShowModal } from "../../stores/securityStore";
 import SecurityModal from "../security/SecurityModal";
 import ContextMenu, { type ContextMenuItem } from "../explorer/ContextMenu";
@@ -16,6 +16,7 @@ import type { GitLogEntry } from "../../types/git";
 import { FileRow, GitGraphRow, PlusIcon } from "../git";
 import { ResizeHandle, GitSyncButton, SidebarToolbarButton } from "../ui";
 import { settings } from "../../stores/settingsStore";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 
 const FileTree = lazy(() => import("../explorer/FileTree"));
 
@@ -78,10 +79,11 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
   const [isDraggingGitSplitter, setIsDraggingGitSplitter] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [isAiReviewing, setIsAiReviewing] = createSignal(false);
-  const [aiReviewResult, setAiReviewResult] = createSignal<CodeReviewResult | null>(null);
+  const [aiReviewContent, setAiReviewContent] = createSignal("");
   const [aiReviewExpanded, setAiReviewExpanded] = createSignal(true);
-  const [aiReviewAbortController, setAiReviewAbortController] = createSignal<AbortController | null>(null);
+  const [aiReviewFiles, setAiReviewFiles] = createSignal<string[]>([]);
   let gitSplitContainerRef: HTMLDivElement | undefined;
+  let aiReviewUnlisten: UnlistenFn | undefined;
 
   async function handleGenerateCommitMessage() {
     if (isGeneratingMsg() || stagedFiles().length === 0) return;
@@ -110,56 +112,75 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
   async function handleAiReview() {
     if (isAiReviewing() || stagedFiles().length === 0) return;
     setIsAiReviewing(true);
-    setAiReviewResult(null);
+    setAiReviewContent("");
     
-    const controller = new AbortController();
-    setAiReviewAbortController(controller);
+    const s = settings();
+    const model = s.aiModel || "anthropic/claude-sonnet-4";
+    const provider = s.aiProvider || "openrouter";
+    const apiKey = await getApiKey(provider);
+
+    const diff = await gitDiff(projectRoot() || "", undefined);
+    const stagedPaths = stagedFiles().map(f => f.path);
+
+    // Set up event listeners for streaming
+    const unlistenStart = await onCodeReviewStart((files) => {
+      setAiReviewFiles(files);
+    });
+    
+    const unlistenStream = await onCodeReviewStream((chunk) => {
+      setAiReviewContent(prev => prev + chunk);
+    });
+    
+    const unlistenDone = await onCodeReviewDone(() => {
+      setIsAiReviewing(false);
+    });
+    
+    const unlistenError = await onCodeReviewError((error) => {
+      console.error("AI review error:", error);
+      setAiReviewContent(prev => prev + `\n\n**Error:** ${error}`);
+      setIsAiReviewing(false);
+    });
+    
+    // Store unlisteners for cleanup
+    aiReviewUnlisten = () => {
+      unlistenStart();
+      unlistenStream();
+      unlistenDone();
+      unlistenError();
+    };
+    
+    setAiReviewExpanded(true);
     
     try {
-      const s = settings();
-      const model = s.aiModel || "anthropic/claude-sonnet-4";
-      const provider = s.aiProvider || "openrouter";
-      const apiKey = await getApiKey(provider);
-
-      const diff = await gitDiff(projectRoot() || "", undefined);
-      const stagedPaths = stagedFiles().map(f => f.path);
-
-      const result = await aiReviewCode(diff, stagedPaths, model, apiKey, provider);
-      setAiReviewResult(result);
-      setAiReviewExpanded(true);
+      await aiReviewCode(diff, stagedPaths, model, apiKey, provider);
     } catch (e) {
       console.error("Failed to run AI code review:", e);
-    } finally {
       setIsAiReviewing(false);
-      setAiReviewAbortController(null);
     }
   }
 
   function cancelAiReview() {
-    const controller = aiReviewAbortController();
-    if (controller) {
-      controller.abort();
-      setIsAiReviewing(false);
-      setAiReviewAbortController(null);
+    // Currently no backend cancel for this - just reset state
+    if (aiReviewUnlisten) {
+      aiReviewUnlisten();
     }
+    setIsAiReviewing(false);
+    setAiReviewContent(prev => prev + "\n\n*[Cancelled]*");
   }
 
   function copyAiReviewToAgent() {
-    if (!aiReviewResult()) return;
-    const result = aiReviewResult()!;
-    let text = `## AI Code Review\n\n**Files scanned:** ${result.files_scanned.join(", ")}\n\n`;
-    text += `**Summary:** ${result.summary}\n\n`;
-    if (result.suggestions.length > 0) {
-      text += `### Suggestions\n\n`;
-      for (const s of result.suggestions) {
-        text += `**${s.severity.toUpperCase()}**: ${s.file}${s.line ? `:${s.line}` : ""} - ${s.title}\n`;
-        text += `${s.description}\n`;
-        if (s.suggestion) text += `Suggestion: ${s.suggestion}\n`;
-        text += "\n";
-      }
-    }
+    const content = aiReviewContent();
+    if (!content) return;
+    
+    const text = `## AI Code Review\n\n**Files:** ${aiReviewFiles().join(", ")}\n\n${content}`;
     navigator.clipboard.writeText(text);
   }
+  
+  onCleanup(() => {
+    if (aiReviewUnlisten) {
+      aiReviewUnlisten();
+    }
+  });
 
   function handleGitSplitterMouseDown(e: MouseEvent) {
     e.preventDefault();
@@ -941,33 +962,30 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
 
                   {/* Expandable content */}
                   <Show when={aiReviewExpanded()}>
-                    <div class="px-2 py-1.5" style={{ "max-height": "150px", "overflow-y": "auto" }}>
-                      <Show when={isAiReviewing()}>
+                    <div class="px-2 py-1.5" style={{ "max-height": "200px", "overflow-y": "auto" }}>
+                      <Show when={isAiReviewing() && !aiReviewContent()}>
                         <div class="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
                           <SpinnerIcon />
                           <span>Analyzing staged changes...</span>
                         </div>
                       </Show>
-                      <Show when={aiReviewResult()}>
-                        <div class="text-xs" style={{ color: "var(--text-muted)", "margin-bottom": "8px" }}>
-                          {aiReviewResult()!.summary}
+                      <Show when={aiReviewContent()}>
+                        <div 
+                          class="text-xs" 
+                          style={{ 
+                            color: "var(--text-primary)", 
+                            "white-space": "pre-wrap",
+                            "word-break": "break-word",
+                            "line-height": "1.5",
+                          }}
+                        >
+                          {aiReviewContent()}
                         </div>
-                        <Show when={aiReviewResult()!.suggestions.length > 0}>
-                          <For each={aiReviewResult()!.suggestions}>
-                            {(s) => (
-                              <div class="mb-2 p-1.5 rounded" style={{ background: "var(--bg-hover)", "font-size": "0.75em" }}>
-                                <div class="flex items-center gap-1" style={{ color: s.severity === "warning" ? "var(--accent-yellow)" : "var(--text-secondary)" }}>
-                                  <span style={{ "font-weight": 600 }}>{s.severity.toUpperCase()}</span>
-                                  <span style={{ color: "var(--text-muted)" }}>{s.file}{s.line ? `:${s.line}` : ""}</span>
-                                </div>
-                                <div style={{ color: "var(--text-primary)", "margin-top": "2px" }}>{s.title}</div>
-                              </div>
-                            )}
-                          </For>
+                        <Show when={!isAiReviewing()}>
                           <button
                             type="button"
                             onClick={copyAiReviewToAgent}
-                            class="w-full py-1 rounded text-xs transition-colors"
+                            class="w-full mt-2 py-1 rounded text-xs transition-colors"
                             style={{
                               background: "var(--accent-primary)",
                               color: "var(--accent-text, #fff)",
@@ -978,15 +996,10 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                             Copy to Agent
                           </button>
                         </Show>
-                        <Show when={aiReviewResult()!.suggestions.length === 0}>
-                          <div class="text-xs" style={{ color: "var(--accent-green)" }}>
-                            No issues found in staged changes.
-                          </div>
-                        </Show>
                       </Show>
-                      <Show when={!isAiReviewing() && !aiReviewResult()}>
+                      <Show when={!isAiReviewing() && !aiReviewContent()}>
                         <div class="text-xs" style={{ color: "var(--text-muted)" }}>
-                          Stage files and click AI scan to review
+                          Click the AI button to analyze staged changes.
                         </div>
                       </Show>
                     </div>

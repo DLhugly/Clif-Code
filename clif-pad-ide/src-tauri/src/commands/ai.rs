@@ -518,31 +518,35 @@ pub struct CodeReviewResult {
 
 #[tauri::command]
 pub async fn ai_review_code(
+    window: tauri::Window,
     diff: String,
     staged_files: Vec<String>,
     model: String,
     api_key: Option<String>,
     provider: String,
-) -> Result<CodeReviewResult, String> {
+) -> Result<(), String> {
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
     let url = get_provider_url(&provider);
 
     // Truncate diff if too long for faster processing
-    let truncated_diff = if diff.len() > 8000 {
-        format!("{}...\n[Diff truncated for performance]", &diff[..8000])
+    let truncated_diff = if diff.len() > 6000 {
+        format!("{}...\n[Truncated]", &diff[..6000])
     } else {
         diff.clone()
     };
     
     let files_list = staged_files.join(", ");
+    // Shorter, faster prompt
     let prompt = format!(
-        r#"Review this code diff briefly. Files: {}
+        r#"Quick review of: {}
 
 {}
 
-Return JSON only:
-{{"suggestions":[{{"file":"path","line":N,"severity":"warning|info","title":"issue","description":"why"}}],"summary":"one sentence"}}
+List issues in this format:
+**file:line** (severity): description
 
-Only report real issues. Max 3 suggestions."#,
+Only real issues. Be brief."#,
         files_list, truncated_diff
     );
 
@@ -554,8 +558,8 @@ Only report real issues. Max 3 suggestions."#,
     let mut request_body = json!({
         "model": model,
         "messages": api_messages,
-        "stream": false,
-        "max_tokens": 800,
+        "stream": true,
+        "max_tokens": 500,
     });
 
     if provider == "openrouter" {
@@ -583,57 +587,71 @@ Only report real issues. Max 3 suggestions."#,
         }
     }
 
-    let response = req_builder
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
+    // Spawn streaming task
+    tokio::spawn(async move {
+        let response = match req_builder.json(&request_body).send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                let _ = app.emit_to(&label, "code_review_error", format!("Request failed: {}", e));
+                return;
+            }
+        };
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(format!("API error {}: {}", status, body));
-    }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            let _ = app.emit_to(&label, "code_review_error", format!("API error {}: {}", status, body));
+            return;
+        }
 
-    let json: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        // Emit start event with files being scanned
+        let _ = app.emit_to(&label, "code_review_start", staged_files.clone());
 
-    let content = json["choices"][0]["message"]["content"]
-        .as_str()
-        .unwrap_or("{}");
+        // Stream the response
+        let mut stream = response.bytes_stream();
+        use futures::StreamExt;
 
-    // Parse the LLM response
-    let parsed: serde_json::Value = serde_json::from_str(content)
-        .unwrap_or_else(|_| json!({"suggestions": [], "summary": "Could not parse review response"}));
+        let mut buffer = String::new();
+        let mut full_content = String::new();
 
-    let suggestions: Vec<CodeReviewSuggestion> = parsed["suggestions"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|s| {
-                    Some(CodeReviewSuggestion {
-                        file: s["file"].as_str()?.to_string(),
-                        line: s["line"].as_u64().map(|l| l as usize),
-                        severity: s["severity"].as_str().unwrap_or("info").to_string(),
-                        title: s["title"].as_str().unwrap_or("Issue").to_string(),
-                        description: s["description"].as_str().unwrap_or("").to_string(),
-                        suggestion: s["suggestion"].as_str().map(|s| s.to_string()),
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    let chunk_str = String::from_utf8_lossy(&chunk);
+                    buffer.push_str(&chunk_str);
 
-    let summary = parsed["summary"]
-        .as_str()
-        .unwrap_or("Review complete")
-        .to_string();
+                    while let Some(newline_pos) = buffer.find('\n') {
+                        let line = buffer[..newline_pos].trim().to_string();
+                        buffer = buffer[newline_pos + 1..].to_string();
 
-    Ok(CodeReviewResult {
-        files_scanned: staged_files,
-        suggestions,
-        summary,
-    })
+                        if line.is_empty() || !line.starts_with("data: ") {
+                            continue;
+                        }
+
+                        let data = &line[6..];
+
+                        if data == "[DONE]" {
+                            let _ = app.emit_to(&label, "code_review_done", &full_content);
+                            return;
+                        }
+
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
+                            if let Some(content) = parsed["choices"][0]["delta"]["content"].as_str() {
+                                full_content.push_str(content);
+                                let _ = app.emit_to(&label, "code_review_stream", content);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = app.emit_to(&label, "code_review_error", format!("Stream error: {}", e));
+                    return;
+                }
+            }
+        }
+
+        let _ = app.emit_to(&label, "code_review_done", &full_content);
+    });
+
+    Ok(())
 }
