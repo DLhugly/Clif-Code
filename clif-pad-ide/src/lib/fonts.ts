@@ -10,6 +10,11 @@ export const MONO_FONTS: FontOption[] = [
   { label: "Source Code Pro", value: "Source Code Pro" },
   { label: "Cascadia Code", value: "Cascadia Code" },
   { label: "IBM Plex Mono", value: "IBM Plex Mono" },
+  { label: "Hack", value: "Hack" },
+  { label: "Monaco", value: "Monaco", isSystem: true },
+  { label: "Consolas", value: "Consolas", isSystem: true },
+  { label: "SF Mono", value: "SF Mono", isSystem: true },
+  { label: "Ubuntu Mono", value: "Ubuntu Mono" },
   { label: "Menlo", value: "Menlo", isSystem: true },
 ];
 

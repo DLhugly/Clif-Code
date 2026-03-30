@@ -91,7 +91,7 @@ cargo install --path .     # Install to ~/.cargo/bin
 
 # Important Notes
 - **No Electron**: Both products use native tech (Tauri for desktop, pure Rust for TUI)
-- **FSL-1.1-ALv2 License**: Free to use/modify/self-host, but cannot build competing commercial product. Converts to Apache 2.0 after 2 years.
+- **Proprietary Source License**: Free for personal/non-commercial use. Commercial use requires license. See LICENSE file for details.
 - **Security Scanner**: Runs automatically before git commits in ClifPad, detects hardcoded secrets/keys
 - **Context Compaction**: ClifCode TUI uses 3-tier automatic context management to run indefinitely without hitting limits
 - **Auto-Update**: ClifPad has built-in updater (`tauri-plugin-updater`), ClifCode has `/update` command

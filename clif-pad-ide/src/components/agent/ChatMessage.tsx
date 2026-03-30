@@ -110,6 +110,82 @@ const DiffViewer: Component<{ diff: string }> = (props) => {
   );
 };
 
+// ── Clean Arguments Display ────────────────────────────────────────────────
+// Renders tool arguments as clean key-value pairs instead of raw JSON.
+const ArgumentsDisplay: Component<{ args: Record<string, unknown>; toolName: string }> = (props) => {
+  // Format a value based on its type
+  const formatValue = (val: unknown): string => {
+    if (typeof val === "string") return val;
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    return JSON.stringify(val);
+  };
+
+  // Get icon for common argument types
+  const getArgIcon = (key: string): string => {
+    if (key === "command") return "▶";
+    if (key === "path") return "📄";
+    if (key === "query") return "🔍";
+    if (key === "old_string" || key === "new_string") return "✏️";
+    if (key === "content") return "📝";
+    return "•";
+  };
+
+  return (
+    <div style={{ display: "flex", "flex-direction": "column", gap: "4px", "padding-right": "28px" }}>
+      <For each={Object.entries(props.args)}>
+        {([key, value]) => {
+          const displayValue = formatValue(value);
+          const isLong = displayValue.length > 100;
+          const truncatedValue = isLong ? displayValue.slice(0, 97) + "…" : displayValue;
+          const isMultiline = typeof value === "string" && value.includes("\n");
+          
+          return (
+            <div style={{ display: "flex", "flex-direction": "column", gap: "2px" }}>
+              <div style={{ display: "flex", "align-items": "flex-start", gap: "8px" }}>
+                <span style={{ color: "var(--text-muted)", "font-size": "0.85em" }}>
+                  {getArgIcon(key)}
+                </span>
+                <span style={{ color: "var(--accent-blue)", "font-weight": "500" }}>
+                  {key}:
+                </span>
+                <span
+                  style={{
+                    color: key === "command" ? "var(--accent-yellow)" : "var(--text-primary)",
+                    "word-break": "break-all",
+                    "white-space": isMultiline ? "pre-wrap" : "normal",
+                  }}
+                  title={isLong ? displayValue : undefined}
+                >
+                  {truncatedValue}
+                </span>
+              </div>
+              {/* Show full value for long content/edit strings on click */}
+              <Show when={isLong && (key === "old_string" || key === "new_string" || key === "content")}>
+                <div
+                  style={{
+                    "margin-left": "24px",
+                    "padding": "6px 8px",
+                    "background": "var(--bg-surface)",
+                    "border-radius": "4px",
+                    border: "1px solid var(--border-muted)",
+                    "white-space": "pre-wrap",
+                    "word-break": "break-all",
+                    "max-height": "120px",
+                    overflow: "auto",
+                    "font-size": "0.9em",
+                  }}
+                >
+                  {displayValue}
+                </div>
+              </Show>
+            </div>
+          );
+        }}
+      </For>
+    </div>
+  );
+};
+
 // ── Feature #3: Clickable File Links ─────────────────────────────────────────
 // Detects `path:line` or bare file path patterns in tool result text and
 // renders them as clickable spans that open the file in the editor.
@@ -332,14 +408,10 @@ const ToolCallCard: Component<{
           }}
         >
           <Show when={toolCall()?.arguments}>
-            <div class="py-1.5 group" style={{ color: "var(--text-muted)", position: "relative" }}>
-              <pre
-                class="whitespace-pre-wrap break-all"
-                style={{ margin: "0", "padding-right": "28px" }}
-              >
-                {JSON.stringify(toolCall()!.arguments, null, 2)}
-              </pre>
-              <CopyButton text={JSON.stringify(toolCall()!.arguments, null, 2)} />
+            <div class="py-1.5 group" style={{ color: "var(--text-secondary)", position: "relative" }}>
+              {/* Render arguments as clean key-value pairs */}
+              <ArgumentsDisplay args={toolCall()!.arguments ?? {}} toolName={props.message.toolName ?? ""} />
+              <CopyButton text={JSON.stringify(toolCall()!.arguments ?? {}, null, 2)} />
             </div>
           </Show>
           <Show when={toolCall()?.result}>

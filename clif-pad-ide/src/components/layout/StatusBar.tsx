@@ -26,6 +26,17 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
   const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
 
+  // Format project path: show project folder + 2 levels above
+  const projectPathDisplay = () => {
+    const root = projectRoot();
+    if (!root) return "";
+    
+    const parts = root.split("/").filter(Boolean);
+    // Show last 3 parts: 2 levels above + project folder name
+    const displayParts = parts.slice(-3);
+    return displayParts.join("/");
+  };
+
   const filePath = () => {
     const file = activeFile();
     return file ? file.path : "";
@@ -179,6 +190,17 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
           </div>
         </Show>
 
+        {/* Project path display */}
+        <Show when={projectPathDisplay()}>
+          <div 
+            class="truncate" 
+            style={{ color: "var(--text-muted)", "max-width": "180px", "font-size": "11px" }} 
+            title={projectRoot() || ""}
+          >
+            {projectPathDisplay()}
+          </div>
+        </Show>
+
         <Show when={filePath()}>
           <div class="truncate" style={{ color: "var(--text-muted)", "max-width": "200px" }} title={filePath()}>
             {filePath()}
@@ -209,7 +231,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
             <polyline points="13 2 13 9 20 9" />
           </svg>
-          <span>Editor</span>
+          <span>Open Editor</span>
         </button>
 
         <Show when={language()}>
@@ -245,7 +267,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span>Agent</span>
+          <span>Launch Agent</span>
         </button>
 
         {/* Clif label with update indicator */}

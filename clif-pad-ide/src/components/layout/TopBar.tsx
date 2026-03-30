@@ -39,7 +39,7 @@ const CheckIcon = () => (
 );
 
 interface FontDropdownProps {
-  label: string;
+  label?: string;
   value: string;
   options: { label: string; value: string }[];
   onChange: (value: string) => void;
@@ -87,10 +87,10 @@ const FontDropdown: Component<FontDropdownProps> = (props) => {
           if (!open()) (e.currentTarget as HTMLElement).style.background = "transparent";
         }}
         onClick={toggle}
-        title={props.label}
+        title={props.label || props.value}
       >
-        <span style={{ color: "var(--text-muted)", "font-size": "10px" }}>{props.label}</span>
-        <span style={{ "max-width": "90px", overflow: "hidden", "text-overflow": "ellipsis" }}>{props.value}</span>
+        {props.label && <span style={{ color: "var(--text-muted)", "font-size": "10px" }}>{props.label}</span>}
+        <span style={{ "max-width": "140px", overflow: "hidden", "text-overflow": "ellipsis" }}>{props.value}</span>
         <ChevronIcon />
       </button>
 
@@ -276,12 +276,12 @@ const TopBar: Component<{
       {/* Spacer — also draggable */}
       <div data-tauri-drag-region class="flex-1 h-full" />
 
-      {/* Right controls */}
-      <div class="flex items-center gap-3">
+      {/* Right controls - scooted 15% from center */}
+      <div class="flex items-center gap-3" style={{ "padding-left": "15%" }}>
         {/* Font size slider */}
         <div
           class="flex items-center gap-2"
-          style={{ color: "var(--text-secondary)", "margin-left": "-12px" }}
+          style={{ color: "var(--text-secondary)" }}
         >
           <span style={{ "font-size": "11px", "font-weight": "600", opacity: "0.7" }}>A</span>
           <input
@@ -313,15 +313,17 @@ const TopBar: Component<{
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />
 
         {/* Font dropdown */}
-        <span style={{ "font-size": "11px", color: "var(--text-muted)", "font-weight": "500" }}>Fonts:</span>
-        <div style={{ "margin-left": "-12px" }}>
+        <div>
           <FontDropdown
-            label="Font"
+            label="Fonts:"
             value={settings().editorFont}
             options={MONO_FONTS}
             onChange={handleFontFamilyChange}
           />
         </div>
+
+        {/* Extra spacing */}
+        <div style={{ width: "16px" }} />
 
         {/* Divider */}
         <div style={{ width: "1px", height: "20px", background: "var(--border-default)", opacity: "0.5" }} />

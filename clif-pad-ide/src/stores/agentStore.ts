@@ -189,17 +189,26 @@ async function initAgentListeners() {
           if (last && last.role === "assistant" && last.status === "streaming") {
             last.status = "done";
           }
-          // Add a pending tool_call entry - will be updated when agent_tool_call arrives
-          msgs.push({
-            id: `tool-start-${Date.now()}`,
-            role: "tool_call",
-            content: "",
-            timestamp: Date.now(),
-            toolName: name,
-            toolCallId: "", // Will be filled in by agent_tool_call
-            toolCalls: [{ id: "", name, arguments: {}, status: "pending" }],
-            status: "pending",
-          });
+          
+          // Only add a pending entry if there isn't already one for this tool at the end
+          // This prevents duplicates from multiple agent_tool_start events
+          const lastMsg = msgs[msgs.length - 1];
+          const isAlreadyPending = lastMsg?.role === "tool_call" && 
+                                    lastMsg?.toolName === name && 
+                                    lastMsg?.status === "pending";
+          
+          if (!isAlreadyPending) {
+            msgs.push({
+              id: `tool-start-${Date.now()}`,
+              role: "tool_call",
+              content: "",
+              timestamp: Date.now(),
+              toolName: name,
+              toolCallId: "", // Will be filled in by agent_tool_call
+              toolCalls: [{ id: "", name, arguments: {}, status: "pending" }],
+              status: "pending",
+            });
+          }
         })
       );
     })
@@ -223,16 +232,36 @@ async function initAgentListeners() {
           if (last && last.role === "assistant" && last.status === "streaming") {
             last.status = "done";
           }
-          msgs.push({
-            id: genId(),
-            role: "tool_call",
-            content: "",
-            timestamp: Date.now(),
-            toolName: name,
-            toolCallId: id,
-            toolCalls: [toolCall],
-            status: "streaming",
-          });
+
+          // Find and update the LAST pending tool_call entry from agent_tool_start
+          // Iterate backwards to find the most recent one (in case of any edge cases)
+          let pendingIdx = -1;
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
+            if (m.role === "tool_call" && m.toolName === name && m.status === "pending") {
+              pendingIdx = i;
+              break;
+            }
+          }
+
+          if (pendingIdx !== -1) {
+            // Update the existing pending entry with real data
+            msgs[pendingIdx].toolCallId = id;
+            msgs[pendingIdx].toolCalls = [toolCall];
+            msgs[pendingIdx].status = "streaming";
+          } else {
+            // No pending entry found, create a new one (fallback)
+            msgs.push({
+              id: genId(),
+              role: "tool_call",
+              content: "",
+              timestamp: Date.now(),
+              toolName: name,
+              toolCallId: id,
+              toolCalls: [toolCall],
+              status: "streaming",
+            });
+          }
         })
       );
     })

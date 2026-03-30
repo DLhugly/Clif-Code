@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1-blue?style=flat-square" alt="FSL-1.1-ALv2"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Proprietary-blue?style=flat-square" alt="Proprietary License"></a>
   <a href="https://github.com/DLhugly/Clif-Code/releases"><img src="https://img.shields.io/github/v/release/DLhugly/Clif-Code?label=release&color=blue&style=flat-square" alt="Release"></a>
   <a href="https://crates.io/crates/clifcode"><img src="https://img.shields.io/crates/v/clifcode?color=e6522c&style=flat-square" alt="crates.io"></a>
   <a href="https://www.npmjs.com/package/clifcode"><img src="https://img.shields.io/npm/v/clifcode?color=red&label=npm&style=flat-square" alt="npm"></a>
@@ -31,10 +31,10 @@
 
 Two products, one monorepo:
 
-1. **ClifPad** — Desktop IDE with Monaco editor, real terminal, git, and an AI agent sidebar
-2. **ClifCode** — Terminal AI agent that reads, writes, searches, and runs commands
+1. **ClifPad** — A ~20MB native desktop IDE with Monaco editor, real terminal, git, and built-in AI agent
+2. **ClifCode** — A terminal AI agent that reads, writes, searches, and runs commands
 
-Both use any LLM via OpenRouter, OpenAI, Anthropic, or Ollama (fully local). No Electron. No telemetry. No subscription.
+Both work with any LLM via OpenRouter, OpenAI, Anthropic, or Ollama (fully local). No Electron. No telemetry. No subscription.
 
 <p align="center">
   <img src="clif-pad-ide/www/117shots_so.png" alt="ClifPad Screenshot 1" width="800" />
@@ -236,7 +236,7 @@ Any model on an OpenAI-compatible API. Default: Claude Sonnet 4 via OpenRouter (
 
 ## License
 
-[FSL-1.1-ALv2](LICENSE) — Free to use, modify, and self-host. Cannot be used to build a competing commercial product. Converts to Apache 2.0 after 2 years.
+**FSL-1.1-ALv2** — Free to use, modify, and self-host. You cannot build a competing commercial product. Automatically converts to Apache 2.0 after 2 years.
 
 <p align="center">
   <sub>Built by <a href="https://github.com/DLhugly">James Lawrence</a></sub>
