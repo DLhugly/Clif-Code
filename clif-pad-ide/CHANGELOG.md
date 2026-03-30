@@ -1,3 +1,10 @@
+# [1.51.0](https://github.com/DLhugly/Clif-Code/compare/v1.50.0...v1.51.0) (2026-03-30)
+
+
+### Features
+
+* improve UI polish and fix license references ([a21d73d](https://github.com/DLhugly/Clif-Code/commit/a21d73dbc659283a80729a6279de6b9dd784b9a4))
+
 # [1.50.0](https://github.com/DLhugly/Clif-Code/compare/v1.49.2...v1.50.0) (2026-03-30)
 
 
