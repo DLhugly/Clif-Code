@@ -1,3 +1,10 @@
+# [1.55.0](https://github.com/DLhugly/Clif-Code/compare/v1.54.0...v1.55.0) (2026-03-30)
+
+
+### Features
+
+* streaming AI code review, copy to agent, faster prompt ([7534260](https://github.com/DLhugly/Clif-Code/commit/7534260e8095dc2a2ee04b44db8430813429d7e6))
+
 # [1.54.0](https://github.com/DLhugly/Clif-Code/compare/v1.53.0...v1.54.0) (2026-03-30)
 
 
