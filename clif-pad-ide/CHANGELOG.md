@@ -1,3 +1,11 @@
+# [1.54.0](https://github.com/DLhugly/Clif-Code/compare/v1.53.0...v1.54.0) (2026-03-30)
+
+
+### Features
+
+* add Code Review panel with security and AI scan buttons ([891db41](https://github.com/DLhugly/Clif-Code/commit/891db41cc86e565c4a172aab919ee9c7756fac5f))
+* add Code Review panel with security and AI scan buttons ([2fca6f1](https://github.com/DLhugly/Clif-Code/commit/2fca6f1a393b8c2741ed41bf15d4d43fd8470169))
+
 # [1.53.0](https://github.com/DLhugly/Clif-Code/compare/v1.52.1...v1.53.0) (2026-03-30)
 
 
