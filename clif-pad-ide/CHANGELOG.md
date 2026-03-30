@@ -1,3 +1,11 @@
+# [1.50.0](https://github.com/DLhugly/Clif-Code/compare/v1.49.2...v1.50.0) (2026-03-30)
+
+
+### Features
+
+* move launch buttons to terminal toolbar ([e458f30](https://github.com/DLhugly/Clif-Code/commit/e458f30a6df747bc84d36c3895c0a64388165463))
+* move launch terminal agent buttons to terminal toolbar ([9cdd7e6](https://github.com/DLhugly/Clif-Code/commit/9cdd7e6bfebc609f18bd0e88b1caaeb1c804b39d))
+
 ## [1.49.2](https://github.com/DLhugly/Clif-Code/compare/v1.49.1...v1.49.2) (2026-03-30)
 
 
