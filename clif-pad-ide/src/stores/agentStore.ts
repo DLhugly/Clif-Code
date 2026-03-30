@@ -177,6 +177,34 @@ async function initAgentListeners() {
     })
   );
 
+  // INSTANT FEEDBACK: Show tool badge immediately when name arrives (before arguments stream)
+  unlisteners.push(
+    await appWindow.listen<{ name: string; index: number }>("agent_tool_start", (event) => {
+      const { name } = event.payload;
+      
+      setAgentMessages(
+        produce((msgs) => {
+          // Mark last assistant message done if streaming
+          const last = msgs[msgs.length - 1];
+          if (last && last.role === "assistant" && last.status === "streaming") {
+            last.status = "done";
+          }
+          // Add a pending tool_call entry - will be updated when agent_tool_call arrives
+          msgs.push({
+            id: `tool-start-${Date.now()}`,
+            role: "tool_call",
+            content: "",
+            timestamp: Date.now(),
+            toolName: name,
+            toolCallId: "", // Will be filled in by agent_tool_call
+            toolCalls: [{ id: "", name, arguments: {}, status: "pending" }],
+            status: "pending",
+          });
+        })
+      );
+    })
+  );
+
   unlisteners.push(
     await appWindow.listen<{ id: string; name: string; arguments: string }>("agent_tool_call", (event) => {
       const { id, name, arguments: argsStr } = event.payload;

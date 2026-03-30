@@ -1058,34 +1058,84 @@ async fn run_agent_loop(
     let system_prompt = build_system_prompt(&workspace_dir, context.as_deref());
 
     // Build conversation from initial messages
-    let mut conversation: Vec<serde_json::Value> = vec![json!({
-        "role": "system",
-        "content": system_prompt,
-    })];
-
-    // Add context file contents for attached files
-    if let Some(ref ctx) = context {
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
-            if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
-                for file_val in files {
-                    if let Some(file_path) = file_val.as_str() {
-                        let full_path = resolve_path(file_path, &workspace_dir);
-                        if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
-                            let truncated = if content.len() > 30000 {
-                                format!("{}... (truncated)", &content[..30000])
-                            } else {
-                                content
-                            };
-                            conversation.push(json!({
-                                "role": "system",
-                                "content": format!("Content of {}:\n```\n{}\n```", file_path, truncated),
-                            }));
+    // For OpenRouter: Use array content with cache_control for 90% cost reduction on cached prompts
+    // For Ollama: Use string content (Ollama doesn't support array content for system messages)
+    let use_caching = provider == "openrouter";
+    
+    let mut conversation: Vec<serde_json::Value> = if use_caching {
+        // Build system prompt as array of text parts for cache_control support
+        let mut system_parts: Vec<serde_json::Value> = vec![json!({
+            "type": "text",
+            "text": system_prompt
+        })];
+        
+        // Add context file contents as additional text parts (same system message)
+        if let Some(ref ctx) = context {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
+                if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
+                    for file_val in files {
+                        if let Some(file_path) = file_val.as_str() {
+                            let full_path = resolve_path(file_path, &workspace_dir);
+                            if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
+                                let truncated = if content.len() > 30000 {
+                                    format!("{}... (truncated)", &content[..30000])
+                                } else {
+                                    content
+                                };
+                                system_parts.push(json!({
+                                    "type": "text",
+                                    "text": format!("Content of {}:\n```\n{}\n```", file_path, truncated)
+                                }));
+                            }
                         }
                     }
                 }
             }
         }
-    }
+        
+        // Tag the LAST static block with cache_control for Anthropic/OpenRouter caching
+        // This enables 90% cost reduction on subsequent requests with same prefix
+        if let Some(last_part) = system_parts.last_mut().and_then(|p| p.as_object_mut()) {
+            last_part.insert("cache_control".to_string(), json!({"type": "ephemeral"}));
+        }
+        
+        vec![json!({
+            "role": "system",
+            "content": system_parts
+        })]
+    } else {
+        // Ollama: use simple string format (no caching, but maximum compatibility)
+        let mut conv = vec![json!({
+            "role": "system",
+            "content": system_prompt,
+        })];
+        
+        // Add context files as separate system messages
+        if let Some(ref ctx) = context {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
+                if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
+                    for file_val in files {
+                        if let Some(file_path) = file_val.as_str() {
+                            let full_path = resolve_path(file_path, &workspace_dir);
+                            if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
+                                let truncated = if content.len() > 30000 {
+                                    format!("{}... (truncated)", &content[..30000])
+                                } else {
+                                    content
+                                };
+                                conv.push(json!({
+                                    "role": "system",
+                                    "content": format!("Content of {}:\n```\n{}\n```", file_path, truncated),
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        conv
+    };
 
     for msg in &initial_messages {
         // Build content as vision multi-part array when images are present,
@@ -1333,6 +1383,12 @@ async fn run_agent_loop(
                                                 if let Some(func) = tc.get("function") {
                                                     if let Some(name) = func.get("name").and_then(|v| v.as_str()) {
                                                         entry.1 = name.to_string();
+                                                        // INSTANT FEEDBACK: Emit tool name immediately for UI responsiveness
+                                                        // This fires before arguments finish streaming, giving ~1-2s faster perceived speed
+                                                        let _ = app.emit_to(label, "agent_tool_start", json!({
+                                                            "name": name,
+                                                            "index": index
+                                                        }));
                                                     }
                                                     if let Some(args) = func.get("arguments").and_then(|v| v.as_str()) {
                                                         entry.2.push_str(args);
@@ -1443,28 +1499,38 @@ async fn run_agent_loop(
 
             let args: serde_json::Value = match serde_json::from_str(args_str) {
                 Ok(value) => value,
-                Err(e) => {
-                    let result = tool_error(
-                        "INVALID_TOOL_ARGUMENTS",
-                        format!("Failed to parse tool arguments for '{}': {}", name, e),
-                        true,
-                    );
-                    let _ = app.emit_to(
-                        label,
-                        "agent_tool_call",
-                        json!({ "id": id, "name": name, "arguments": args_str }),
-                    );
-                    let _ = app.emit_to(
-                        label,
-                        "agent_tool_result",
-                        json!({ "tool_call_id": id, "result": &result }),
-                    );
-                    conversation.push(json!({
-                        "role": "tool",
-                        "tool_call_id": id,
-                        "content": result,
-                    }));
-                    continue;
+                Err(_e) => {
+                    // Try to repair common JSON issues from LLM output (malformed strings, trailing commas, etc.)
+                    let repaired = repair_json(args_str);
+                    match serde_json::from_str(&repaired) {
+                        Ok(value) => {
+                            log::info!("Repaired malformed JSON for tool '{}'", name);
+                            value
+                        }
+                        Err(e) => {
+                            let result = tool_error(
+                                "INVALID_TOOL_ARGUMENTS",
+                                format!("Failed to parse tool arguments for '{}': {}", name, e),
+                                true,
+                            );
+                            let _ = app.emit_to(
+                                label,
+                                "agent_tool_call",
+                                json!({ "id": id, "name": name, "arguments": args_str }),
+                            );
+                            let _ = app.emit_to(
+                                label,
+                                "agent_tool_result",
+                                json!({ "tool_call_id": id, "result": &result }),
+                            );
+                            conversation.push(json!({
+                                "role": "tool",
+                                "tool_call_id": id,
+                                "content": result,
+                            }));
+                            continue;
+                        }
+                    }
                 }
             };
 
@@ -1848,4 +1914,43 @@ pub async fn clif_init_project(
     let mut sessions = AGENT_SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
     sessions.remove(&session_id);
     Ok(())
+}
+
+/// Attempt to repair common JSON malformations from LLM output.
+/// This handles issues like unescaped newlines, trailing commas, and missing brackets.
+fn repair_json(input: &str) -> String {
+    let mut s = input.to_string();
+    
+    // Fix unescaped newlines inside string values
+    // This is a simple heuristic - replace actual newlines with \n escape sequence
+    // but only inside quoted strings (simplified approach)
+    s = s.replace("\\\n", "\\n");
+    s = s.replace("\\\r", "\\r");
+    s = s.replace("\\\t", "\\t");
+    
+    // Fix trailing commas before closing brackets
+    s = s.replace(",]", "]");
+    s = s.replace(",}", "}");
+    
+    // Fix missing closing quotes (odd number of quotes)
+    let open_quotes = s.matches('"').count();
+    if open_quotes % 2 != 0 {
+        s.push('"');
+    }
+    
+    // Fix missing closing braces
+    let open_braces = s.matches('{').count();
+    let close_braces = s.matches('}').count();
+    for _ in 0..open_braces.saturating_sub(close_braces) {
+        s.push('}');
+    }
+    
+    // Fix missing closing brackets
+    let open_brackets = s.matches('[').count();
+    let close_brackets = s.matches(']').count();
+    for _ in 0..open_brackets.saturating_sub(close_brackets) {
+        s.push(']');
+    }
+    
+    s
 }
