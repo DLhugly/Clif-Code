@@ -1,3 +1,10 @@
+## [1.49.2](https://github.com/DLhugly/Clif-Code/compare/v1.49.1...v1.49.2) (2026-03-30)
+
+
+### Bug Fixes
+
+* agent commands now use login shell for correct PATH ([89af899](https://github.com/DLhugly/Clif-Code/commit/89af89902df8c79ef8156fabe6e1606678c06667))
+
 ## [1.49.1](https://github.com/DLhugly/Clif-Code/compare/v1.49.0...v1.49.1) (2026-03-30)
 
 
