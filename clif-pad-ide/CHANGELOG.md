@@ -1,3 +1,10 @@
+## [1.52.1](https://github.com/DLhugly/Clif-Code/compare/v1.52.0...v1.52.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* **agent:** Shift+Enter for newline, always show token count ([e00a5ce](https://github.com/DLhugly/Clif-Code/commit/e00a5cec021fdba333470d03b6bed357fb3f60af))
+
 # [1.52.0](https://github.com/DLhugly/Clif-Code/compare/v1.51.1...v1.52.0) (2026-03-30)
 
 
