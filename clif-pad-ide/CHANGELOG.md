@@ -1,3 +1,16 @@
+# [1.48.0](https://github.com/DLhugly/Clif-Code/compare/v1.47.0...v1.48.0) (2026-03-30)
+
+
+### Bug Fixes
+
+* constrain layout bounds and file tab strip overflow ([1b78e7a](https://github.com/DLhugly/Clif-Code/commit/1b78e7a27db1a397512dc415325e3ba4c4a3dfa5))
+* export missing icons from git components ([8f3b9b3](https://github.com/DLhugly/Clif-Code/commit/8f3b9b3a6d47daac069f543b905e726b2e88e091))
+
+
+### Features
+
+* export missing PlusIcon from git components to fix CI build ([cefde97](https://github.com/DLhugly/Clif-Code/commit/cefde97b1a681b32a8aff16030b6bf0739e5b870))
+
 # [1.47.0](https://github.com/DLhugly/Clif-Code/compare/v1.46.4...v1.47.0) (2026-03-29)
 
 
