@@ -332,23 +332,25 @@ const ToolCallCard: Component<{
           }}
         >
           <Show when={toolCall()?.arguments}>
-            <div class="py-1.5" style={{ color: "var(--text-muted)" }}>
+            <div class="py-1.5 group" style={{ color: "var(--text-muted)", position: "relative" }}>
               <pre
                 class="whitespace-pre-wrap break-all"
-                style={{ margin: "0" }}
+                style={{ margin: "0", "padding-right": "28px" }}
               >
                 {JSON.stringify(toolCall()!.arguments, null, 2)}
               </pre>
+              <CopyButton text={JSON.stringify(toolCall()!.arguments, null, 2)} />
             </div>
           </Show>
           <Show when={toolCall()?.result}>
             <div
-              class="py-1.5 mt-1"
+              class="py-1.5 mt-1 group"
               style={{
                 color: "var(--text-secondary)",
                 "border-top": "1px solid var(--border-muted)",
                 "max-height": "300px",
                 "overflow-y": "auto",
+                position: "relative",
               }}
             >
               {/* Feature #15: Show coloured diff for edit_file results */}
@@ -357,7 +359,7 @@ const ToolCallCard: Component<{
                   try { return JSON.parse(toolCall()!.result ?? "{}").diff_preview; } catch { return null; }
                 })()}
                 fallback={
-                  <pre class="whitespace-pre-wrap break-all" style={{ margin: "0" }}>
+                  <pre class="whitespace-pre-wrap break-all" style={{ margin: "0", "padding-right": "28px" }}>
                     {/* Feature #3: render file paths as clickable links */}
                     {renderWithFileLinks(toolCall()!.result ?? "", fontSize)}
                   </pre>
@@ -369,6 +371,7 @@ const ToolCallCard: Component<{
                   return <DiffViewer diff={diffStr} />;
                 }}
               </Show>
+              <CopyButton text={toolCall()?.result ?? ""} />
             </div>
           </Show>
         </div>

@@ -519,9 +519,13 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
             };
 
+            // Use login shell to inherit user's PATH (NVM, Homebrew, etc.)
+            // This sources .zprofile/.bash_profile before running the command.
+            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(30),
-                tokio::process::Command::new("sh")
+                tokio::process::Command::new(&shell)
+                    .arg("-l")
                     .arg("-c")
                     .arg(command)
                     .current_dir(&safe_working_dir)
