@@ -1,27 +1,60 @@
-import { Component, Show, For, createSignal, createMemo } from "solid-js";
+import { Component, Show, For, createSignal, createMemo, createEffect, onCleanup } from "solid-js";
 import { remoteUrl } from "../../stores/gitStore";
 import { open } from "@tauri-apps/plugin-shell";
 import type { GitLogEntry } from "../../types/git";
 
-// Branch colors for the graph
+// Branch colors using theme variables (only colors that exist in all themes)
 const BRANCH_COLORS = [
   "var(--accent-blue)",
   "var(--accent-green)",
   "var(--accent-yellow)",
   "var(--accent-red)",
-  "#c084fc", // purple
-  "#f472b6", // pink
-  "#2dd4bf", // teal
-  "#fb923c", // orange
+  "var(--accent-purple)",
+  "var(--accent-orange)",
 ];
+
+// Hash a string to get a consistent index for branch colors
+function hashStringToIndex(str: string, max: number): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash) % max;
+}
 
 const GitGraphRow: Component<{
   entry: GitLogEntry;
   isLast: boolean;
   isMerge: boolean;
+  branchColorIndex?: number;
 }> = (props) => {
   const [hovered, setHovered] = createSignal(false);
+  const [popupStyle, setPopupStyle] = createSignal<Record<string, string>>({});
   let rowRef: HTMLDivElement | undefined;
+  let hideTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const handleMouseEnter = () => {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      hideTimeout = undefined;
+    }
+    setHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    // Delay hiding to allow mouse to reach the popup
+    hideTimeout = setTimeout(() => {
+      setHovered(false);
+    }, 150);
+  };
+
+  onCleanup(() => {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+    }
+  });
 
   const refLabels = createMemo(() => {
     return props.entry.refs.filter((r) => r !== "").map((r) => {
@@ -31,39 +64,76 @@ const GitGraphRow: Component<{
     }).filter((r) => r.label);
   });
 
+  // Compute branch color based on commit hash for consistency
+  const dotColorIndex = () => props.branchColorIndex ?? hashStringToIndex(props.entry.hash, BRANCH_COLORS.length);
+  const dotColor = () => BRANCH_COLORS[dotColorIndex()];
+
+  // Position popup to the left of the row when hovered
+  createEffect(() => {
+    if (hovered() && rowRef) {
+      const rect = rowRef.getBoundingClientRect();
+      const popupWidth = 280;
+      const gap = 8;
+      
+      // Position to the left of the row, aligned with top
+      setPopupStyle({
+        left: `${rect.left - popupWidth - gap}px`,
+        top: `${rect.top}px`,
+      });
+    }
+  });
+
   return (
     <div
       ref={rowRef}
       class="git-graph-row px-2 py-1 cursor-default"
       style={{ position: "relative" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div class="flex items-start gap-2">
-        {/* Graph column */}
+        {/* Graph column - just the dot, line is drawn by parent */}
         <div
-          class="shrink-0 flex flex-col items-center"
-          style={{ width: "16px", "min-height": "28px" }}
+          class="shrink-0 flex items-center justify-center"
+          style={{ width: "20px", "min-height": "28px", position: "relative" }}
         >
-          <div style={{ width: "2px", height: "6px", background: "var(--border-default)" }} />
+          {/* Vertical line segment - extends through this row to the next */}
           <div
             style={{
-              width: props.entry.is_head ? "10px" : "8px",
-              height: props.entry.is_head ? "10px" : "8px",
+              position: "absolute",
+              left: "50%",
+              top: "0",
+              bottom: props.isLast ? "50%" : "0",
+              width: "2px",
+              background: props.entry.is_head
+                ? "var(--accent-blue)"
+                : props.isMerge
+                ? "var(--accent-yellow)"
+                : "var(--accent-green)",
+              opacity: "0.5",
+              "z-index": "1",
+              transform: "translateX(-1px)",
+            }}
+          />
+          {/* The commit dot - centered vertically in the row */}
+          <div
+            style={{
+              width: props.entry.is_head ? "12px" : "10px",
+              height: props.entry.is_head ? "12px" : "10px",
               "border-radius": "50%",
               background: props.entry.is_head
                 ? "var(--accent-blue)"
                 : props.isMerge
                 ? "var(--accent-yellow)"
-                : "var(--text-muted)",
+                : "var(--accent-green)",
               border: props.entry.is_head ? "2px solid var(--accent-blue)" : "none",
-              "box-shadow": props.entry.is_head ? "0 0 6px rgba(59,130,246,0.5)" : "none",
-              "flex-shrink": "0",
+              "box-shadow": props.entry.is_head ? "0 0 8px rgba(59,130,246,0.6)" : "0 0 4px var(--accent-green)",
+              "z-index": "2",
+              position: "relative",
+              transform: hovered() ? "scale(1.4)" : "scale(1)",
+              transition: "transform 0.15s ease",
             }}
           />
-          <Show when={!props.isLast}>
-            <div style={{ width: "2px", "flex-grow": "1", "min-height": "6px", background: "var(--border-default)" }} />
-          </Show>
         </div>
 
         {/* Commit info */}
@@ -110,24 +180,24 @@ const GitGraphRow: Component<{
         </div>
       </div>
 
-      {/* Floating popup — VS Code style, appears to the left */}
+      {/* Floating popup — appears to the left of the row, pinned close */}
       <Show when={hovered()}>
         <div
           style={{
             position: "fixed",
-            right: "calc(100% - 310px + 4px)",
-            "margin-top": "-4px",
-            width: "260px",
+            width: "280px",
+            left: popupStyle().left || "0",
+            top: popupStyle().top || "0",
             background: "var(--bg-overlay)",
             border: "1px solid var(--border-default)",
             "border-radius": "8px",
             padding: "10px 12px",
             "box-shadow": "0 4px 20px rgba(0,0,0,0.35)",
-            "z-index": "500",
+            "z-index": "1000",
             "font-size": "0.85em",
-            "pointer-events": "none",
           }}
-          onMouseEnter={() => setHovered(true)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           {/* Message */}
           <div style={{ "font-weight": "600", color: "var(--text-primary)", "margin-bottom": "8px", "line-height": "1.4", "word-break": "break-word" }}>
@@ -142,7 +212,7 @@ const GitGraphRow: Component<{
             >
               <span
                 class="font-mono"
-                style={{ color: "var(--accent-yellow)", cursor: "pointer", "text-decoration": "underline", "font-size": "0.9em", "pointer-events": "all" }}
+                style={{ color: "var(--accent-yellow)", cursor: "pointer", "text-decoration": "underline", "font-size": "0.9em" }}
                 onClick={(e) => { e.stopPropagation(); open(`${remoteUrl()}/commit/${props.entry.hash}`); }}
                 title={`View on ${new URL(remoteUrl()!).hostname}`}
               >
@@ -190,7 +260,7 @@ const GitGraphRow: Component<{
           <Show when={remoteUrl()}>
             <div
               class="mt-2 pt-1"
-              style={{ "border-top": "1px solid var(--border-muted)", "pointer-events": "all" }}
+              style={{ "border-top": "1px solid var(--border-muted)" }}
             >
               <span
                 style={{ color: "var(--accent-primary)", "font-size": "0.85em", cursor: "pointer", "text-decoration": "underline" }}

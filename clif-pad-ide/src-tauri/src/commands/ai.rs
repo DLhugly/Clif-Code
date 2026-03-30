@@ -406,3 +406,95 @@ pub async fn get_api_key(provider: String) -> Result<Option<String>, String> {
 
     Ok(key)
 }
+
+#[tauri::command]
+pub async fn generate_commit_message(
+    diff: String,
+    staged_files: Vec<String>,
+    model: String,
+    api_key: Option<String>,
+    provider: String,
+) -> Result<String, String> {
+    let url = get_provider_url(&provider);
+
+    let files_list = staged_files.join(", ");
+    let prompt = format!(
+        r#"Generate a concise, conventional commit message for these staged changes.
+
+Files changed: {}
+
+Diff:
+{}
+
+Rules:
+- Use conventional commit format (feat:, fix:, chore:, docs:, refactor:, etc.)
+- Keep it under 72 characters
+- Be specific but concise
+- Don't include the backticks or quotes, just the message
+
+Respond with ONLY the commit message, nothing else."#,
+        files_list, diff
+    );
+
+    let api_messages = vec![json!({
+        "role": "user",
+        "content": prompt,
+    })];
+
+    let mut request_body = json!({
+        "model": model,
+        "messages": api_messages,
+        "stream": false,
+        "max_tokens": 100,
+    });
+
+    if provider == "openrouter" {
+        if let Some(obj) = request_body.as_object_mut() {
+            obj.insert(
+                "transforms".to_string(),
+                json!(["middle-out"]),
+            );
+        }
+    }
+
+    let client = reqwest::Client::new();
+    let mut req_builder = client
+        .post(&url)
+        .header("Content-Type", "application/json");
+
+    if let Some(ref key) = api_key {
+        if provider == "openrouter" {
+            req_builder = req_builder
+                .header("Authorization", format!("Bearer {}", key))
+                .header("HTTP-Referer", "https://clifcode.io")
+                .header("X-Title", "ClifPad");
+        } else {
+            req_builder = req_builder.header("Authorization", format!("Bearer {}", key));
+        }
+    }
+
+    let response = req_builder
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("API error {}: {}", status, body));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let content = json["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("chore: update files")
+        .trim()
+        .to_string();
+
+    Ok(content)
+}

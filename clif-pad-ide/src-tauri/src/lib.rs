@@ -120,6 +120,7 @@ pub fn run() {
             commands::ai::get_models,
             commands::ai::set_api_key,
             commands::ai::get_api_key,
+            commands::ai::generate_commit_message,
             commands::git::git_status,
             commands::git::git_diff,
             commands::git::git_commit,

@@ -79,6 +79,16 @@ export async function getApiKey(provider: string): Promise<string | null> {
   return invoke("get_api_key", { provider });
 }
 
+export async function generateCommitMessage(
+  diff: string,
+  stagedFiles: string[],
+  model: string,
+  apiKey: string | null,
+  provider: string
+): Promise<string> {
+  return invoke("generate_commit_message", { diff, stagedFiles, model, apiKey, provider });
+}
+
 // Git commands
 export async function gitStatus(path: string): Promise<GitFileStatus[]> {
   return invoke("git_status", { path });

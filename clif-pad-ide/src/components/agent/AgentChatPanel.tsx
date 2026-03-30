@@ -840,8 +840,8 @@ const AgentChatPanel: Component = () => {
           class="flex flex-row items-center justify-between mt-2 px-1"
           style={{ height: "20px", "font-size": "12px", color: "var(--text-muted)" }}
         >
-          {/* Left: streaming indicator */}
-          <div class="flex items-center" style={{ "min-width": "0" }}>
+          {/* Left: streaming indicator + force stop */}
+          <div class="flex items-center gap-3" style={{ "min-width": "0" }}>
             <Show when={agentStreaming()}>
               <div class="flex items-center gap-2">
                 <span
@@ -850,6 +850,24 @@ const AgentChatPanel: Component = () => {
                 />
                 <span style={{ "font-weight": "500" }}>Running...</span>
               </div>
+              <button
+                class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors"
+                style={{
+                  background: "var(--accent-red)",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  "font-size": "11px",
+                  "font-weight": "600",
+                }}
+                onClick={stopAgent}
+                title="Force stop all agent operations"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2"/>
+                </svg>
+                <span>Force Stop</span>
+              </button>
             </Show>
           </div>
 

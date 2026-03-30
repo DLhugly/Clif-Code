@@ -1,6 +1,6 @@
 import { Component, Show, For, createSignal, createMemo, lazy, Suspense } from "solid-js";
 import { projectRoot, openFile, openDiff, refreshFileTree } from "../../stores/fileStore";
-import { revealPath, renameEntry, deleteEntry, scanFilesSecurity } from "../../lib/tauri";
+import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, generateCommitMessage, getApiKey } from "../../lib/tauri";
 import { securityEnabled, setSecurityResults, setSecurityShowModal, securityShowModal } from "../../stores/securityStore";
 import SecurityModal from "../security/SecurityModal";
 import ContextMenu, { type ContextMenuItem } from "../explorer/ContextMenu";
@@ -15,6 +15,7 @@ import { open } from "@tauri-apps/plugin-shell";
 import type { GitLogEntry } from "../../types/git";
 import { FileRow, GitGraphRow, PlusIcon } from "../git";
 import { ResizeHandle, GitSyncButton, SidebarToolbarButton } from "../ui";
+import { settings } from "../../stores/settingsStore";
 
 const FileTree = lazy(() => import("../explorer/FileTree"));
 
@@ -49,11 +50,26 @@ const SpinnerIcon = () => (
   </svg>
 );
 
+const MagicWandIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 4V2" />
+    <path d="M15 16v-2" />
+    <path d="M8 9h2" />
+    <path d="M20 9h2" />
+    <path d="M17.8 11.8 19 13" />
+    <path d="M15 9h0" />
+    <path d="M17.8 6.2 19 5" />
+    <path d="m3 21 9-9" />
+    <path d="M12.2 6.2 11 5" />
+  </svg>
+);
+
 const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: string) => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
   const [pendingCommit, setPendingCommit] = createSignal(false);
   const [isCommitting, setIsCommitting] = createSignal(false);
+  const [isGeneratingMsg, setIsGeneratingMsg] = createSignal(false);
   const [creatingType, setCreatingType] = createSignal<"file" | "folder" | null>(null);
   const [branchDropdownOpen, setBranchDropdownOpen] = createSignal(false);
   const [creatingBranch, setCreatingBranch] = createSignal(false);
@@ -62,6 +78,30 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
   const [isDraggingGitSplitter, setIsDraggingGitSplitter] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal("");
   let gitSplitContainerRef: HTMLDivElement | undefined;
+
+  async function handleGenerateCommitMessage() {
+    if (isGeneratingMsg() || stagedFiles().length === 0) return;
+    setIsGeneratingMsg(true);
+    try {
+      const s = settings();
+      const model = s.aiModel || "anthropic/claude-sonnet-4";
+      const provider = s.aiProvider || "openrouter";
+
+      // Get API key for the provider
+      const apiKey = await getApiKey(provider);
+
+      // Get diff of staged files
+      const diff = await gitDiff(projectRoot() || "", undefined);
+      const stagedPaths = stagedFiles().map(f => f.path);
+      
+      const message = await generateCommitMessage(diff, stagedPaths, model, apiKey, provider);
+      setCommitMsg(message);
+    } catch (e) {
+      console.error("Failed to generate commit message:", e);
+    } finally {
+      setIsGeneratingMsg(false);
+    }
+  }
 
   function handleGitSplitterMouseDown(e: MouseEvent) {
     e.preventDefault();
@@ -561,7 +601,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                       background: "var(--bg-base)",
                       color: "var(--text-primary)",
                       border: commitMsg().trim() ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                      "padding-right": "40px",
+                      "padding-right": stagedFiles().length > 0 ? "70px" : "40px",
                       "font-size": "inherit",
                       transition: "border-color 0.15s",
                     }}
@@ -572,14 +612,37 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                       if (e.key === "Enter" && commitMsg().trim()) handleCommit();
                     }}
                   />
-                  <Show when={commitMsg().trim()}>
-                    <span style={{
-                      position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)",
-                      "font-size": "0.78em", color: commitMsg().length > 72 ? "var(--accent-red)" : "var(--text-muted)",
-                    }}>
-                      {commitMsg().length}
-                    </span>
-                  </Show>
+                  <div style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", display: "flex", "align-items": "center", gap: "6px" }}>
+                    <Show when={stagedFiles().length > 0}>
+                      <button
+                        type="button"
+                        onClick={handleGenerateCommitMessage}
+                        disabled={isGeneratingMsg()}
+                        title="Generate commit message with AI"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: isGeneratingMsg() ? "wait" : "pointer",
+                          color: "var(--text-muted)",
+                          padding: "2px",
+                          display: "flex",
+                          "align-items": "center",
+                          opacity: isGeneratingMsg() ? 0.5 : 1,
+                        }}
+                        onMouseEnter={(e) => { if (!isGeneratingMsg()) (e.currentTarget as HTMLElement).style.color = "var(--accent-primary)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+                      >
+                        {isGeneratingMsg() ? <SpinnerIcon /> : <MagicWandIcon />}
+                      </button>
+                    </Show>
+                    <Show when={commitMsg().trim()}>
+                      <span style={{
+                        "font-size": "0.78em", color: commitMsg().length > 72 ? "var(--accent-red)" : "var(--text-muted)",
+                      }}>
+                        {commitMsg().length}
+                      </span>
+                    </Show>
+                  </div>
                 </div>
                 <div class="flex gap-1.5 mt-1.5">
                   <button
@@ -734,7 +797,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                         {currentBranch()}
                       </span>
                     </div>
-                    <div class="overflow-y-auto min-h-0 flex-1">
+                    <div class="overflow-y-auto min-h-0 flex-1" style={{ position: "relative" }}>
                       <For each={commitLog()}>
                         {(entry, idx) => (
                           <GitGraphRow
