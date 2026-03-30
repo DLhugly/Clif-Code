@@ -1,3 +1,10 @@
+# [1.52.0](https://github.com/DLhugly/Clif-Code/compare/v1.51.1...v1.52.0) (2026-03-30)
+
+
+### Features
+
+* **agent:** add git context to system prompt, improve sidebar resizing and chat input UI ([4a7546f](https://github.com/DLhugly/Clif-Code/commit/4a7546fcd9096fe40a2d8bdc8ece0b176c34c653))
+
 ## [1.51.1](https://github.com/DLhugly/Clif-Code/compare/v1.51.0...v1.51.1) (2026-03-30)
 
 
