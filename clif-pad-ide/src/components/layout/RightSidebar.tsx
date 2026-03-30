@@ -1028,6 +1028,19 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                       </span>
                     </div>
                     <div class="overflow-y-auto min-h-0 flex-1" style={{ position: "relative" }}>
+                      {/* Single continuous vertical line behind all dots */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: "17px", // 8px (px-2 padding) + 10px (half of 20px dot column) - 1px (half of 2px line)
+                          top: "0",
+                          bottom: "0",
+                          width: "2px",
+                          background: "var(--accent-primary)",
+                          opacity: "0.35",
+                          "z-index": "0",
+                        }}
+                      />
                       <For each={commitLog()}>
                         {(entry, idx) => (
                           <GitGraphRow

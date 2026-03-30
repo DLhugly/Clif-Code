@@ -97,24 +97,6 @@ const GitGraphRow: Component<{
           class="shrink-0 flex items-center justify-center"
           style={{ width: "20px", "min-height": "28px", position: "relative" }}
         >
-          {/* Vertical line segment - extends through this row to the next */}
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "0",
-              bottom: props.isLast ? "50%" : "0",
-              width: "2px",
-              background: props.entry.is_head
-                ? "var(--accent-blue)"
-                : props.isMerge
-                ? "var(--accent-yellow)"
-                : "var(--accent-green)",
-              opacity: "0.5",
-              "z-index": "1",
-              transform: "translateX(-1px)",
-            }}
-          />
           {/* The commit dot - centered vertically in the row */}
           <div
             style={{
@@ -122,12 +104,13 @@ const GitGraphRow: Component<{
               height: props.entry.is_head ? "12px" : "10px",
               "border-radius": "50%",
               background: props.entry.is_head
-                ? "var(--accent-blue)"
+                ? "var(--accent-primary)"
                 : props.isMerge
                 ? "var(--accent-yellow)"
-                : "var(--accent-green)",
-              border: props.entry.is_head ? "2px solid var(--accent-blue)" : "none",
-              "box-shadow": props.entry.is_head ? "0 0 8px rgba(59,130,246,0.6)" : "0 0 4px var(--accent-green)",
+                : "var(--accent-primary)",
+              opacity: props.entry.is_head ? "1" : "0.6",
+              border: props.entry.is_head ? "2px solid var(--accent-primary)" : "none",
+              "box-shadow": props.entry.is_head ? "0 0 8px var(--accent-primary)" : "none",
               "z-index": "2",
               position: "relative",
               transform: hovered() ? "scale(1.4)" : "scale(1)",
@@ -146,8 +129,9 @@ const GitGraphRow: Component<{
                     class="px-1 rounded font-mono"
                     style={{
                       "font-size": "0.75em", "line-height": "1.4",
-                      background: ref.isHead ? "var(--accent-blue)" : BRANCH_COLORS[i() % BRANCH_COLORS.length],
-                      color: "#fff", opacity: ref.isHead ? "1" : "0.85",
+                      background: ref.isHead ? "var(--accent-primary)" : BRANCH_COLORS[i() % BRANCH_COLORS.length],
+                      color: "var(--accent-text)",
+                      opacity: ref.isHead ? "1" : "0.9",
                     }}
                   >
                     {ref.label}
@@ -244,8 +228,8 @@ const GitGraphRow: Component<{
                       class="px-1 rounded font-mono"
                       style={{
                         "font-size": "0.8em", "line-height": "1.5",
-                        background: ref.isHead ? "var(--accent-blue)" : BRANCH_COLORS[i() % BRANCH_COLORS.length],
-                        color: "#fff",
+                        background: ref.isHead ? "var(--accent-primary)" : BRANCH_COLORS[i() % BRANCH_COLORS.length],
+                        color: "var(--accent-text)",
                       }}
                     >
                       {ref.label}
