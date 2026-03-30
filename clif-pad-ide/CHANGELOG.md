@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/DLhugly/Clif-Code/compare/v1.48.0...v1.49.0) (2026-03-30)
+
+
+### Features
+
+* **agent:** add prompt caching, streaming tool names, and JSON repair ([496166d](https://github.com/DLhugly/Clif-Code/commit/496166d142b013bde9b5c858b64b09ef9d6edb80))
+
 # [1.48.0](https://github.com/DLhugly/Clif-Code/compare/v1.47.0...v1.48.0) (2026-03-30)
 
 
