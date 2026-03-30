@@ -89,6 +89,32 @@ export async function generateCommitMessage(
   return invoke("generate_commit_message", { diff, stagedFiles, model, apiKey, provider });
 }
 
+// AI Code Review
+export interface CodeReviewSuggestion {
+  file: string;
+  line: number | null;
+  severity: "warning" | "info" | "suggestion";
+  title: string;
+  description: string;
+  suggestion: string | null;
+}
+
+export interface CodeReviewResult {
+  files_scanned: string[];
+  suggestions: CodeReviewSuggestion[];
+  summary: string;
+}
+
+export async function aiReviewCode(
+  diff: string,
+  stagedFiles: string[],
+  model: string,
+  apiKey: string | null,
+  provider: string
+): Promise<CodeReviewResult> {
+  return invoke("ai_review_code", { diff, stagedFiles, model, apiKey, provider });
+}
+
 // Git commands
 export async function gitStatus(path: string): Promise<GitFileStatus[]> {
   return invoke("git_status", { path });

@@ -498,3 +498,142 @@ Respond with ONLY the commit message, nothing else."#,
 
     Ok(content)
 }
+
+#[derive(serde::Serialize, Clone)]
+pub struct CodeReviewSuggestion {
+    pub file: String,
+    pub line: Option<usize>,
+    pub severity: String, // "warning" | "info" | "suggestion"
+    pub title: String,
+    pub description: String,
+    pub suggestion: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct CodeReviewResult {
+    pub files_scanned: Vec<String>,
+    pub suggestions: Vec<CodeReviewSuggestion>,
+    pub summary: String,
+}
+
+#[tauri::command]
+pub async fn ai_review_code(
+    diff: String,
+    staged_files: Vec<String>,
+    model: String,
+    api_key: Option<String>,
+    provider: String,
+) -> Result<CodeReviewResult, String> {
+    let url = get_provider_url(&provider);
+
+    // Truncate diff if too long for faster processing
+    let truncated_diff = if diff.len() > 8000 {
+        format!("{}...\n[Diff truncated for performance]", &diff[..8000])
+    } else {
+        diff.clone()
+    };
+    
+    let files_list = staged_files.join(", ");
+    let prompt = format!(
+        r#"Review this code diff briefly. Files: {}
+
+{}
+
+Return JSON only:
+{{"suggestions":[{{"file":"path","line":N,"severity":"warning|info","title":"issue","description":"why"}}],"summary":"one sentence"}}
+
+Only report real issues. Max 3 suggestions."#,
+        files_list, truncated_diff
+    );
+
+    let api_messages = vec![json!({
+        "role": "user",
+        "content": prompt,
+    })];
+
+    let mut request_body = json!({
+        "model": model,
+        "messages": api_messages,
+        "stream": false,
+        "max_tokens": 800,
+    });
+
+    if provider == "openrouter" {
+        if let Some(obj) = request_body.as_object_mut() {
+            obj.insert(
+                "transforms".to_string(),
+                json!(["middle-out"]),
+            );
+        }
+    }
+
+    let client = reqwest::Client::new();
+    let mut req_builder = client
+        .post(&url)
+        .header("Content-Type", "application/json");
+
+    if let Some(ref key) = api_key {
+        if provider == "openrouter" {
+            req_builder = req_builder
+                .header("Authorization", format!("Bearer {}", key))
+                .header("HTTP-Referer", "https://clifcode.io")
+                .header("X-Title", "ClifPad");
+        } else {
+            req_builder = req_builder.header("Authorization", format!("Bearer {}", key));
+        }
+    }
+
+    let response = req_builder
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("API error {}: {}", status, body));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let content = json["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("{}");
+
+    // Parse the LLM response
+    let parsed: serde_json::Value = serde_json::from_str(content)
+        .unwrap_or_else(|_| json!({"suggestions": [], "summary": "Could not parse review response"}));
+
+    let suggestions: Vec<CodeReviewSuggestion> = parsed["suggestions"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|s| {
+                    Some(CodeReviewSuggestion {
+                        file: s["file"].as_str()?.to_string(),
+                        line: s["line"].as_u64().map(|l| l as usize),
+                        severity: s["severity"].as_str().unwrap_or("info").to_string(),
+                        title: s["title"].as_str().unwrap_or("Issue").to_string(),
+                        description: s["description"].as_str().unwrap_or("").to_string(),
+                        suggestion: s["suggestion"].as_str().map(|s| s.to_string()),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let summary = parsed["summary"]
+        .as_str()
+        .unwrap_or("Review complete")
+        .to_string();
+
+    Ok(CodeReviewResult {
+        files_scanned: staged_files,
+        suggestions,
+        summary,
+    })
+}

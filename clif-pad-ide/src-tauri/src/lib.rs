@@ -121,6 +121,7 @@ pub fn run() {
             commands::ai::set_api_key,
             commands::ai::get_api_key,
             commands::ai::generate_commit_message,
+            commands::ai::ai_review_code,
             commands::git::git_status,
             commands::git::git_diff,
             commands::git::git_commit,

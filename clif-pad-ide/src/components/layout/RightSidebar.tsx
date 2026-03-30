@@ -1,6 +1,6 @@
 import { Component, Show, For, createSignal, createMemo, lazy, Suspense } from "solid-js";
 import { projectRoot, openFile, openDiff, refreshFileTree } from "../../stores/fileStore";
-import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, generateCommitMessage, getApiKey } from "../../lib/tauri";
+import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, generateCommitMessage, getApiKey, aiReviewCode, type CodeReviewResult } from "../../lib/tauri";
 import { securityEnabled, setSecurityResults, setSecurityShowModal, securityShowModal } from "../../stores/securityStore";
 import SecurityModal from "../security/SecurityModal";
 import ContextMenu, { type ContextMenuItem } from "../explorer/ContextMenu";
@@ -77,6 +77,10 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
   const [changesHeightPct, setChangesHeightPct] = createSignal(40);
   const [isDraggingGitSplitter, setIsDraggingGitSplitter] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal("");
+  const [isAiReviewing, setIsAiReviewing] = createSignal(false);
+  const [aiReviewResult, setAiReviewResult] = createSignal<CodeReviewResult | null>(null);
+  const [aiReviewExpanded, setAiReviewExpanded] = createSignal(true);
+  const [aiReviewAbortController, setAiReviewAbortController] = createSignal<AbortController | null>(null);
   let gitSplitContainerRef: HTMLDivElement | undefined;
 
   async function handleGenerateCommitMessage() {
@@ -101,6 +105,60 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
     } finally {
       setIsGeneratingMsg(false);
     }
+  }
+
+  async function handleAiReview() {
+    if (isAiReviewing() || stagedFiles().length === 0) return;
+    setIsAiReviewing(true);
+    setAiReviewResult(null);
+    
+    const controller = new AbortController();
+    setAiReviewAbortController(controller);
+    
+    try {
+      const s = settings();
+      const model = s.aiModel || "anthropic/claude-sonnet-4";
+      const provider = s.aiProvider || "openrouter";
+      const apiKey = await getApiKey(provider);
+
+      const diff = await gitDiff(projectRoot() || "", undefined);
+      const stagedPaths = stagedFiles().map(f => f.path);
+
+      const result = await aiReviewCode(diff, stagedPaths, model, apiKey, provider);
+      setAiReviewResult(result);
+      setAiReviewExpanded(true);
+    } catch (e) {
+      console.error("Failed to run AI code review:", e);
+    } finally {
+      setIsAiReviewing(false);
+      setAiReviewAbortController(null);
+    }
+  }
+
+  function cancelAiReview() {
+    const controller = aiReviewAbortController();
+    if (controller) {
+      controller.abort();
+      setIsAiReviewing(false);
+      setAiReviewAbortController(null);
+    }
+  }
+
+  function copyAiReviewToAgent() {
+    if (!aiReviewResult()) return;
+    const result = aiReviewResult()!;
+    let text = `## AI Code Review\n\n**Files scanned:** ${result.files_scanned.join(", ")}\n\n`;
+    text += `**Summary:** ${result.summary}\n\n`;
+    if (result.suggestions.length > 0) {
+      text += `### Suggestions\n\n`;
+      for (const s of result.suggestions) {
+        text += `**${s.severity.toUpperCase()}**: ${s.file}${s.line ? `:${s.line}` : ""} - ${s.title}\n`;
+        text += `${s.description}\n`;
+        if (s.suggestion) text += `Suggestion: ${s.suggestion}\n`;
+        text += "\n";
+      }
+    }
+    navigator.clipboard.writeText(text);
   }
 
   function handleGitSplitterMouseDown(e: MouseEvent) {
@@ -591,6 +649,58 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                 </button>
               </div>
 
+              {/* Scan buttons row */}
+              <div class="shrink-0 px-2 py-1.5 flex items-center gap-2" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
+                <div class="flex items-center gap-1.5">
+                  <div
+                    class="flex items-center gap-1 px-1.5 py-0.5 rounded"
+                    style={{
+                      background: "var(--bg-base)",
+                      border: "1px solid var(--border-muted)",
+                    }}
+                    title="Security scan enabled (runs automatically on commit)"
+                  >
+                    <div
+                      class="rounded-full"
+                      style={{
+                        width: "6px",
+                        height: "6px",
+                        background: securityEnabled() ? "var(--accent-green)" : "var(--text-muted)",
+                        "box-shadow": securityEnabled() ? "0 0 6px var(--accent-green)" : "none",
+                      }}
+                    />
+                    <span style={{ "font-size": "0.75em", color: "var(--text-muted)" }}>Security</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={isAiReviewing() ? cancelAiReview : handleAiReview}
+                    disabled={!isAiReviewing() && stagedFiles().length === 0}
+                    title={isAiReviewing() ? "Cancel AI review" : "Run AI code review on staged files"}
+                    class="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
+                    style={{
+                      background: isAiReviewing() ? "var(--accent-red)" : "var(--bg-base)",
+                      border: "1px solid var(--border-muted)",
+                      color: isAiReviewing() ? "#fff" : "var(--text-muted)",
+                      cursor: isAiReviewing() || stagedFiles().length === 0 ? "pointer" : "pointer",
+                      opacity: !isAiReviewing() && stagedFiles().length === 0 ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (!isAiReviewing() && stagedFiles().length > 0) (e.currentTarget as HTMLElement).style.background = "var(--accent-blue)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
+                    onMouseLeave={(e) => { if (!isAiReviewing()) { (e.currentTarget as HTMLElement).style.background = "var(--bg-base)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; } }}
+                  >
+                    <div
+                      class="rounded-full"
+                      style={{
+                        width: "6px",
+                        height: "6px",
+                        background: isAiReviewing() ? "#fff" : "var(--accent-blue)",
+                        "box-shadow": isAiReviewing() ? "0 0 6px #fff" : "0 0 6px var(--accent-blue)",
+                      }}
+                    />
+                    <span style={{ "font-size": "0.75em" }}>{isAiReviewing() ? "Cancel" : "AI Scan"}</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Commit input */}
               <div class="shrink-0 p-2" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
                 <div style={{ position: "relative" }}>
@@ -772,6 +882,165 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                       <p class="text-xs" style={{ color: "var(--text-muted)" }}>
                         No changes
                       </p>
+                    </div>
+                  </Show>
+                </div>
+
+                {/* Code Review Panel - Always visible */}
+                <div
+                  class="shrink-0"
+                  style={{
+                    "border-top": "1px solid var(--border-muted)",
+                    "border-bottom": "1px solid var(--border-muted)",
+                    background: "var(--bg-base)",
+                  }}
+                >
+                  {/* Header with buttons */}
+                  <div
+                    class="flex items-center justify-between px-2 py-1"
+                    style={{ "border-bottom": aiReviewExpanded() ? "1px solid var(--border-muted)" : "none" }}
+                  >
+                    <div class="flex items-center gap-2">
+                      {/* Security Scan Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSecurityResults([]);
+                          setSecurityShowModal(true);
+                        }}
+                        class="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
+                        style={{
+                          background: "transparent",
+                          border: "1px solid var(--border-muted)",
+                          cursor: "pointer",
+                        }}
+                        title="Scan for secrets and vulnerabilities"
+                      >
+                        <div
+                          style={{
+                            width: "6px",
+                            height: "6px",
+                            "border-radius": "50%",
+                            background: "var(--accent-green)",
+                            "box-shadow": "0 0 4px var(--accent-green)",
+                          }}
+                        />
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--text-muted)" }}>
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                      </button>
+
+                      {/* AI Scan Button */}
+                      <button
+                        type="button"
+                        onClick={handleAiReview}
+                        disabled={isAiReviewing() || stagedFiles().length === 0}
+                        class="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
+                        style={{
+                          background: isAiReviewing() ? "var(--accent-blue)" : "transparent",
+                          border: "1px solid var(--border-muted)",
+                          cursor: isAiReviewing() || stagedFiles().length === 0 ? "default" : "pointer",
+                          opacity: stagedFiles().length === 0 ? "0.5" : "1",
+                        }}
+                        title={stagedFiles().length === 0 ? "Stage files to enable AI review" : "Run AI code review on staged changes"}
+                      >
+                        <Show when={isAiReviewing()} fallback={
+                          <div
+                            style={{
+                              width: "6px",
+                              height: "6px",
+                              "border-radius": "50%",
+                              background: "var(--accent-blue)",
+                            }}
+                          />
+                        }>
+                          <SpinnerIcon />
+                        </Show>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--text-muted)" }}>
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 16v-4" />
+                          <path d="M12 8h.01" />
+                        </svg>
+                      </button>
+
+                      {/* Cancel button when reviewing */}
+                      <Show when={isAiReviewing()}>
+                        <button
+                          type="button"
+                          onClick={cancelAiReview}
+                          class="px-1.5 py-0.5 rounded text-xs transition-colors"
+                          style={{
+                            background: "var(--accent-red)",
+                            color: "#fff",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </Show>
+                    </div>
+
+                    {/* Expand/collapse */}
+                    <div
+                      class="cursor-pointer"
+                      style={{ transform: aiReviewExpanded() ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}
+                      onClick={() => setAiReviewExpanded(!aiReviewExpanded())}
+                    >
+                      <ChevronDownIcon />
+                    </div>
+                  </div>
+
+                  {/* Expandable content */}
+                  <Show when={aiReviewExpanded()}>
+                    <div class="px-2 py-1.5" style={{ "max-height": "150px", "overflow-y": "auto" }}>
+                      <Show when={isAiReviewing()}>
+                        <div class="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                          <SpinnerIcon />
+                          <span>Analyzing staged changes...</span>
+                        </div>
+                      </Show>
+                      <Show when={aiReviewResult()}>
+                        <div class="text-xs" style={{ color: "var(--text-muted)", "margin-bottom": "8px" }}>
+                          {aiReviewResult()!.summary}
+                        </div>
+                        <Show when={aiReviewResult()!.suggestions.length > 0}>
+                          <For each={aiReviewResult()!.suggestions}>
+                            {(s) => (
+                              <div class="mb-2 p-1.5 rounded" style={{ background: "var(--bg-hover)", "font-size": "0.75em" }}>
+                                <div class="flex items-center gap-1" style={{ color: s.severity === "warning" ? "var(--accent-yellow)" : "var(--text-secondary)" }}>
+                                  <span style={{ "font-weight": 600 }}>{s.severity.toUpperCase()}</span>
+                                  <span style={{ color: "var(--text-muted)" }}>{s.file}{s.line ? `:${s.line}` : ""}</span>
+                                </div>
+                                <div style={{ color: "var(--text-primary)", "margin-top": "2px" }}>{s.title}</div>
+                              </div>
+                            )}
+                          </For>
+                          <button
+                            type="button"
+                            onClick={copyAiReviewToAgent}
+                            class="w-full py-1 rounded text-xs transition-colors"
+                            style={{
+                              background: "var(--accent-primary)",
+                              color: "var(--accent-text, #fff)",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Copy to Agent
+                          </button>
+                        </Show>
+                        <Show when={aiReviewResult()!.suggestions.length === 0}>
+                          <div class="text-xs" style={{ color: "var(--accent-green)" }}>
+                            No issues found in staged changes.
+                          </div>
+                        </Show>
+                      </Show>
+                      <Show when={!isAiReviewing() && !aiReviewResult()}>
+                        <div class="text-xs" style={{ color: "var(--text-muted)" }}>
+                          Stage files and click AI scan to review
+                        </div>
+                      </Show>
                     </div>
                   </Show>
                 </div>
