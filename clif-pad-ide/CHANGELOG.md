@@ -1,3 +1,10 @@
+## [1.49.1](https://github.com/DLhugly/Clif-Code/compare/v1.49.0...v1.49.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* add 'pending' to AgentMessage status type, use macos-15 runner ([fbd6d2c](https://github.com/DLhugly/Clif-Code/commit/fbd6d2cf4d90dca431afdcfd193864349d74aaa6))
+
 # [1.49.0](https://github.com/DLhugly/Clif-Code/compare/v1.48.0...v1.49.0) (2026-03-30)
 
 
