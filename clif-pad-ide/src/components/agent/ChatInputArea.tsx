@@ -30,6 +30,8 @@ const ChatInputArea: Component<ChatInputAreaProps> = (props) => {
     el.style.height = Math.min(el.scrollHeight, 150) + "px";
   }
 
+  const hasContent = () => props.inputValue.trim() || props.pastedImages.length > 0;
+
   return (
     <div
       class="shrink-0 px-3 py-2"
@@ -78,16 +80,17 @@ const ChatInputArea: Component<ChatInputAreaProps> = (props) => {
         </div>
       </Show>
 
+      {/* Input row: attach | textarea | send - all on one line */}
       <div
-        class="flex items-end gap-2 rounded-xl px-3 py-2"
+        class="flex flex-row items-end gap-2 rounded-xl px-3 py-2"
         style={{
           background: "var(--bg-base)",
           border: "1px solid var(--border-default)",
         }}
       >
-        {/* Attach file button */}
+        {/* Attach file button - LEFT */}
         <button
-          class="flex items-center justify-center shrink-0 rounded p-1 mb-0.5"
+          class="flex items-center justify-center shrink-0 rounded p-1"
           style={{
             color: "var(--text-muted)",
             background: "transparent",
@@ -108,6 +111,7 @@ const ChatInputArea: Component<ChatInputAreaProps> = (props) => {
           </svg>
         </button>
 
+        {/* Textarea - CENTER (flex-1) */}
         <textarea
           ref={inputRef}
           class="flex-1 resize-none outline-none"
@@ -135,166 +139,118 @@ const ChatInputArea: Component<ChatInputAreaProps> = (props) => {
           onPaste={props.onPaste}
         />
 
-        {/* Queued messages badge */}
-        <Show when={props.queuedCount > 0}>
-          <button
-            class="absolute top-[-8px] right-[-8px] z-10 flex items-center justify-center rounded-full"
-            style={{
-              background: "var(--accent-primary)",
-              color: "#fff",
-              "font-size": "11px",
-              "min-width": "20px",
-              height: "20px",
-              padding: "0 6px",
-              "font-weight": "600",
-              border: "2px solid var(--bg-base)",
-              cursor: "pointer",
-            }}
-            onClick={props.onForceSend}
-            title={`Force push: cancel current agent and send next message (${props.queuedCount} queued)`}
-          >
-            {props.queuedCount}
-          </button>
-        </Show>
-      </div>
-
-      <div class="flex items-center justify-between mt-1 px-1">
-        {/* Send / Stop streaming button */}
+        {/* Send / Stop button - RIGHT */}
         <Show
-          when={!props.isStreaming}
+          when={props.isStreaming}
           fallback={
             <Show
-              when={props.inputValue.trim()}
+              when={props.queuedCount > 0}
               fallback={
                 <button
-                  class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+                  class="flex items-center justify-center shrink-0 rounded-lg p-1.5 transition-colors"
                   style={{
-                    background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
-                    color: "var(--accent-red)",
-                    border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
-                    cursor: "pointer",
+                    background: hasContent() ? "var(--accent-primary)" : "var(--bg-hover)",
+                    color: hasContent() ? "#fff" : "var(--text-muted)",
+                    border: "none",
+                    cursor: hasContent() ? "pointer" : "default",
                   }}
-                  onClick={props.onStop}
-                  title="Stop streaming response"
+                  onClick={() => props.onSend()}
+                  disabled={!hasContent()}
+                  title="Send message"
                 >
-                  <StopIcon />
+                  <SendIcon />
                 </button>
               }
             >
               <button
-                class="flex items-center justify-center gap-1.5 shrink-0 rounded-lg px-2.5 py-1 mb-0.5 transition-colors"
+                class="flex items-center justify-center shrink-0 rounded-lg px-2.5 py-1 transition-colors"
                 style={{
-                  background: "var(--bg-hover)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-default)",
+                  background: "var(--accent-primary)",
+                  color: "#fff",
+                  border: "none",
                   cursor: "pointer",
+                  "font-size": "11px",
+                  "font-weight": "500",
                 }}
                 onClick={props.onForceSend}
-                title="Force push: cancel current agent and send next message"
+                title="Force send now"
               >
-                <SendIcon />
-                <span style={{ "font-size": "11px", "font-weight": "500" }}>Force</span>
+                <span class="mr-1">{props.queuedCount}</span>
+                <span style={{ opacity: 0.8 }}>Force</span>
               </button>
             </Show>
           }
         >
           <button
-            class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+            class="flex items-center justify-center shrink-0 rounded-lg p-1.5 transition-colors"
             style={{
-              background: (props.inputValue.trim() || props.pastedImages.length > 0)
-                ? "var(--accent-primary)"
-                : "var(--bg-hover)",
-              color: (props.inputValue.trim() || props.pastedImages.length > 0) ? "#fff" : "var(--text-muted)",
+              background: "var(--accent-red)",
+              color: "#fff",
               border: "none",
-              cursor: (props.inputValue.trim() || props.pastedImages.length > 0) ? "pointer" : "default",
+              cursor: "pointer",
             }}
-            onClick={() => props.onSend()}
-            disabled={!props.inputValue.trim() && props.pastedImages.length === 0}
-            title="Send message"
+            onClick={props.onStop}
+            title="Stop agent"
           >
-            <SendIcon />
+            <StopIcon />
           </button>
         </Show>
       </div>
 
+      {/* Status bar: streaming indicator | web search + tokens - ONE LINE */}
       <div
-        class="flex items-center justify-between mt-1 px-1"
-        style={{ "font-size": `${props.fontSize - 4}px`, color: "var(--text-muted)" }}
+        class="flex flex-row items-center justify-between mt-1.5 px-1"
+        style={{ height: "16px", "font-size": "11px", color: "var(--text-muted)" }}
       >
-        {/* Left: status or hint */}
-        <Show when={props.isStreaming}
-          fallback={<span>Enter to send, Shift+Enter for newline</span>}
-        >
-          <div class="flex items-center gap-1.5">
-            <span
-              class="inline-block animate-pulse"
-              style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
-            />
-            <span>Agent running</span>
-            <button
-              class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors"
-              style={{
-                background: "transparent", color: "var(--text-muted)",
-                border: "1px solid var(--border-default)", cursor: "pointer",
-                "font-size": `${props.fontSize - 4}px`, "font-weight": "600",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 10%, transparent)";
-                (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
-                (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 25%, transparent)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "transparent";
-                (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
-              }}
-              onClick={props.onStop}
-              title="Stop all agent tasks"
-            >
-              <StopIcon />
-              Stop
-            </button>
-          </div>
-        </Show>
+        {/* Left: streaming indicator */}
+        <div class="flex items-center" style={{ "min-width": "0" }}>
+          <Show when={props.isStreaming}>
+            <div class="flex items-center gap-1.5">
+              <span
+                class="inline-block animate-pulse"
+                style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
+              />
+              <span>Running</span>
+            </div>
+          </Show>
+        </div>
 
-        <div class="flex items-center gap-2">
-          {/* Web search toggle */}
+        {/* Right: web search + tokens */}
+        <div class="flex items-center gap-3" style={{ "flex-shrink": "0" }}>
           <Show when={props.showWebSearch}>
             <button
-              class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-all"
+              class="flex items-center gap-1"
               style={{
-                background: props.webSearchEnabled
-                  ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)"
-                  : "transparent",
                 color: props.webSearchEnabled ? "var(--accent-blue)" : "var(--text-muted)",
-                border: props.webSearchEnabled
-                  ? "1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent)"
-                  : "1px solid transparent",
+                background: "transparent",
+                border: "none",
                 cursor: "pointer",
-                "font-size": `${props.fontSize - 4}px`,
-                "font-family": "var(--font-sans)",
+                "font-size": "11px",
+                padding: "0",
               }}
-              onMouseEnter={(e) => { if (!props.webSearchEnabled) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-              onMouseLeave={(e) => { if (!props.webSearchEnabled) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               onClick={props.onToggleWebSearch}
               title={props.webSearchEnabled
-                ? "Web search ON — model will fetch live results ($0.004/search)"
-                : "Enable web search — appends :online to model via OpenRouter"}
+                ? "Web search enabled — click to disable"
+                : "Enable web search for live results"}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
               </svg>
-              {props.webSearchEnabled ? "Search on" : "Search"}
+              <span style={{ opacity: props.webSearchEnabled ? 1 : 0.6 }}>
+                {props.webSearchEnabled ? "Web on" : "Web"}
+              </span>
             </button>
           </Show>
 
           <Show when={props.tokens.prompt > 0}>
-            <span style={{ "font-family": "var(--font-mono, monospace)" }}>
+            <span style={{ "font-family": "var(--font-mono, monospace)", opacity: 0.7 }}>
               {(() => {
                 const total = props.tokens.prompt + props.tokens.completion;
                 const cost = (props.tokens.prompt * 3 + props.tokens.completion * 15) / 1_000_000;
                 const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
-                return `${totalStr} tokens · ~$${cost.toFixed(4)}`;
+                return `${totalStr} · $${cost.toFixed(4)}`;
               })()}
             </span>
           </Show>

@@ -5,6 +5,8 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use uuid::Uuid;
 
+use crate::commands::git::get_git_context;
+
 static AGENT_SESSIONS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<()>>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
@@ -237,6 +239,11 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
         prompt.push_str(&clif_content);
         prompt.push_str("\n\n---\n");
     }
+
+    // Add git context (branch, modified files, recent commits)
+    let git_context = get_git_context(workspace_dir);
+    prompt.push_str("\n## Current Git State\n\n");
+    prompt.push_str(&git_context);
 
     if let Some(ctx) = context {
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {

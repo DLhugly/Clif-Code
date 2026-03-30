@@ -50,12 +50,15 @@ export function clampPanelWidth(
   otherPanelWidth: number
 ): number {
   const minWidth = 200;
-  const maxWidth = panelType === "agent" ? 500 : 600;
+  // Allow panels to expand flexibly based on window size
+  // Agent: up to 70% for reading responses
+  // Sidebar: up to 50% for file tree / git views
+  const maxPercentOfWindow = panelType === "agent" ? 0.7 : 0.5;
+  const calculatedMax = Math.floor(windowWidth * maxPercentOfWindow);
 
-  // Calculate available space
-  const totalPanelWidth = panelWidth + otherPanelWidth;
-  const availableWidth = windowWidth - 200; // Reserve 200px for editor minimum
-  const maxAllowedWidth = Math.min(maxWidth, availableWidth - otherPanelWidth);
+  // Calculate available space (reserve 200px for editor minimum)
+  const availableWidth = windowWidth - 200;
+  const maxAllowedWidth = Math.min(calculatedMax, availableWidth - otherPanelWidth);
 
   return Math.max(minWidth, Math.min(panelWidth, maxAllowedWidth));
 }

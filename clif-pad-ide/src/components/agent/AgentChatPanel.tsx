@@ -700,16 +700,17 @@ const AgentChatPanel: Component = () => {
           </div>
         </Show>
 
+        {/* Input row: attach | textarea | send - all on one line */}
         <div
-          class="flex items-end gap-2 rounded-xl px-3 py-2"
+          class="flex flex-row items-end gap-2 rounded-xl px-3 py-2"
           style={{
             background: "var(--bg-base)",
             border: "1px solid var(--border-default)",
           }}
         >
-          {/* Attach file button */}
+          {/* Attach file button - LEFT */}
           <button
-            class="flex items-center justify-center shrink-0 rounded p-1 mb-0.5"
+            class="flex items-center justify-center shrink-0 rounded p-1"
             style={{
               color: "var(--text-muted)",
               background: "transparent",
@@ -730,6 +731,7 @@ const AgentChatPanel: Component = () => {
             </svg>
           </button>
 
+          {/* Textarea - CENTER */}
           <textarea
             ref={inputRef}
             class="flex-1 resize-none outline-none"
@@ -746,10 +748,10 @@ const AgentChatPanel: Component = () => {
             }}
             placeholder={
               queuedMessages().length > 0
-                ? `Message queued (${queuedMessages().length} in line) — Shift+Enter to force push`
+                ? `${queuedMessages().length} queued — Shift+Enter to force`
                 : (agentStreaming() || clifInitializing())
-                ? "Type to queue next message..."
-                : "Ask the agent... (paste images with ⌘V)"
+                ? "Type to queue..."
+                : "Ask the agent... (@ for files)"
             }
             rows={1}
             value={inputValue()}
@@ -778,166 +780,119 @@ const AgentChatPanel: Component = () => {
             onPaste={handlePaste}
           />
 
-          {/* Queued messages badge */}
-          <Show when={queuedMessages().length > 0}>
-            <button
-              class="absolute top-[-8px] right-[-8px] z-10 flex items-center justify-center rounded-full"
-              style={{
-                background: "var(--accent-primary)",
-                color: "#fff",
-                "font-size": "11px",
-                "min-width": "20px",
-                height: "20px",
-                padding: "0 6px",
-                "font-weight": "600",
-                border: "2px solid var(--bg-base)",
-                cursor: "pointer",
-              }}
-              onClick={() => handleSend(true)}
-              title={`Force push: cancel current agent and send next message (${queuedMessages().length} queued)`}
-            >
-              {queuedMessages().length}
-            </button>
-          </Show>
-        </div>
-
-        <div class="flex items-center justify-between mt-1 px-1">
-          {/* Send / Stop streaming button */}
+          {/* Send / Stop / Queue button - RIGHT */}
           <Show
-            when={!agentStreaming()}
+            when={agentStreaming()}
             fallback={
               <Show
-                when={inputValue().trim()}
+                when={queuedMessages().length > 0}
                 fallback={
                   <button
-                    class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+                    class="flex items-center justify-center shrink-0 rounded-lg p-1.5 transition-colors"
                     style={{
-                      background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
-                      color: "var(--accent-red)",
-                      border: "1px solid color-mix(in srgb, var(--accent-red) 25%, transparent)",
-                      cursor: "pointer",
+                      background: (inputValue().trim() || pastedImages().length > 0)
+                        ? "var(--accent-primary)"
+                        : "var(--bg-hover)",
+                      color: (inputValue().trim() || pastedImages().length > 0) ? "#fff" : "var(--text-muted)",
+                      border: "none",
+                      cursor: (inputValue().trim() || pastedImages().length > 0) ? "pointer" : "default",
                     }}
-                    onClick={stopAgent}
-                    title="Stop streaming response"
+                    onClick={() => handleSend(false)}
+                    disabled={!inputValue().trim() && pastedImages().length === 0}
+                    title="Send message"
                   >
-                    <StopIcon />
+                    <SendIcon />
                   </button>
                 }
               >
-                {/* Queue button — send after agent finishes */}
                 <button
-                  class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+                  class="flex items-center justify-center shrink-0 rounded-lg px-2 py-1 transition-colors"
                   style={{
-                    background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
-                    color: "var(--accent-primary)",
-                    border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                    background: "var(--accent-primary)",
+                    color: "#fff",
+                    border: "none",
                     cursor: "pointer",
+                    "font-size": "11px",
+                    "font-weight": "500",
                   }}
-                  onClick={() => handleSend(false)}
-                  title="Queue message — sends when agent finishes"
+                  onClick={() => handleSend(true)}
+                  title="Force send now"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
-                  </svg>
+                  {queuedMessages().length}
+                  <span style={{ opacity: 0.8, "margin-left": "4px" }}>Force</span>
                 </button>
               </Show>
             }
           >
             <button
-              class="flex items-center justify-center shrink-0 rounded-lg p-1.5 mb-0.5 transition-colors"
+              class="flex items-center justify-center shrink-0 rounded-lg p-1.5 transition-colors"
               style={{
-                background: (inputValue().trim() || pastedImages().length > 0)
-                  ? "var(--accent-primary)"
-                  : "var(--bg-hover)",
-                color: (inputValue().trim() || pastedImages().length > 0) ? "#fff" : "var(--text-muted)",
+                background: "var(--accent-red)",
+                color: "#fff",
                 border: "none",
-                cursor: (inputValue().trim() || pastedImages().length > 0) ? "pointer" : "default",
+                cursor: "pointer",
               }}
-                onClick={() => handleSend(false)}
-              disabled={!inputValue().trim() && pastedImages().length === 0}
-              title="Send message"
+              onClick={stopAgent}
+              title="Stop agent"
             >
-              <SendIcon />
+              <StopIcon />
             </button>
           </Show>
         </div>
+
+        {/* Status bar: streaming | web search + tokens - ONE LINE */}
         <div
-          class="flex items-center justify-between mt-1 px-1"
-          style={{ "font-size": `${fontSize() - 4}px`, color: "var(--text-muted)" }}
+          class="flex flex-row items-center justify-between mt-2 px-1"
+          style={{ height: "20px", "font-size": "12px", color: "var(--text-muted)" }}
         >
-          {/* Left: status or hint */}
-          <Show when={agentStreaming()}
-            fallback={<span>Enter to send, Shift+Enter for newline</span>}
-          >
-            <div class="flex items-center gap-1.5">
-              <span
-                class="inline-block animate-pulse"
-                style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
-              />
-              <span>Agent running</span>
-              <button
-                class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors"
-                style={{
-                  background: "transparent", color: "var(--text-muted)",
-                  border: "1px solid var(--border-default)", cursor: "pointer",
-                  "font-size": `${fontSize() - 4}px`, "font-weight": "600",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--accent-red) 10%, transparent)";
-                  (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
-                  (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--accent-red) 25%, transparent)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "transparent";
-                  (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-                  (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
-                }}
-                onClick={stopAgent}
-                title="Stop all agent tasks"
-              >
-                <StopIcon />
-                Stop
-              </button>
-            </div>
-          </Show>
-          <div class="flex items-center gap-2">
-            {/* Web search toggle */}
+          {/* Left: streaming indicator */}
+          <div class="flex items-center" style={{ "min-width": "0" }}>
+            <Show when={agentStreaming()}>
+              <div class="flex items-center gap-2">
+                <span
+                  class="inline-block animate-pulse"
+                  style={{ width: "8px", height: "8px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
+                />
+                <span style={{ "font-weight": "500" }}>Running...</span>
+              </div>
+            </Show>
+          </div>
+
+          {/* Right: web search + tokens */}
+          <div class="flex items-center gap-4" style={{ "flex-shrink": "0" }}>
             <Show when={settings().aiProvider === "openrouter"}>
               <button
-                class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-all"
+                class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors"
                 style={{
-                  background: webSearchEnabled()
-                    ? "color-mix(in srgb, var(--accent-blue) 15%, transparent)"
-                    : "transparent",
                   color: webSearchEnabled() ? "var(--accent-blue)" : "var(--text-muted)",
-                  border: webSearchEnabled()
-                    ? "1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent)"
-                    : "1px solid transparent",
+                  background: webSearchEnabled() ? "rgba(59, 130, 246, 0.1)" : "transparent",
+                  border: "none",
                   cursor: "pointer",
-                  "font-size": `${fontSize() - 4}px`,
-                  "font-family": "var(--font-sans)",
+                  "font-size": "12px",
+                  "font-weight": "500",
                 }}
-                onMouseEnter={(e) => { if (!webSearchEnabled()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { if (!webSearchEnabled()) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 onClick={() => setWebSearchEnabled(!webSearchEnabled())}
-                title={webSearchEnabled()
-                  ? "Web search ON — model will fetch live results ($0.004/search)"
-                  : "Enable web search — appends :online to model via OpenRouter"}
+                title={webSearchEnabled() ? "Web search enabled" : "Enable web search"}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                {webSearchEnabled() ? "Search on" : "Search"}
+                <span>
+                  {webSearchEnabled() ? "Web on" : "Web"}
+                </span>
               </button>
             </Show>
+
             <Show when={agentTokens().prompt > 0}>
-              <span style={{ "font-family": "var(--font-mono, monospace)" }}>
+              <span style={{ "font-family": "var(--font-mono, monospace)", opacity: 0.8, "font-size": "12px" }}>
                 {(() => {
                   const t = agentTokens();
                   const total = t.prompt + t.completion;
                   const cost = (t.prompt * 3 + t.completion * 15) / 1_000_000;
                   const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k` : `${total}`;
-                  return `${totalStr} tokens · ~$${cost.toFixed(4)}`;
+                  return `${totalStr} · $${cost.toFixed(4)}`;
                 })()}
               </span>
             </Show>

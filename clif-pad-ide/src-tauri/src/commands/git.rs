@@ -589,3 +589,82 @@ pub fn git_stage(path: String, files: Vec<String>) -> Result<(), String> {
 
     Ok(())
 }
+
+/// Gather git context for AI agent system prompt
+/// Returns: current branch, modified/untracked files, and recent commits
+pub fn get_git_context(workspace_dir: &str) -> String {
+    let mut context = String::new();
+
+    // Get current branch
+    let branch_output = Command::new("git")
+        .args(["branch", "--show-current"])
+        .current_dir(workspace_dir)
+        .output();
+
+    if let Ok(output) = branch_output {
+        if output.status.success() {
+            let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !branch.is_empty() {
+                context.push_str(&format!("Current branch: {}\n", branch));
+            }
+        }
+    }
+
+    // Get modified/untracked files (last 10)
+    let status_output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(workspace_dir)
+        .output();
+
+    if let Ok(output) = status_output {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let files: Vec<&str> = stdout.lines().filter(|l| !l.is_empty()).take(10).collect();
+            if !files.is_empty() {
+                context.push_str("\nModified/untracked files:\n");
+                for file in files {
+                    // Parse porcelain format: "XY filename"
+                    let file_path = if file.len() > 3 { &file[3..] } else { file };
+                    let status_char = file.chars().next().unwrap_or(' ');
+                    let status_label = match status_char {
+                        'M' => "modified",
+                        'A' => "added",
+                        'D' => "deleted",
+                        '?' => "untracked",
+                        'R' => "renamed",
+                        _ => "changed",
+                    };
+                    context.push_str(&format!("  [{}] {}\n", status_label, file_path));
+                }
+                if stdout.lines().count() > 10 {
+                    context.push_str(&format!("  ... and {} more files\n", stdout.lines().count() - 10));
+                }
+            }
+        }
+    }
+
+    // Get recent commits (last 5)
+    let log_output = Command::new("git")
+        .args(["log", "--oneline", "-5"])
+        .current_dir(workspace_dir)
+        .output();
+
+    if let Ok(output) = log_output {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let commits: Vec<&str> = stdout.lines().filter(|l| !l.is_empty()).collect();
+            if !commits.is_empty() {
+                context.push_str("\nRecent commits:\n");
+                for commit in commits {
+                    context.push_str(&format!("  {}\n", commit));
+                }
+            }
+        }
+    }
+
+    if context.is_empty() {
+        "No git repository found or no changes.".to_string()
+    } else {
+        context
+    }
+}
