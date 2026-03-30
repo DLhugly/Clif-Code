@@ -339,7 +339,7 @@ const TerminalPanel: Component<TerminalPanelProps> = (props) => {
         {/* Launch Terminal Agents + New terminal + Clear buttons */}
         <div class="flex items-center shrink-0" style={{ padding: "0 6px", gap: "4px" }}>
           <Show when={props.onLaunchClifCode && props.onLaunchClaude}>
-            <span style={{ "font-size": "10px", color: "var(--text-muted)", "margin-right": "2px" }}>Launch:</span>
+            <span style={{ "font-size": "10px", color: "var(--text-muted)", "margin-right": "2px" }}>Launch Terminal Agent:</span>
             <button
               class="flex items-center justify-center"
               style={{
