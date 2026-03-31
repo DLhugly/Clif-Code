@@ -1,3 +1,10 @@
+## [1.57.1](https://github.com/DLhugly/Clif-Code/compare/v1.57.0...v1.57.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* open external links in system browser instead of new window ([ec28e22](https://github.com/DLhugly/Clif-Code/commit/ec28e2204b5cadb1e6c712eca90c2309d3a40d07))
+
 # [1.57.0](https://github.com/DLhugly/Clif-Code/compare/v1.56.0...v1.57.0) (2026-03-31)
 
 
