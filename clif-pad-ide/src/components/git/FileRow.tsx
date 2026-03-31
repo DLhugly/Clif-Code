@@ -158,8 +158,8 @@ const FileRow: Component<{
           color: "var(--text-primary)",
           background: hovered() ? "var(--bg-hover)" : "transparent",
         }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => !ctxMenu() && setHovered(true)}
+        onMouseLeave={() => !ctxMenu() && setHovered(false)}
         onContextMenu={handleContextMenu}
         onClick={() => {
           if (isRenaming()) return;

@@ -1,4 +1,5 @@
 import { Component, For, Show, onMount, onCleanup, createSignal } from "solid-js";
+import { Portal } from "solid-js/web";
 
 export interface ContextMenuItem {
   label: string;
@@ -55,22 +56,23 @@ const ContextMenu: Component<ContextMenuProps> = (props) => {
   });
 
   return (
-    <div
-      ref={menuRef}
-      class="fixed z-50"
-      style={{
-        left: `${position().x}px`,
-        top: `${position().y}px`,
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border-default)",
-        "border-radius": "6px",
-        "box-shadow": "0 4px 16px rgba(0,0,0,0.3)",
-        "min-width": "160px",
-        padding: "4px 0",
-        "font-size": "12px",
-        "font-family": "var(--font-sans)",
-      }}
-    >
+    <Portal>
+      <div
+        ref={menuRef}
+        class="fixed z-50"
+        style={{
+          left: `${position().x}px`,
+          top: `${position().y}px`,
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-default)",
+          "border-radius": "6px",
+          "box-shadow": "0 4px 16px rgba(0,0,0,0.3)",
+          "min-width": "160px",
+          padding: "4px 0",
+          "font-size": "12px",
+          "font-family": "var(--font-sans)",
+        }}
+      >
       <For each={props.items}>
         {(item) => (
           <>
@@ -119,7 +121,8 @@ const ContextMenu: Component<ContextMenuProps> = (props) => {
           </>
         )}
       </For>
-    </div>
+      </div>
+    </Portal>
   );
 };
 

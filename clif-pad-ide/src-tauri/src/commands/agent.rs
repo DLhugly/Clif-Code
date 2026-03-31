@@ -56,7 +56,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "read_file",
-                "description": "Read the contents of a file. Read files before editing them. Use this to inspect code, configs, and logs before making changes. For large files, use offset and limit to read specific line ranges instead of the whole file. Output includes line numbers. Prefer this over run_command for reading files.",
+                "description": "Read the contents of a file. Read files before editing them. Use this to inspect code, configs, and logs before making changes. For large files, use offset and limit to read specific line ranges instead of the whole file.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
@@ -91,7 +91,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "edit_file",
-                "description": "Make a targeted edit by replacing old_string with new_string exactly once. Read the file first. Prefer this over write_file for localized changes. old_string must match the current file contents exactly, including whitespace. Include enough context to make the match unique.",
+                "description": "Make a targeted edit by replacing old_string with new_string exactly once. Read the file first. Prefer this over write_file for localized changes. old_string must match the current file contents exactly, including whitespace.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
@@ -109,7 +109,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "list_files",
-                "description": "List files and directories at a path. Use this to explore the workspace before reading or editing files. Returns names and types (file/directory).",
+                "description": "List files and directories at a path. Use this to explore the workspace before reading or editing files.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
@@ -125,7 +125,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "search",
-                "description": "Search for text in files within a directory. Prefer this over run_command for codebase exploration. Returns file paths and matching lines with context.",
+                "description": "Search for text in files within a directory. Prefer this over run_command for codebase exploration.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
@@ -142,7 +142,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "run_command",
-                "description": "Run a shell command and return its output. Use this mainly for build, test, lint, git, or validation tasks. Prefer read/search/list tools over shell commands for basic exploration. Requires user approval before execution. Avoid for reading files - use read_file instead.",
+                "description": "Run a shell command and return its output. Use this mainly for build, test, lint, git, or validation tasks. Prefer read/search/list tools over shell commands for basic exploration. Requires user approval before execution.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
@@ -159,7 +159,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "find_file",
-                "description": "Find files or directories by partial name anywhere in the workspace. Use this when you do not know the exact location of something. Faster than run_command find.",
+                "description": "Find files or directories by partial name anywhere in the workspace. Use this when you do not know the exact location of something.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
