@@ -1,3 +1,10 @@
+# [1.58.0](https://github.com/DLhugly/Clif-Code/compare/v1.57.1...v1.58.0) (2026-03-31)
+
+
+### Features
+
+* add message windowing to agent chat for performance ([3825ca3](https://github.com/DLhugly/Clif-Code/commit/3825ca3a32169131a80eb4d60c6abf81a51d7cc2))
+
 ## [1.57.1](https://github.com/DLhugly/Clif-Code/compare/v1.57.0...v1.57.1) (2026-03-31)
 
 
