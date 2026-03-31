@@ -1,8 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-shell";
 import type { FileEntry } from "../types/files";
 import type { ChatMessage, ModelInfo } from "../types/ai";
 import type { GitFileStatus, GitBranch, GitLogEntry, GitFileNumstat } from "../types/git";
+
+// Shell commands
+export async function openExternal(url: string): Promise<void> {
+  await open(url);
+}
 
 // File system commands
 export async function readDir(path: string): Promise<FileEntry[]> {

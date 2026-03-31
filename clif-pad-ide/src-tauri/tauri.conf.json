@@ -48,6 +48,9 @@
     "copyright": ""
   },
   "plugins": {
+    "shell": {
+      "open": true
+    },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2NTZBOEM4NDk2NkIxMjkKUldRcHNXWkp5S2hXaG01dUViZUxIVHAvYXZVR3JKRVZVdjkvc1M2UGZsNkN0ejBja2lnKzA0YS8K",
       "endpoints": [

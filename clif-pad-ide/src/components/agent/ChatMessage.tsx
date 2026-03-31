@@ -2,6 +2,7 @@ import { Component, Show, createSignal, createMemo, For, type Accessor } from "s
 import { marked } from "marked";
 import { fontSize } from "../../stores/uiStore";
 import { openFile } from "../../stores/fileStore";
+import { openExternal } from "../../lib/tauri";
 import type { AgentMessage } from "../../types/agent";
 
 export interface PendingCommand {
@@ -549,7 +550,20 @@ const ChatMessage: Component<{
           </Show>
         </Show>
         <Show when={isAssistant()}>
-          <div class="agent-markdown" innerHTML={renderedHtml()} />
+          <div
+            class="agent-markdown"
+            innerHTML={renderedHtml()}
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.tagName === "A") {
+                e.preventDefault();
+                const href = target.getAttribute("href");
+                if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+                  openExternal(href);
+                }
+              }
+            }}
+          />
           <Show when={props.message.status === "streaming"}>
             <span
               class="inline-block animate-pulse"
