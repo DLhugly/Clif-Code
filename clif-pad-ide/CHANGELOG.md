@@ -1,3 +1,10 @@
+# [1.59.0](https://github.com/DLhugly/Clif-Code/compare/v1.58.0...v1.59.0) (2026-03-31)
+
+
+### Features
+
+* improve tool descriptions for better LLM tool usage ([914665b](https://github.com/DLhugly/Clif-Code/commit/914665b5ffef8842547f101c4cac8241e0b2ee6a))
+
 # [1.58.0](https://github.com/DLhugly/Clif-Code/compare/v1.57.1...v1.58.0) (2026-03-31)
 
 
