@@ -43,11 +43,14 @@ import EmptyState from "./EmptyState";
 
 
 
+const BATCH_SIZE = 30; // Number of messages to show/load at a time
+
 const AgentChatPanel: Component = () => {
   let messagesEndRef: HTMLDivElement | undefined;
   let inputRef: HTMLTextAreaElement | undefined;
   // model browser state is held in signals below
   const [inputValue, setInputValue] = createSignal("");
+  const [visibleCount, setVisibleCount] = createSignal(BATCH_SIZE); // how many messages to show from the end
   const [contextFiles, setContextFiles] = createSignal<string[]>([]);
   const [initialized, setInitialized] = createSignal(false);
   const [hasApiKey, setHasApiKey] = createSignal<boolean | null>(null);
@@ -266,6 +269,25 @@ const AgentChatPanel: Component = () => {
 
   function handleModelChange(model: string) {
     updateSettings({ aiModel: model });
+  }
+
+  // Only render last N messages to keep DOM lean (user can load more)
+  const visibleMessages = createMemo(() => {
+    const all = agentMessages;
+    const count = visibleCount();
+    return all.slice(-count);
+  });
+
+  // Number of older messages not currently visible
+  const hiddenCount = createMemo(() => {
+    const total = agentMessages.length;
+    const visible = visibleCount();
+    return Math.max(0, total - visible);
+  });
+
+  // Load older messages in batches
+  function loadMoreMessages() {
+    setVisibleCount(prev => prev + BATCH_SIZE);
   }
 
   // Auto-scroll on new messages
@@ -608,7 +630,16 @@ const AgentChatPanel: Component = () => {
             />
           }
         >
-          <For each={agentMessages}>
+          <Show when={hiddenCount() > 0}>
+            <button
+              onClick={loadMoreMessages}
+              class="w-full text-center py-2 text-xs hover:bg-opacity-50 transition-colors cursor-pointer"
+              style={{ color: "var(--text-muted)", background: "var(--bg-tertiary)" }}
+            >
+              Load {Math.min(BATCH_SIZE, hiddenCount())} older messages ({hiddenCount()} hidden)
+            </button>
+          </Show>
+          <For each={visibleMessages()}>
             {(msg) => <ChatMessage message={msg} pendingCommand={pendingCommand} onApprove={async (sid, approved) => { setPendingCommand(null); await agentApproveCommand(sid, approved); }} />}
           </For>
           <Show when={agentStreaming() && agentStatus()}>
