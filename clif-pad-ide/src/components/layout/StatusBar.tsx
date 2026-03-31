@@ -139,7 +139,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
       <div class="flex items-center gap-2 min-w-0">
         {/* Terminal toggle */}
         <button
-          class="flex items-center gap-1.5 rounded-lg shrink-0 transition-all duration-150"
+          class="flex items-center gap-1.5 rounded shrink-0 transition-all duration-150"
           style={{
             background: terminalVisible() ? "var(--bg-active)" : "var(--bg-hover)",
             color: terminalVisible() ? "var(--text-primary)" : "var(--text-muted)",
@@ -211,7 +211,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
       {/* Center section — Editor toggle + file info */}
       <div class="flex items-center gap-3">
         <button
-          class="flex items-center gap-1.5 rounded-lg shrink-0 transition-all duration-150"
+          class="flex items-center gap-1.5 rounded shrink-0 transition-all duration-150"
           style={{
             background: editorVisible() ? "var(--bg-active)" : "var(--bg-hover)",
             color: editorVisible() ? "var(--text-primary)" : "var(--text-muted)",
@@ -248,7 +248,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
       <div class="flex items-center gap-3 shrink-0">
         {/* Agent toggle */}
         <button
-          class="flex items-center gap-1.5 rounded-lg shrink-0 transition-all duration-150"
+          class="flex items-center gap-1.5 rounded shrink-0 transition-all duration-150"
           style={{
             background: agentVisible() ? "var(--bg-active)" : "var(--bg-hover)",
             color: agentVisible() ? "var(--text-primary)" : "var(--text-muted)",

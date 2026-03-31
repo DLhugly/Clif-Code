@@ -93,6 +93,23 @@ pub fn git_diff(path: String, file: Option<String>) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn git_diff_cached(path: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["diff", "--cached"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git diff --cached: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git diff --cached failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(stdout)
+}
+
+#[tauri::command]
 pub fn git_commit(path: String, message: String) -> Result<String, String> {
     // Stage all changes
     let add_output = Command::new("git")

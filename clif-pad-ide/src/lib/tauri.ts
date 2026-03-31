@@ -133,6 +133,10 @@ export async function gitDiff(path: string, file?: string): Promise<string> {
   return invoke("git_diff", { path, file: file ?? null });
 }
 
+export async function gitDiffCached(path: string): Promise<string> {
+  return invoke("git_diff_cached", { path });
+}
+
 export async function gitShow(path: string, file: string, revision?: string): Promise<string> {
   return invoke("git_show", { path, file, revision: revision ?? null });
 }

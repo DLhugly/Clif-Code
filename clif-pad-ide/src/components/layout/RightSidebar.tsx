@@ -1,6 +1,6 @@
 import { Component, Show, For, createSignal, createMemo, lazy, Suspense, onCleanup } from "solid-js";
 import { projectRoot, openFile, openDiff, refreshFileTree } from "../../stores/fileStore";
-import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, generateCommitMessage, getApiKey, aiReviewCode, onCodeReviewStart, onCodeReviewStream, onCodeReviewDone, onCodeReviewError } from "../../lib/tauri";
+import { revealPath, renameEntry, deleteEntry, scanFilesSecurity, gitDiff, gitDiffCached, generateCommitMessage, getApiKey, aiReviewCode, onCodeReviewStart, onCodeReviewStream, onCodeReviewDone, onCodeReviewError } from "../../lib/tauri";
 import { securityEnabled, setSecurityResults, setSecurityShowModal, securityShowModal } from "../../stores/securityStore";
 import SecurityModal from "../security/SecurityModal";
 import ContextMenu, { type ContextMenuItem } from "../explorer/ContextMenu";
@@ -20,7 +20,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 
 const FileTree = lazy(() => import("../explorer/FileTree"));
 
-type SidebarTab = "files" | "git";
+type SidebarTab = "files" | "git" | "analyze";
 
 const GitBranchIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -65,6 +65,15 @@ const MagicWandIcon = () => (
   </svg>
 );
 
+const RefreshIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+    <path d="M8 16H3v5" />
+  </svg>
+);
+
 const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: string) => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
@@ -97,7 +106,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
       const apiKey = await getApiKey(provider);
 
       // Get diff of staged files
-      const diff = await gitDiff(projectRoot() || "", undefined);
+      const diff = await gitDiffCached(projectRoot() || "");
       const stagedPaths = stagedFiles().map(f => f.path);
       
       const message = await generateCommitMessage(diff, stagedPaths, model, apiKey, provider);
@@ -119,19 +128,25 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
     const provider = s.aiProvider || "openrouter";
     const apiKey = await getApiKey(provider);
 
-    const diff = await gitDiff(projectRoot() || "", undefined);
+    const diff = await gitDiffCached(projectRoot() || "");
     const stagedPaths = stagedFiles().map(f => f.path);
+    
+    console.log("AI Review - diff length:", diff.length);
+    console.log("AI Review - staged files:", stagedPaths);
 
     // Set up event listeners for streaming
     const unlistenStart = await onCodeReviewStart((files) => {
+      console.log("AI Review - start event received:", files);
       setAiReviewFiles(files);
     });
     
     const unlistenStream = await onCodeReviewStream((chunk) => {
+      console.log("AI Review - stream chunk:", chunk);
       setAiReviewContent(prev => prev + chunk);
     });
     
     const unlistenDone = await onCodeReviewDone(() => {
+      console.log("AI Review - done event received");
       setIsAiReviewing(false);
     });
     
@@ -152,7 +167,9 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
     setAiReviewExpanded(true);
     
     try {
+      console.log("AI Review - calling aiReviewCode...");
       await aiReviewCode(diff, stagedPaths, model, apiKey, provider);
+      console.log("AI Review - aiReviewCode returned");
     } catch (e) {
       console.error("Failed to run AI code review:", e);
       setIsAiReviewing(false);
@@ -309,6 +326,21 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
               {changedFiles.length}
             </span>
           </Show>
+        </button>
+        <button
+          class="flex-1 flex items-center justify-center gap-1.5 font-medium transition-colors"
+          style={{
+            color: activeTab() === "analyze" ? "var(--text-primary)" : "var(--text-muted)",
+            background: activeTab() === "analyze" ? "var(--bg-base)" : "transparent",
+            "border-bottom": activeTab() === "analyze" ? "2px solid var(--accent-blue)" : "2px solid transparent",
+          }}
+          onClick={() => setActiveTab("analyze")}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          Analyze
         </button>
       </div>
 
@@ -855,157 +887,6 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                   </Show>
                 </div>
 
-                {/* Code Review Panel - Always visible */}
-                <div
-                  class="shrink-0"
-                  style={{
-                    "border-top": "1px solid var(--border-muted)",
-                    "border-bottom": "1px solid var(--border-muted)",
-                    background: "var(--bg-base)",
-                  }}
-                >
-                  {/* Header with buttons */}
-                  <div
-                    class="flex items-center justify-between px-2 py-1"
-                    style={{ "border-bottom": aiReviewExpanded() ? "1px solid var(--border-muted)" : "none" }}
-                  >
-                    <div class="flex items-center gap-2">
-                      {/* Security Scan Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSecurityResults([]);
-                          setSecurityShowModal(true);
-                        }}
-                        class="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
-                        style={{
-                          background: "transparent",
-                          border: "1px solid var(--border-muted)",
-                          cursor: "pointer",
-                        }}
-                        title="Scan for secrets and vulnerabilities"
-                      >
-                        <div
-                          style={{
-                            width: "6px",
-                            height: "6px",
-                            "border-radius": "50%",
-                            background: "var(--accent-green)",
-                            "box-shadow": "0 0 4px var(--accent-green)",
-                          }}
-                        />
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--text-muted)" }}>
-                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        </svg>
-                      </button>
-
-                      {/* AI Scan Button */}
-                      <button
-                        type="button"
-                        onClick={handleAiReview}
-                        disabled={isAiReviewing() || stagedFiles().length === 0}
-                        class="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
-                        style={{
-                          background: isAiReviewing() ? "var(--accent-blue)" : "transparent",
-                          border: "1px solid var(--border-muted)",
-                          cursor: isAiReviewing() || stagedFiles().length === 0 ? "default" : "pointer",
-                          opacity: stagedFiles().length === 0 ? "0.5" : "1",
-                        }}
-                        title={stagedFiles().length === 0 ? "Stage files to enable AI review" : "Run AI code review on staged changes"}
-                      >
-                        <Show when={isAiReviewing()} fallback={
-                          <div
-                            style={{
-                              width: "6px",
-                              height: "6px",
-                              "border-radius": "50%",
-                              background: "var(--accent-blue)",
-                            }}
-                          />
-                        }>
-                          <SpinnerIcon />
-                        </Show>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--text-muted)" }}>
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 16v-4" />
-                          <path d="M12 8h.01" />
-                        </svg>
-                      </button>
-
-                      {/* Cancel button when reviewing */}
-                      <Show when={isAiReviewing()}>
-                        <button
-                          type="button"
-                          onClick={cancelAiReview}
-                          class="px-1.5 py-0.5 rounded text-xs transition-colors"
-                          style={{
-                            background: "var(--accent-red)",
-                            color: "#fff",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </Show>
-                    </div>
-
-                    {/* Expand/collapse */}
-                    <div
-                      class="cursor-pointer"
-                      style={{ transform: aiReviewExpanded() ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}
-                      onClick={() => setAiReviewExpanded(!aiReviewExpanded())}
-                    >
-                      <ChevronDownIcon />
-                    </div>
-                  </div>
-
-                  {/* Expandable content */}
-                  <Show when={aiReviewExpanded()}>
-                    <div class="px-2 py-1.5" style={{ "max-height": "200px", "overflow-y": "auto" }}>
-                      <Show when={isAiReviewing() && !aiReviewContent()}>
-                        <div class="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                          <SpinnerIcon />
-                          <span>Analyzing staged changes...</span>
-                        </div>
-                      </Show>
-                      <Show when={aiReviewContent()}>
-                        <div 
-                          class="text-xs" 
-                          style={{ 
-                            color: "var(--text-primary)", 
-                            "white-space": "pre-wrap",
-                            "word-break": "break-word",
-                            "line-height": "1.5",
-                          }}
-                        >
-                          {aiReviewContent()}
-                        </div>
-                        <Show when={!isAiReviewing()}>
-                          <button
-                            type="button"
-                            onClick={copyAiReviewToAgent}
-                            class="w-full mt-2 py-1 rounded text-xs transition-colors"
-                            style={{
-                              background: "var(--accent-primary)",
-                              color: "var(--accent-text, #fff)",
-                              border: "none",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Copy to Agent
-                          </button>
-                        </Show>
-                      </Show>
-                      <Show when={!isAiReviewing() && !aiReviewContent()}>
-                        <div class="text-xs" style={{ color: "var(--text-muted)" }}>
-                          Click the AI button to analyze staged changes.
-                        </div>
-                      </Show>
-                    </div>
-                  </Show>
-                </div>
-
                 {/* Resize handle */}
                 <ResizeHandle
                   direction="row"
@@ -1020,9 +901,27 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                       class="flex items-center justify-between px-2 py-1 shrink-0"
                       style={{ "border-bottom": "1px solid var(--border-muted)" }}
                     >
-                      <span class="font-semibold" style={{ color: "var(--text-secondary)", "font-size": "0.85em" }}>
-                        History · {commitLog().length}
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <span class="font-semibold" style={{ color: "var(--text-secondary)", "font-size": "0.85em" }}>
+                          History · {commitLog().length}
+                        </span>
+                        <button
+                          class="p-1 rounded transition-colors"
+                          style={{ color: "var(--text-muted)" }}
+                          title="Refresh git status"
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.background = "transparent";
+                            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                          }}
+                          onClick={() => { refreshGitStatus(); refreshBranches(); }}
+                        >
+                          <RefreshIcon />
+                        </button>
+                      </div>
                       <span style={{ "font-size": "0.78em", color: "var(--text-muted)" }}>
                         {currentBranch()}
                       </span>
@@ -1055,26 +954,115 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
                 </div>
               </div>
 
-              {/* Refresh button */}
-              <div class="p-2 shrink-0">
-                <button
-                  class="w-full py-1 rounded transition-colors"
+            </Show>
+          </div>
+        </Show>
+
+        {/* Analyze Tab - Security + AI combined */}
+        <Show when={activeTab() === "analyze"}>
+          <div class="flex flex-col h-full overflow-y-auto p-3 gap-4">
+            {/* Security Section */}
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Security Scanner</h3>
+                <div
+                  class="flex items-center gap-1.5 px-2 py-0.5 rounded"
                   style={{
-                    color: "var(--text-muted)",
-                    background: "transparent",
+                    background: securityEnabled() ? "var(--accent-green)" : "var(--bg-hover)",
+                    color: securityEnabled() ? "#fff" : "var(--text-muted)",
                   }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "transparent";
-                  }}
-                  onClick={() => { refreshGitStatus(); refreshBranches(); }}
                 >
-                  Refresh
+                  <div
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      "border-radius": "50%",
+                      background: securityEnabled() ? "#fff" : "var(--text-muted)",
+                    }}
+                  />
+                  <span class="text-xs">{securityEnabled() ? "On" : "Off"}</span>
+                </div>
+              </div>
+
+              <p class="text-xs" style={{ color: "var(--text-muted)" }}>
+                Scans for secrets, API keys, and vulnerable patterns.
+              </p>
+
+              <div class="flex flex-wrap gap-1.5">
+                <span class="px-2 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>API Keys</span>
+                <span class="px-2 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>AWS/GCP/Azure</span>
+                <span class="px-2 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>Private Keys</span>
+                <span class="px-2 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>DB URLs</span>
+              </div>
+
+              <button
+                class="w-full py-2 rounded text-sm font-medium transition-colors"
+                style={{
+                  background: "var(--accent-primary)",
+                  color: "var(--accent-text, #fff)",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                onClick={() => setSecurityShowModal(true)}
+              >
+                Run Security Scan
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: "1px", background: "var(--border-default)" }}></div>
+
+            {/* AI Code Review Section */}
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-medium" style={{ color: "var(--text-primary)" }}>AI Code Review</h3>
+              </div>
+
+              <p class="text-xs" style={{ color: "var(--text-muted)" }}>
+                Analyze staged changes for bugs, performance issues, and improvements.
+              </p>
+
+              <Show when={stagedFiles().length > 0}>
+                <div class="text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <span class="font-medium">{stagedFiles().length} file(s) staged</span>
+                </div>
+              </Show>
+
+              {/* AI Analysis - Coming Soon */}
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled
+                  class="flex-1 flex items-center justify-center gap-2 py-2 rounded text-sm font-medium transition-colors"
+                  style={{
+                    background: "var(--bg-hover)",
+                    color: "var(--text-muted)",
+                    border: "1px dashed var(--border-default)",
+                    cursor: "default",
+                    opacity: "0.7",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="M9 12l2 2 4-4" />
+                  </svg>
+                  AI Analysis (Coming Soon)
                 </button>
               </div>
-            </Show>
+
+              <Show when={stagedFiles().length === 0}>
+                <div class="flex flex-col items-center justify-center gap-2 py-4 text-center">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style={{ color: "var(--text-muted)" }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                  <p class="text-xs" style={{ color: "var(--text-muted)" }}>
+                    AI-powered code analysis coming soon
+                  </p>
+                </div>
+              </Show>
+            </div>
           </div>
         </Show>
       </div>

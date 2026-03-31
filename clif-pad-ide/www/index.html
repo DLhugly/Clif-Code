@@ -85,20 +85,20 @@
       color: var(--text);
     }
     .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links { display: flex; gap: 16px; align-items: center; }
     .nav-links a {
       color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
       transition: color 0.15s;
     }
     .nav-links a:hover { color: var(--text); }
-    .nav-gh {
+    .nav-btn {
       display: flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,0.06); padding: 7px 14px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); padding: 7px 12px; border-radius: 8px;
       color: var(--text) !important; font-weight: 600 !important; font-size: 13px !important;
       border: 1px solid rgba(255,255,255,0.08); transition: background 0.15s;
     }
-    .nav-gh:hover { background: rgba(255,255,255,0.1); }
-    .nav-gh svg { width: 16px; height: 16px; }
+    .nav-btn:hover { background: rgba(255,255,255,0.1); }
+    .nav-btn svg { width: 16px; height: 16px; }
 
     /* ─── HERO ─── */
     .hero {
@@ -358,7 +358,7 @@
       .tui-feats { grid-template-columns: 1fr; }
       .ctas { flex-direction: column; align-items: center; }
       .platforms { flex-direction: column; align-items: center; }
-      .nav-links a:not(.nav-gh) { display: none; }
+      .nav-links a:not(.nav-btn) { display: none; }
       .theme-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
     }
 
@@ -440,9 +440,11 @@
         <a href="#agent">Agent</a>
         <a href="#download">Download</a>
         <button id="theme-toggle" onclick="toggleTheme()" title="Toggle Dawn / Ayu Dark" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--muted);padding:7px 10px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1;transition:all 0.15s;" onmouseover="this.style.color=getComputedStyle(document.documentElement).getPropertyValue('--text')" onmouseout="this.style.color=getComputedStyle(document.documentElement).getPropertyValue('--muted')">🌙</button>
-        <a href="https://github.com/DLhugly/Clif-Code" class="nav-gh">
+        <a href="https://x.com/CodewithClif" class="nav-btn" title="Follow on X">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a href="https://github.com/DLhugly/Clif-Code" class="nav-btn" title="View on GitHub">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          GitHub
         </a>
 
     </div>
@@ -759,6 +761,7 @@
         <a href="#features" style="color:var(--muted);text-decoration:none;font-size:13px;">Features</a>
         <a href="#themes" style="color:var(--muted);text-decoration:none;font-size:13px;">Themes</a>
         <a href="#agent" style="color:var(--muted);text-decoration:none;font-size:13px;">Terminal Agent</a>
+        <a href="https://x.com/CodewithClif" style="color:var(--muted);text-decoration:none;font-size:13px;">X / Twitter</a>
         <a href="https://github.com/DLhugly/Clif-Code" style="color:var(--muted);text-decoration:none;font-size:13px;">GitHub</a>
         <a href="https://github.com/DLhugly/Clif-Code/releases" style="color:var(--muted);text-decoration:none;font-size:13px;">Releases</a>
       </div>

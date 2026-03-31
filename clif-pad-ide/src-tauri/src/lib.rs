@@ -124,6 +124,7 @@ pub fn run() {
             commands::ai::ai_review_code,
             commands::git::git_status,
             commands::git::git_diff,
+            commands::git::git_diff_cached,
             commands::git::git_commit,
             commands::git::git_branches,
             commands::git::git_checkout,

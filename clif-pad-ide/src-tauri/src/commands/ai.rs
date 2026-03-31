@@ -140,6 +140,7 @@ pub async fn ai_chat(
             match chunk_result {
                 Ok(chunk) => {
                     let chunk_str = String::from_utf8_lossy(&chunk);
+                    eprintln!("AI Review - Raw chunk: {} bytes", chunk_str.len());
                     buffer.push_str(&chunk_str);
 
                     // Process complete SSE lines from the buffer
@@ -618,6 +619,7 @@ Only real issues. Be brief."#,
             match chunk_result {
                 Ok(chunk) => {
                     let chunk_str = String::from_utf8_lossy(&chunk);
+                    eprintln!("AI Review - Raw chunk received: {} bytes", chunk_str.len());
                     buffer.push_str(&chunk_str);
 
                     while let Some(newline_pos) = buffer.find('\n') {
@@ -636,10 +638,24 @@ Only real issues. Be brief."#,
                         }
 
                         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
-                            if let Some(content) = parsed["choices"][0]["delta"]["content"].as_str() {
+                            // Log the parsed structure for debugging
+                            eprintln!("Parsed JSON: {}", serde_json::to_string(&parsed).unwrap_or_default());
+                            
+                            // Check for content in both "content" and "reasoning" fields
+                            // Some models (like GLM, DeepSeek) use "reasoning" instead of "content"
+                            let content = parsed["choices"][0]["delta"]["content"].as_str()
+                                .filter(|s| !s.is_empty())
+                                .or_else(|| parsed["choices"][0]["delta"]["reasoning"].as_str())
+                                .unwrap_or("");
+                            
+                            if !content.is_empty() {
+                                eprintln!("Code review stream content: {} bytes", content.len());
                                 full_content.push_str(content);
                                 let _ = app.emit_to(&label, "code_review_stream", content);
                             }
+                        } else {
+                            // Log parsing failures for debugging
+                            eprintln!("Failed to parse SSE data: {}", data);
                         }
                     }
                 }
