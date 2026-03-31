@@ -1,3 +1,10 @@
+# [1.57.0](https://github.com/DLhugly/Clif-Code/compare/v1.56.0...v1.57.0) (2026-03-31)
+
+
+### Features
+
+* add Analyze tab with security scan, mark AI analysis as coming soon ([8611dec](https://github.com/DLhugly/Clif-Code/commit/8611dec16bf544733de73e731615a922255b7b7e))
+
 # [1.56.0](https://github.com/DLhugly/Clif-Code/compare/v1.55.0...v1.56.0) (2026-03-30)
 
 
