@@ -1,3 +1,10 @@
+## [1.59.1](https://github.com/DLhugly/Clif-Code/compare/v1.59.0...v1.59.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* improve context menu behavior and revert tool descriptions ([65878b2](https://github.com/DLhugly/Clif-Code/commit/65878b273339006b3129bc541cf3c801dc3ffa8b))
+
 # [1.59.0](https://github.com/DLhugly/Clif-Code/compare/v1.58.0...v1.59.0) (2026-03-31)
 
 
