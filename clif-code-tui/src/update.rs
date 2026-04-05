@@ -10,7 +10,9 @@ const CHECK_INTERVAL_SECS: u64 = 86400; // 24 hours
 
 fn cache_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    PathBuf::from(home).join(".clifcode").join("update_check.json")
+    PathBuf::from(home)
+        .join(".clifcode")
+        .join("update_check.json")
 }
 
 fn now_secs() -> u64 {
@@ -80,9 +82,7 @@ pub fn check_for_update() -> Option<(String, String)> {
         }
     }
 
-    let api_url = format!(
-        "https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=10"
-    );
+    let api_url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=10");
 
     let resp = ureq::get(&api_url)
         .set("User-Agent", "clifcode-updater")
@@ -137,12 +137,13 @@ pub fn print_update_notification(version: &str) {
     let r = ui::RESET;
     println!(
         "  {}{}\u{2191} Update available:{r} {} \u{2192} {}{}{version}{r}",
-        ui::BOLD, ui::BRIGHT_YELLOW, CURRENT_VERSION, ui::BOLD, ui::BRIGHT_GREEN,
+        ui::BOLD,
+        ui::BRIGHT_YELLOW,
+        CURRENT_VERSION,
+        ui::BOLD,
+        ui::BRIGHT_GREEN,
     );
-    println!(
-        "  {}Run {r}/update{} to install{r}",
-        ui::DIM, ui::DIM,
-    );
+    println!("  {}Run {r}/update{} to install{r}", ui::DIM, ui::DIM,);
     println!();
 }
 
@@ -153,7 +154,8 @@ pub fn perform_update(url: &str, version: &str) -> Result<(), String> {
     println!();
     println!(
         "  {}Downloading ClifCode v{version}...{}",
-        ui::DIM, ui::RESET
+        ui::DIM,
+        ui::RESET
     );
 
     let resp = ureq::get(url)
@@ -204,11 +206,14 @@ pub fn perform_update(url: &str, version: &str) -> Result<(), String> {
 
     println!(
         "  {}{}\u{2713} Updated to v{version}{}",
-        ui::BOLD, ui::BRIGHT_GREEN, ui::RESET
+        ui::BOLD,
+        ui::BRIGHT_GREEN,
+        ui::RESET
     );
     println!(
         "  {}Restart ClifCode to use the new version.{}",
-        ui::DIM, ui::RESET
+        ui::DIM,
+        ui::RESET
     );
     println!();
 

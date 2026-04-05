@@ -1,6 +1,6 @@
 //! Model backend abstraction — API and stub.
 
-use crate::tools::{ApiToolCall, parse_api_tool_calls};
+use crate::tools::{parse_api_tool_calls, ApiToolCall};
 use crate::ui;
 use anyhow::Result;
 use std::io::{BufRead, BufReader};
@@ -50,9 +50,12 @@ impl ModelBackend {
         tools: Option<&serde_json::Value>,
     ) -> Result<ChatResponse> {
         match self {
-            ModelBackend::Api { url, key, model, max_tokens } => {
-                api_chat_with_tools(url, key.as_deref(), model, messages, *max_tokens, tools)
-            }
+            ModelBackend::Api {
+                url,
+                key,
+                model,
+                max_tokens,
+            } => api_chat_with_tools(url, key.as_deref(), model, messages, *max_tokens, tools),
             ModelBackend::Stub => stub_response(messages),
         }
     }
@@ -64,9 +67,12 @@ impl ModelBackend {
         tools: Option<&serde_json::Value>,
     ) -> Result<ChatResponse> {
         match self {
-            ModelBackend::Api { url, key, model, max_tokens } => {
-                api_chat_stream(url, key.as_deref(), model, messages, *max_tokens, tools)
-            }
+            ModelBackend::Api {
+                url,
+                key,
+                model,
+                max_tokens,
+            } => api_chat_stream(url, key.as_deref(), model, messages, *max_tokens, tools),
             // Local and stub don't support streaming — fall back
             _ => self.chat_with_tools(messages, tools),
         }
@@ -182,7 +188,12 @@ fn api_chat_with_tools(
     let resp = match req.send_string(&body.to_string()) {
         Ok(r) => r,
         Err(ureq::Error::Status(code, response)) => {
-            let body_text: String = response.into_string().unwrap_or_default().chars().take(300).collect();
+            let body_text: String = response
+                .into_string()
+                .unwrap_or_default()
+                .chars()
+                .take(300)
+                .collect();
             return Err(anyhow::anyhow!(
                 "API request failed: {url}: status code {code} — {body_text}"
             ));
@@ -209,7 +220,13 @@ fn api_chat_with_tools(
 
     let usage = extract_usage(&resp_body);
 
-    Ok(ChatResponse { content, tool_calls, raw_message, streamed: false, usage })
+    Ok(ChatResponse {
+        content,
+        tool_calls,
+        raw_message,
+        streamed: false,
+        usage,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +264,12 @@ fn api_chat_stream(
     let resp = match req.send_string(&body.to_string()) {
         Ok(r) => r,
         Err(ureq::Error::Status(code, response)) => {
-            let body_text: String = response.into_string().unwrap_or_default().chars().take(300).collect();
+            let body_text: String = response
+                .into_string()
+                .unwrap_or_default()
+                .chars()
+                .take(300)
+                .collect();
             return Err(anyhow::anyhow!(
                 "API stream request failed: {url}: status code {code} — {body_text}"
             ));
@@ -308,7 +330,12 @@ fn api_chat_stream(
         if let Some(token) = delta.get("content").and_then(|v| v.as_str()) {
             if !token.is_empty() {
                 if !started_printing {
-                    print!("\n  {}{}\u{2726} ClifCode{}  ", ui::BOLD, ui::BRIGHT_MAGENTA, ui::RESET);
+                    print!(
+                        "\n  {}{}\u{2726} ClifCode{}  ",
+                        ui::BOLD,
+                        ui::BRIGHT_MAGENTA,
+                        ui::RESET
+                    );
                     started_printing = true;
                 }
                 full_content.push_str(token);
@@ -324,7 +351,10 @@ fn api_chat_stream(
                         in_code_block = !in_code_block;
                     }
 
-                    let rendered = ui::render_streaming_line(&completed_line, in_code_block && !completed_line.trim_start().starts_with("```"));
+                    let rendered = ui::render_streaming_line(
+                        &completed_line,
+                        in_code_block && !completed_line.trim_start().starts_with("```"),
+                    );
                     println!("{rendered}");
                 }
             }
@@ -370,13 +400,21 @@ fn api_chat_stream(
     // Flush remaining line buffer
     if !line_buffer.is_empty() {
         if !started_printing {
-            print!("\n  {}{}\u{2726} ClifCode{}  ", ui::BOLD, ui::BRIGHT_MAGENTA, ui::RESET);
+            print!(
+                "\n  {}{}\u{2726} ClifCode{}  ",
+                ui::BOLD,
+                ui::BRIGHT_MAGENTA,
+                ui::RESET
+            );
             started_printing = true;
         }
         if line_buffer.trim_start().starts_with("```") {
             in_code_block = !in_code_block;
         }
-        let rendered = ui::render_streaming_line(&line_buffer, in_code_block && !line_buffer.trim_start().starts_with("```"));
+        let rendered = ui::render_streaming_line(
+            &line_buffer,
+            in_code_block && !line_buffer.trim_start().starts_with("```"),
+        );
         println!("{rendered}");
     }
 
@@ -389,7 +427,11 @@ fn api_chat_stream(
     let tool_calls: Vec<ApiToolCall> = tool_acc
         .into_iter()
         .filter(|(_, name, _)| !name.is_empty())
-        .map(|(id, name, arguments)| ApiToolCall { id, name, arguments })
+        .map(|(id, name, arguments)| ApiToolCall {
+            id,
+            name,
+            arguments,
+        })
         .collect();
 
     // Build raw_message for conversation history
@@ -445,7 +487,10 @@ fn extract_usage(resp: &serde_json::Value) -> Option<TokenUsage> {
 fn extract_usage_from_obj(u: &serde_json::Value) -> Option<TokenUsage> {
     let prompt = u.get("prompt_tokens").and_then(|v| v.as_u64())? as usize;
     let completion = u.get("completion_tokens").and_then(|v| v.as_u64())? as usize;
-    Some(TokenUsage { prompt_tokens: prompt, completion_tokens: completion })
+    Some(TokenUsage {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+    })
 }
 
 /// Quick check if Ollama is running locally (2s timeout to avoid blocking startup)

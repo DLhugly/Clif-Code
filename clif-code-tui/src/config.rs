@@ -121,7 +121,8 @@ pub fn interactive_setup() -> Option<(String, String, String)> {
     println!("  {}{}Setup{}", ui::BOLD, ui::YELLOW, ui::RESET);
     println!(
         "  {}─────────────────────────────────────────{}",
-        ui::DIM, ui::RESET
+        ui::DIM,
+        ui::RESET
     );
     println!();
 
@@ -191,7 +192,8 @@ pub fn interactive_setup() -> Option<(String, String, String)> {
     println!();
     println!(
         "  {}Saved to ~/.clifcode/config.json{}",
-        ui::GREEN, ui::RESET
+        ui::GREEN,
+        ui::RESET
     );
 
     Some((key, url, model))

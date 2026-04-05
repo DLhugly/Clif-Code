@@ -3,27 +3,54 @@
 use std::path::Path;
 
 const IDENTITY_FILES: &[&str] = &[
-    "README.md", "README.rst", "README.txt", "README",
-    "Cargo.toml", "package.json", "pyproject.toml", "setup.py", "setup.cfg",
-    "go.mod", "Gemfile", "build.gradle", "pom.xml", "Makefile",
-    "docker-compose.yml", "Dockerfile",
+    "README.md",
+    "README.rst",
+    "README.txt",
+    "README",
+    "Cargo.toml",
+    "package.json",
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "go.mod",
+    "Gemfile",
+    "build.gradle",
+    "pom.xml",
+    "Makefile",
+    "docker-compose.yml",
+    "Dockerfile",
     ".clifcode.toml",
 ];
 
 const SKIP_DIRS: &[&str] = &[
-    "node_modules", ".git", "target", "__pycache__", ".next",
-    "dist", "build", ".cache", "vendor", ".venv", "venv",
-    ".tox", "coverage", ".mypy_cache", ".pytest_cache",
+    "node_modules",
+    ".git",
+    "target",
+    "__pycache__",
+    ".next",
+    "dist",
+    "build",
+    ".cache",
+    "vendor",
+    ".venv",
+    "venv",
+    ".tox",
+    "coverage",
+    ".mypy_cache",
+    ".pytest_cache",
 ];
 
 const SKIP_FILES: &[&str] = &[
-    ".DS_Store", "Thumbs.db", "package-lock.json", "yarn.lock", "Cargo.lock",
+    ".DS_Store",
+    "Thumbs.db",
+    "package-lock.json",
+    "yarn.lock",
+    "Cargo.lock",
 ];
 
 const CODE_EXTENSIONS: &[&str] = &[
-    "rs", "py", "ts", "tsx", "js", "jsx", "go", "c", "cpp", "h",
-    "java", "kt", "swift", "rb", "toml", "yaml", "yml", "json",
-    "md", "txt", "sh", "bash", "zsh", "css", "scss", "html",
+    "rs", "py", "ts", "tsx", "js", "jsx", "go", "c", "cpp", "h", "java", "kt", "swift", "rb",
+    "toml", "yaml", "yml", "json", "md", "txt", "sh", "bash", "zsh", "css", "scss", "html",
 ];
 
 /// Scan the workspace and return a concise repo map string for LLM context.
@@ -72,10 +99,7 @@ fn walk_dir(base: &Path, dir: &Path, depth: usize, lines: &mut Vec<String>) {
             }
         } else if !SKIP_FILES.contains(&name.as_str()) {
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            if CODE_EXTENSIONS.contains(&ext)
-                || name == "Makefile"
-                || name == "Dockerfile"
-            {
+            if CODE_EXTENSIONS.contains(&ext) || name == "Makefile" || name == "Dockerfile" {
                 files.push(name);
             }
         }

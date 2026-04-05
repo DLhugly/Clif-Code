@@ -25,8 +25,8 @@ pub fn save_session(session: &Session) -> Result<(), String> {
     let dir = sessions_dir();
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join(format!("{}.json", session.id));
-    let json = serde_json::to_string_pretty(session)
-        .map_err(|e| format!("Serialize error: {e}"))?;
+    let json =
+        serde_json::to_string_pretty(session).map_err(|e| format!("Serialize error: {e}"))?;
     std::fs::write(path, json).map_err(|e| format!("Write error: {e}"))
 }
 
@@ -88,7 +88,8 @@ pub fn estimate_tokens(messages: &[serde_json::Value]) -> usize {
             }
             if let Some(tc) = m.get("tool_calls").and_then(|v| v.as_array()) {
                 for call in tc {
-                    if let Some(args) = call.pointer("/function/arguments").and_then(|v| v.as_str()) {
+                    if let Some(args) = call.pointer("/function/arguments").and_then(|v| v.as_str())
+                    {
                         chars += args.len();
                     }
                     if let Some(name) = call.pointer("/function/name").and_then(|v| v.as_str()) {

@@ -17,15 +17,39 @@ pub struct ApiToolCall {
 /// Parsed tool call
 #[derive(Debug, Clone)]
 pub enum ToolCall {
-    ReadFile { path: String, offset: Option<usize> },
-    FindFile { name: String, dir: Option<String> },
-    WriteFile { path: String, content: String },
-    EditFile { path: String, old_string: String, new_string: String },
-    ListFiles { path: Option<String> },
-    Search { query: String, path: Option<String> },
-    RunCommand { command: String },
-    ChangeDir { path: String },
-    Submit { summary: String },
+    ReadFile {
+        path: String,
+        offset: Option<usize>,
+    },
+    FindFile {
+        name: String,
+        dir: Option<String>,
+    },
+    WriteFile {
+        path: String,
+        content: String,
+    },
+    EditFile {
+        path: String,
+        old_string: String,
+        new_string: String,
+    },
+    ListFiles {
+        path: Option<String>,
+    },
+    Search {
+        query: String,
+        path: Option<String>,
+    },
+    RunCommand {
+        command: String,
+    },
+    ChangeDir {
+        path: String,
+    },
+    Submit {
+        summary: String,
+    },
 }
 
 impl ToolCall {
@@ -45,11 +69,17 @@ impl ToolCall {
         match call.name.as_str() {
             "read_file" => Some(ToolCall::ReadFile {
                 path: args.get("path")?.as_str()?.to_string(),
-                offset: args.get("offset").and_then(|v| v.as_u64()).map(|n| n as usize),
+                offset: args
+                    .get("offset")
+                    .and_then(|v| v.as_u64())
+                    .map(|n| n as usize),
             }),
             "find_file" => Some(ToolCall::FindFile {
                 name: args.get("name")?.as_str()?.to_string(),
-                dir: args.get("dir").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                dir: args
+                    .get("dir")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             }),
             "write_file" => Some(ToolCall::WriteFile {
                 path: args.get("path")?.as_str()?.to_string(),
@@ -61,11 +91,17 @@ impl ToolCall {
                 new_string: args.get("new_string")?.as_str()?.to_string(),
             }),
             "list_files" => Some(ToolCall::ListFiles {
-                path: args.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                path: args
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             }),
             "search" => Some(ToolCall::Search {
                 query: args.get("query")?.as_str()?.to_string(),
-                path: args.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                path: args
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             }),
             "run_command" => Some(ToolCall::RunCommand {
                 command: args.get("command")?.as_str()?.to_string(),
@@ -232,7 +268,11 @@ pub fn parse_api_tool_calls(resp: &serde_json::Value) -> Vec<ApiToolCall> {
         .and_then(|v| v.as_array())
     {
         for tc in tool_calls {
-            let id = tc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let id = tc
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             let name = tc
                 .pointer("/function/name")
                 .and_then(|v| v.as_str())
@@ -244,7 +284,11 @@ pub fn parse_api_tool_calls(resp: &serde_json::Value) -> Vec<ApiToolCall> {
                 .unwrap_or("{}")
                 .to_string();
             if !name.is_empty() {
-                calls.push(ApiToolCall { id, name, arguments });
+                calls.push(ApiToolCall {
+                    id,
+                    name,
+                    arguments,
+                });
             }
         }
     }
@@ -254,25 +298,47 @@ pub fn parse_api_tool_calls(resp: &serde_json::Value) -> Vec<ApiToolCall> {
 /// Execute a tool call.
 /// `confirm_writes` — prompt Y/n before writes (suggest mode).
 /// `collapse_diffs` — show collapsed diff with Ctrl+O to expand (auto-edit mode).
-pub fn execute_tool(call: &ToolCall, workspace: &str, confirm_writes: bool, collapse_diffs: bool) -> ToolResult {
+pub fn execute_tool(
+    call: &ToolCall,
+    workspace: &str,
+    confirm_writes: bool,
+    collapse_diffs: bool,
+) -> ToolResult {
     match call {
         ToolCall::ReadFile { path, offset } => exec_read_file(workspace, path, *offset),
         ToolCall::FindFile { name, dir } => exec_find_file(name, dir.as_deref()),
-        ToolCall::WriteFile { path, content } => exec_write_file(workspace, path, content, confirm_writes, collapse_diffs),
-        ToolCall::EditFile { path, old_string, new_string } => {
-            exec_edit_file(workspace, path, old_string, new_string, confirm_writes, collapse_diffs)
+        ToolCall::WriteFile { path, content } => {
+            exec_write_file(workspace, path, content, confirm_writes, collapse_diffs)
         }
+        ToolCall::EditFile {
+            path,
+            old_string,
+            new_string,
+        } => exec_edit_file(
+            workspace,
+            path,
+            old_string,
+            new_string,
+            confirm_writes,
+            collapse_diffs,
+        ),
         ToolCall::ListFiles { path } => exec_list_files(workspace, path.as_deref()),
         ToolCall::Search { query, path } => exec_search(workspace, query, path.as_deref()),
         ToolCall::RunCommand { command } => exec_run_command(workspace, command, confirm_writes),
         ToolCall::ChangeDir { path } => {
             // Handled in run_turn — this is a fallback
             ui::print_tool_action("cd", path);
-            ToolResult { success: true, output: format!("Changed to {path}") }
+            ToolResult {
+                success: true,
+                output: format!("Changed to {path}"),
+            }
         }
         ToolCall::Submit { summary } => {
             ui::print_success(summary);
-            ToolResult { success: true, output: format!("Task complete: {summary}") }
+            ToolResult {
+                success: true,
+                output: format!("Task complete: {summary}"),
+            }
         }
     }
 }
@@ -310,11 +376,17 @@ fn exec_read_file(workspace: &str, path: &str, offset: Option<usize>) -> ToolRes
                     end
                 ));
             }
-            ToolResult { success: true, output }
+            ToolResult {
+                success: true,
+                output,
+            }
         }
         Err(e) => {
             ui::print_error(&format!("Cannot read {}: {e}", full.display()));
-            ToolResult { success: false, output: format!("Error: {e}") }
+            ToolResult {
+                success: false,
+                output: format!("Error: {e}"),
+            }
         }
     }
 }
@@ -335,14 +407,28 @@ fn exec_find_file(name: &str, dir: Option<&str>) -> ToolResult {
     let output = std::process::Command::new("find")
         .args([
             &expanded,
-            "-maxdepth", "5",
-            "-iname", &format!("*{name}*"),
-            "-not", "-path", "*/node_modules/*",
-            "-not", "-path", "*/.git/*",
-            "-not", "-path", "*/target/*",
-            "-not", "-path", "*/__pycache__/*",
-            "-not", "-path", "*/Library/*",
-            "-not", "-path", "*/.Trash/*",
+            "-maxdepth",
+            "5",
+            "-iname",
+            &format!("*{name}*"),
+            "-not",
+            "-path",
+            "*/node_modules/*",
+            "-not",
+            "-path",
+            "*/.git/*",
+            "-not",
+            "-path",
+            "*/target/*",
+            "-not",
+            "-path",
+            "*/__pycache__/*",
+            "-not",
+            "-path",
+            "*/Library/*",
+            "-not",
+            "-path",
+            "*/.Trash/*",
         ])
         .output();
 
@@ -356,13 +442,25 @@ fn exec_find_file(name: &str, dir: Option<&str>) -> ToolResult {
             } else {
                 ui::print_dim("    No results");
             }
-            ToolResult { success: true, output: results.join("\n") }
+            ToolResult {
+                success: true,
+                output: results.join("\n"),
+            }
         }
-        Err(e) => ToolResult { success: false, output: format!("Find error: {e}") },
+        Err(e) => ToolResult {
+            success: false,
+            output: format!("Find error: {e}"),
+        },
     }
 }
 
-fn exec_write_file(workspace: &str, path: &str, content: &str, confirm: bool, collapse_diffs: bool) -> ToolResult {
+fn exec_write_file(
+    workspace: &str,
+    path: &str,
+    content: &str,
+    confirm: bool,
+    collapse_diffs: bool,
+) -> ToolResult {
     let full = Path::new(workspace).join(path);
     ui::print_tool_action("write", &format!("{}", full.display()));
 
@@ -377,14 +475,20 @@ fn exec_write_file(workspace: &str, path: &str, content: &str, confirm: bool, co
         };
         if !has_changes {
             ui::print_dim("    (no changes)");
-            return ToolResult { success: true, output: format!("{path} unchanged") };
+            return ToolResult {
+                success: true,
+                output: format!("{path} unchanged"),
+            };
         }
     }
 
     // Confirm in suggest mode
     if confirm && full.exists() {
         if !ui::confirm("Apply this change?") {
-            return ToolResult { success: false, output: "User declined the change".into() };
+            return ToolResult {
+                success: false,
+                output: "User declined the change".into(),
+            };
         }
     }
 
@@ -395,11 +499,17 @@ fn exec_write_file(workspace: &str, path: &str, content: &str, confirm: bool, co
         Ok(()) => {
             let lines = content.lines().count();
             ui::print_success(&format!("  Wrote {path} ({lines} lines)"));
-            ToolResult { success: true, output: format!("Wrote {path}") }
+            ToolResult {
+                success: true,
+                output: format!("Wrote {path}"),
+            }
         }
         Err(e) => {
             ui::print_error(&format!("Cannot write {}: {e}", full.display()));
-            ToolResult { success: false, output: format!("Error: {e}") }
+            ToolResult {
+                success: false,
+                output: format!("Error: {e}"),
+            }
         }
     }
 }
@@ -419,7 +529,10 @@ fn exec_edit_file(
         Ok(c) => c,
         Err(e) => {
             ui::print_error(&format!("Cannot read {}: {e}", full.display()));
-            return ToolResult { success: false, output: format!("Error: {e}") };
+            return ToolResult {
+                success: false,
+                output: format!("Error: {e}"),
+            };
         }
     };
 
@@ -438,17 +551,26 @@ fn exec_edit_file(
         }
 
         if confirm && !ui::confirm("Apply this change?") {
-            return ToolResult { success: false, output: "User declined the change".into() };
+            return ToolResult {
+                success: false,
+                output: "User declined the change".into(),
+            };
         }
 
         match std::fs::write(&full, &new_content) {
             Ok(()) => {
                 ui::print_success(&format!("  Edited {path}"));
-                ToolResult { success: true, output: format!("Edited {path}") }
+                ToolResult {
+                    success: true,
+                    output: format!("Edited {path}"),
+                }
             }
             Err(e) => {
                 ui::print_error(&format!("Cannot write {}: {e}", full.display()));
-                ToolResult { success: false, output: format!("Error: {e}") }
+                ToolResult {
+                    success: false,
+                    output: format!("Error: {e}"),
+                }
             }
         }
     } else {
@@ -456,7 +578,9 @@ fn exec_edit_file(
         match fuzzy_find(&content, old_string) {
             Some((start, end, score)) => {
                 let matched_preview: String = content[start..end].chars().take(60).collect();
-                ui::print_dim(&format!("    (fuzzy match, {score}% similar: \"{matched_preview}...\")"));
+                ui::print_dim(&format!(
+                    "    (fuzzy match, {score}% similar: \"{matched_preview}...\")"
+                ));
                 let new_content = format!("{}{}{}", &content[..start], new_string, &content[end..]);
                 if collapse_diffs {
                     ui::print_diff_collapsible(path, &content, &new_content);
@@ -465,22 +589,32 @@ fn exec_edit_file(
                 }
 
                 if confirm && !ui::confirm("Apply this fuzzy match?") {
-                    return ToolResult { success: false, output: "User declined the change".into() };
+                    return ToolResult {
+                        success: false,
+                        output: "User declined the change".into(),
+                    };
                 }
 
                 match std::fs::write(&full, &new_content) {
                     Ok(()) => {
                         ui::print_success(&format!("  Edited {path} (fuzzy match)"));
-                        ToolResult { success: true, output: format!("Edited {path} (fuzzy match, {score}% similar)") }
+                        ToolResult {
+                            success: true,
+                            output: format!("Edited {path} (fuzzy match, {score}% similar)"),
+                        }
                     }
-                    Err(e) => ToolResult { success: false, output: format!("Error: {e}") }
+                    Err(e) => ToolResult {
+                        success: false,
+                        output: format!("Error: {e}"),
+                    },
                 }
             }
             None => {
                 ui::print_error("  String not found (exact or fuzzy)");
                 ToolResult {
                     success: false,
-                    output: "Error: old_string not found in file (exact and fuzzy search failed)".into(),
+                    output: "Error: old_string not found in file (exact and fuzzy search failed)"
+                        .into(),
                 }
             }
         }
@@ -572,7 +706,10 @@ fn exec_list_files(workspace: &str, path: Option<&str>) -> ToolResult {
     let output = entries.join("\n");
     let count = entries.len();
     ui::print_dim(&format!("    {count} entries"));
-    ToolResult { success: true, output }
+    ToolResult {
+        success: true,
+        output,
+    }
 }
 
 fn list_dir_recursive(
@@ -587,8 +724,16 @@ fn list_dir_recursive(
     }
 
     let skip = [
-        "node_modules", ".git", "target", "__pycache__", ".next",
-        "dist", "build", ".DS_Store", ".cache", "vendor",
+        "node_modules",
+        ".git",
+        "target",
+        "__pycache__",
+        ".next",
+        "dist",
+        "build",
+        ".DS_Store",
+        ".cache",
+        "vendor",
     ];
 
     let mut items: Vec<_> = match std::fs::read_dir(dir) {
@@ -636,12 +781,27 @@ fn exec_search(workspace: &str, query: &str, path: Option<&str>) -> ToolResult {
     let output = std::process::Command::new("grep")
         .args([
             "-rn",
-            "--include=*.py", "--include=*.rs", "--include=*.ts", "--include=*.tsx",
-            "--include=*.js", "--include=*.jsx", "--include=*.go", "--include=*.toml",
-            "--include=*.json", "--include=*.md", "--include=*.yaml", "--include=*.yml",
-            "--include=*.c", "--include=*.cpp", "--include=*.h", "--include=*.java",
-            "--include=*.swift", "--include=*.kt", "--include=*.rb",
-            query, &dir,
+            "--include=*.py",
+            "--include=*.rs",
+            "--include=*.ts",
+            "--include=*.tsx",
+            "--include=*.js",
+            "--include=*.jsx",
+            "--include=*.go",
+            "--include=*.toml",
+            "--include=*.json",
+            "--include=*.md",
+            "--include=*.yaml",
+            "--include=*.yml",
+            "--include=*.c",
+            "--include=*.cpp",
+            "--include=*.h",
+            "--include=*.java",
+            "--include=*.swift",
+            "--include=*.kt",
+            "--include=*.rb",
+            query,
+            &dir,
         ])
         .output();
 
@@ -657,9 +817,15 @@ fn exec_search(workspace: &str, query: &str, path: Option<&str>) -> ToolResult {
             } else {
                 ui::print_dim("    No matches");
             }
-            ToolResult { success: true, output: text }
+            ToolResult {
+                success: true,
+                output: text,
+            }
         }
-        Err(e) => ToolResult { success: false, output: format!("Search error: {e}") },
+        Err(e) => ToolResult {
+            success: false,
+            output: format!("Search error: {e}"),
+        },
     }
 }
 
@@ -667,7 +833,10 @@ fn exec_run_command(workspace: &str, command: &str, confirm: bool) -> ToolResult
     ui::print_tool_action("run", command);
 
     if confirm && !ui::confirm("Run this command?") {
-        return ToolResult { success: false, output: "User declined the command".into() };
+        return ToolResult {
+            success: false,
+            output: "User declined the command".into(),
+        };
     }
 
     const TIMEOUT_SECS: u64 = 30;
@@ -693,9 +862,15 @@ fn exec_run_command(workspace: &str, command: &str, confirm: bool) -> ToolResult
             } else {
                 ui::print_error(&format!("    exit {}", out.status));
             }
-            ToolResult { success: out.status.success(), output: combined }
+            ToolResult {
+                success: out.status.success(),
+                output: combined,
+            }
         }
-        Ok(Err(e)) => ToolResult { success: false, output: format!("Command error: {e}") },
+        Ok(Err(e)) => ToolResult {
+            success: false,
+            output: format!("Command error: {e}"),
+        },
         Err(_) => {
             ui::print_error(&format!("    Command timed out ({TIMEOUT_SECS}s)"));
             ToolResult {

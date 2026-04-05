@@ -26,11 +26,11 @@ pub const BRIGHT_YELLOW: &str = "\x1b[93m";
 pub const BRIGHT_BLUE: &str = "\x1b[94m";
 
 // 256-color for gradient effect
-const C_BLUE: &str = "\x1b[38;5;39m";   // bright blue
-const C_CYAN: &str = "\x1b[38;5;44m";   // teal
-const C_TEAL: &str = "\x1b[38;5;43m";   // green-teal
-const C_GREEN: &str = "\x1b[38;5;48m";  // bright green
-const C_LIME: &str = "\x1b[38;5;83m";   // lime
+const C_BLUE: &str = "\x1b[38;5;39m"; // bright blue
+const C_CYAN: &str = "\x1b[38;5;44m"; // teal
+const C_TEAL: &str = "\x1b[38;5;43m"; // green-teal
+const C_GREEN: &str = "\x1b[38;5;48m"; // bright green
+const C_LIME: &str = "\x1b[38;5;83m"; // lime
 const C_PURPLE: &str = "\x1b[38;5;141m"; // soft purple
 
 pub fn print_logo() {
@@ -58,9 +58,7 @@ pub fn print_banner(workspace: &str, backend_name: &str, mode: &str, version: &s
         "  {BRIGHT_CYAN}\u{25c6}{RESET} {DIM}Model{RESET}  {BOLD}{WHITE}{backend_name}{RESET}    \
          {mode_color}\u{25c6}{RESET} {DIM}Mode{RESET}  {BOLD}{WHITE}{mode}{RESET}"
     );
-    println!(
-        "  {BRIGHT_MAGENTA}\u{25c6}{RESET} {DIM}Path{RESET}   {workspace}"
-    );
+    println!("  {BRIGHT_MAGENTA}\u{25c6}{RESET} {DIM}Path{RESET}   {workspace}");
     println!();
     println!(
         "  {DIM}Type a task to get started, or {RESET}{BOLD}{BRIGHT_CYAN}/help{RESET}{DIM} for commands{RESET}"
@@ -86,8 +84,8 @@ pub fn clear_thinking() {
 
 pub fn print_tool_action(action: &str, detail: &str) {
     let icon = match action {
-        "read" => "\u{25b6}",   // play triangle
-        "write" => "\u{270e}",  // pencil
+        "read" => "\u{25b6}",  // play triangle
+        "write" => "\u{270e}", // pencil
         "edit" => "\u{270e}",
         "find" => "\u{25c7}",   // diamond outline
         "search" => "\u{2315}", // search
@@ -287,9 +285,7 @@ pub fn print_usage(prompt_tokens: usize, completion_tokens: usize) {
         format!("{total}")
     };
 
-    println!(
-        "  {DIM}\u{2219} {total_str} tokens  \u{2219} ~${cost:.4}{RESET}"
-    );
+    println!("  {DIM}\u{2219} {total_str} tokens  \u{2219} ~${cost:.4}{RESET}");
 }
 
 /// Print cumulative session cost summary
@@ -329,9 +325,7 @@ pub fn print_turn_indicator(turn: usize, max: usize) {
 /// Print a colored unified diff. Returns false if old == new.
 pub fn print_diff(path: &str, old: &str, new: &str) -> bool {
     let diff = similar::TextDiff::from_lines(old, new);
-    let has_changes = diff
-        .iter_all_changes()
-        .any(|c| c.tag() != ChangeTag::Equal);
+    let has_changes = diff.iter_all_changes().any(|c| c.tag() != ChangeTag::Equal);
     if !has_changes {
         return false;
     }
@@ -392,9 +386,7 @@ pub fn print_diff_collapsible(path: &str, old: &str, new: &str) -> bool {
         }
     } else {
         // Just reprint compact summary without the hint
-        println!(
-            "    {DIM}{path}:{RESET} {GREEN}+{adds}{RESET} {RED}-{dels}{RESET}"
-        );
+        println!("    {DIM}{path}:{RESET} {GREEN}+{adds}{RESET} {RED}-{dels}{RESET}");
     }
     true
 }
@@ -410,7 +402,9 @@ fn poll_for_ctrl_o(timeout: std::time::Duration) -> bool {
             // Ctrl+O = KeyCode::Char('o') with ctrl modifier
             key.kind == KeyEventKind::Press
                 && key.code == KeyCode::Char('o')
-                && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                && key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
         } else {
             false
         }
@@ -557,7 +551,10 @@ pub fn select_menu(title: &str, items: &[&str]) -> Option<usize> {
                         print!("\x1b[A\x1b[2K");
                     }
                     io::stdout().flush().unwrap();
-                    println!("  {BRIGHT_CYAN}\u{2713}{RESET} {BOLD}{}{RESET}", items[selected]);
+                    println!(
+                        "  {BRIGHT_CYAN}\u{2713}{RESET} {BOLD}{}{RESET}",
+                        items[selected]
+                    );
                     println!();
                     return Some(selected);
                 }
