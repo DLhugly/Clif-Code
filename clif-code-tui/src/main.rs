@@ -163,6 +163,12 @@ impl Conversation {
             }
         }
 
+        // Load .clifrules project rules file if it exists
+        let rules_path = std::path::Path::new(workspace).join(".clifrules");
+        if let Ok(rules_content) = std::fs::read_to_string(&rules_path) {
+            system_parts.push(format!("Project Rules (.clifrules):\n{rules_content}"));
+        }
+
         let system_content = system_parts.join("\n\n");
 
         Conversation {
@@ -204,7 +210,10 @@ fn run_turn(
             Ok(r) => r,
             Err(e) => {
                 let msg = format!("{e}");
-                if msg.contains("status code 400") || msg.contains("context_length") || msg.contains("too many tokens") {
+                if msg.contains("status code 400")
+                    || msg.contains("context_length")
+                    || msg.contains("too many tokens")
+                {
                     ui::clear_thinking();
                     ui::print_dim("  (context too large — compacting and retrying...)");
                     session::compact_messages(&mut conv.messages, 20_000);
@@ -274,10 +283,8 @@ fn run_turn(
                 }));
                 if !files_changed.is_empty() && git::is_git_repo(workspace) {
                     if ui::confirm("Commit changes?") {
-                        let msg = format!(
-                            "ClifCode: {}",
-                            summary.chars().take(72).collect::<String>()
-                        );
+                        let msg =
+                            format!("ClifCode: {}", summary.chars().take(72).collect::<String>());
                         match git::git_commit_with_confirmation(workspace, &msg) {
                             Ok(hash) => ui::print_dim(&format!("    [committed {hash}]")),
                             Err(e) => ui::print_dim(&format!("    [commit skipped: {e}]")),
@@ -290,7 +297,9 @@ fn run_turn(
             if let Some(tools::ToolCall::ChangeDir { ref path }) = tool_call {
                 let target = std::path::Path::new(path);
                 if target.is_dir() {
-                    let canonical = target.canonicalize().unwrap_or_else(|_| target.to_path_buf());
+                    let canonical = target
+                        .canonicalize()
+                        .unwrap_or_else(|_| target.to_path_buf());
                     *workspace = canonical.to_string_lossy().to_string();
                     ui::print_tool_action("cd", workspace);
                     ui::print_success(&format!("  Workspace: {workspace}"));
@@ -341,7 +350,10 @@ fn run_turn(
             let parallel_items: Vec<(usize, &tools::ToolCall, &str)> = parallel_indices
                 .iter()
                 .filter_map(|&idx| {
-                    parsed[idx].2.as_ref().map(|tc| (idx, tc, parsed[idx].1.id.as_str()))
+                    parsed[idx]
+                        .2
+                        .as_ref()
+                        .map(|tc| (idx, tc, parsed[idx].1.id.as_str()))
                 })
                 .collect();
 
@@ -446,7 +458,11 @@ fn chrono_now() -> String {
     let mut y = 1970i64;
     let mut remaining = days as i64;
     loop {
-        let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
+        let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
+            366
+        } else {
+            365
+        };
         if remaining < days_in_year {
             break;
         }
@@ -454,7 +470,20 @@ fn chrono_now() -> String {
         y += 1;
     }
     let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
-    let mdays = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mdays = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     let mut m = 0;
     for (i, &d) in mdays.iter().enumerate() {
         if remaining < d {
@@ -578,20 +607,20 @@ fn resolve_backend(cli: &Cli) -> Result<backend::ModelBackend> {
 
 fn print_help() {
     println!();
-    println!(
-        "  {}{}Commands{}",
-        ui::BOLD, ui::WHITE, ui::RESET
-    );
+    println!("  {}{}Commands{}", ui::BOLD, ui::WHITE, ui::RESET);
     println!(
         "  {}Type any coding task and ClifCode will solve it.{}",
-        ui::DIM, ui::RESET
+        ui::DIM,
+        ui::RESET
     );
     println!();
 
     // Session group
     println!(
         "  {}{}\u{25c6} Session{}",
-        ui::BOLD, ui::BRIGHT_CYAN, ui::RESET
+        ui::BOLD,
+        ui::BRIGHT_CYAN,
+        ui::RESET
     );
     let session_cmds = [
         ("new", "Start a new conversation"),
@@ -604,8 +633,13 @@ fn print_help() {
     for (cmd, desc) in &session_cmds {
         println!(
             "    {}{}{:<12}{} {}{}{}",
-            ui::BOLD, ui::BRIGHT_CYAN, cmd, ui::RESET,
-            ui::DIM, desc, ui::RESET
+            ui::BOLD,
+            ui::BRIGHT_CYAN,
+            cmd,
+            ui::RESET,
+            ui::DIM,
+            desc,
+            ui::RESET
         );
     }
     println!();
@@ -613,7 +647,9 @@ fn print_help() {
     // Workspace group
     println!(
         "  {}{}\u{25c6} Workspace{}",
-        ui::BOLD, ui::BRIGHT_MAGENTA, ui::RESET
+        ui::BOLD,
+        ui::BRIGHT_MAGENTA,
+        ui::RESET
     );
     let workspace_cmds = [
         ("pwd", "Print current workspace directory"),
@@ -625,8 +661,13 @@ fn print_help() {
     for (cmd, desc) in &workspace_cmds {
         println!(
             "    {}{}{:<12}{} {}{}{}",
-            ui::BOLD, ui::BRIGHT_MAGENTA, cmd, ui::RESET,
-            ui::DIM, desc, ui::RESET
+            ui::BOLD,
+            ui::BRIGHT_MAGENTA,
+            cmd,
+            ui::RESET,
+            ui::DIM,
+            desc,
+            ui::RESET
         );
     }
     println!();
@@ -634,7 +675,9 @@ fn print_help() {
     // Tools group
     println!(
         "  {}{}\u{25c6} Settings{}",
-        ui::BOLD, ui::BRIGHT_YELLOW, ui::RESET
+        ui::BOLD,
+        ui::BRIGHT_YELLOW,
+        ui::RESET
     );
     let tools_cmds = [
         ("mode", "Switch autonomy level"),
@@ -644,8 +687,13 @@ fn print_help() {
     for (cmd, desc) in &tools_cmds {
         println!(
             "    {}{}{:<12}{} {}{}{}",
-            ui::BOLD, ui::BRIGHT_YELLOW, cmd, ui::RESET,
-            ui::DIM, desc, ui::RESET
+            ui::BOLD,
+            ui::BRIGHT_YELLOW,
+            cmd,
+            ui::RESET,
+            ui::DIM,
+            desc,
+            ui::RESET
         );
     }
     println!();
@@ -653,7 +701,9 @@ fn print_help() {
     // Update group
     println!(
         "  {}{}\u{25c6} Updates{}",
-        ui::BOLD, ui::BRIGHT_BLUE, ui::RESET
+        ui::BOLD,
+        ui::BRIGHT_BLUE,
+        ui::RESET
     );
     let update_cmds = [
         ("update", "Check for and install updates"),
@@ -662,8 +712,13 @@ fn print_help() {
     for (cmd, desc) in &update_cmds {
         println!(
             "    {}{}{:<12}{} {}{}{}",
-            ui::BOLD, ui::BRIGHT_BLUE, cmd, ui::RESET,
-            ui::DIM, desc, ui::RESET
+            ui::BOLD,
+            ui::BRIGHT_BLUE,
+            cmd,
+            ui::RESET,
+            ui::DIM,
+            desc,
+            ui::RESET
         );
     }
     println!();
@@ -671,7 +726,9 @@ fn print_help() {
     // Git group
     println!(
         "  {}{}\u{25c6} Git{}",
-        ui::BOLD, ui::BRIGHT_GREEN, ui::RESET
+        ui::BOLD,
+        ui::BRIGHT_GREEN,
+        ui::RESET
     );
     let git_cmds = [
         ("status", "Git status"),
@@ -680,16 +737,25 @@ fn print_help() {
     for (cmd, desc) in &git_cmds {
         println!(
             "    {}{}{:<12}{} {}{}{}",
-            ui::BOLD, ui::BRIGHT_GREEN, cmd, ui::RESET,
-            ui::DIM, desc, ui::RESET
+            ui::BOLD,
+            ui::BRIGHT_GREEN,
+            cmd,
+            ui::RESET,
+            ui::DIM,
+            desc,
+            ui::RESET
         );
     }
 
     println!();
     println!(
         "  {}{}Tip:{} {}{}{} to expand diffs in auto-edit mode",
-        ui::BOLD, ui::WHITE, ui::RESET,
-        ui::BOLD, "Ctrl+O", ui::RESET
+        ui::BOLD,
+        ui::WHITE,
+        ui::RESET,
+        ui::BOLD,
+        "Ctrl+O",
+        ui::RESET
     );
     println!();
 }
@@ -729,7 +795,13 @@ fn main() -> Result<()> {
     if cli.prompt.is_some() {
         let bk = resolve_backend(&cli)?;
         let mut conv = Conversation::new(&workspace_str, &autonomy, &[]);
-        let usage = run_turn(&bk, &mut conv, cli.prompt.as_ref().unwrap(), &mut workspace_str, &autonomy)?;
+        let usage = run_turn(
+            &bk,
+            &mut conv,
+            cli.prompt.as_ref().unwrap(),
+            &mut workspace_str,
+            &autonomy,
+        )?;
         if usage.prompt_tokens > 0 || usage.completion_tokens > 0 {
             ui::print_usage(usage.prompt_tokens, usage.completion_tokens);
         }
@@ -764,7 +836,9 @@ fn main() -> Result<()> {
                     "full-auto" => Autonomy::FullAuto,
                     _ => Autonomy::AutoEdit,
                 };
-                conv = Conversation { messages: s.messages };
+                conv = Conversation {
+                    messages: s.messages,
+                };
                 ui::print_success(&format!("  Resumed session {resume_id}"));
             }
             Err(e) => {
@@ -777,7 +851,12 @@ fn main() -> Result<()> {
     }
 
     println!();
-    ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string(), update::current_version());
+    ui::print_banner(
+        &workspace_str,
+        bk.name(),
+        &autonomy.to_string(),
+        update::current_version(),
+    );
 
     // Show update notification if the background check found a newer version
     if let Ok(info) = update_rx.try_recv() {
@@ -829,8 +908,12 @@ fn main() -> Result<()> {
                     for (id, date, preview) in &sessions {
                         println!(
                             "  {}{}{} {}{}{} {}",
-                            ui::CYAN, id, ui::RESET,
-                            ui::DIM, date, ui::RESET,
+                            ui::CYAN,
+                            id,
+                            ui::RESET,
+                            ui::DIM,
+                            date,
+                            ui::RESET,
                             preview
                         );
                     }
@@ -852,9 +935,14 @@ fn main() -> Result<()> {
                     for (i, (id, date, preview)) in sessions.iter().enumerate() {
                         println!(
                             "  {}{}.{} {}{}{} {} {}",
-                            ui::CYAN, i + 1, ui::RESET,
-                            ui::DIM, date, ui::RESET,
-                            id, preview
+                            ui::CYAN,
+                            i + 1,
+                            ui::RESET,
+                            ui::DIM,
+                            date,
+                            ui::RESET,
+                            id,
+                            preview
                         );
                     }
                     println!();
@@ -878,7 +966,9 @@ fn main() -> Result<()> {
                             "full-auto" => Autonomy::FullAuto,
                             _ => Autonomy::AutoEdit,
                         };
-                        conv = Conversation { messages: s.messages };
+                        conv = Conversation {
+                            messages: s.messages,
+                        };
                         session_prompt_tokens = 0;
                         session_completion_tokens = 0;
                         ui::print_success(&format!("  Resumed session {resume_id}"));
@@ -955,7 +1045,9 @@ fn main() -> Result<()> {
                     println!();
                     println!(
                         "  {}Conversation:{} {} messages",
-                        ui::BOLD, ui::RESET, msg_count
+                        ui::BOLD,
+                        ui::RESET,
+                        msg_count
                     );
                     if !context_files.is_empty() {
                         println!("  {}Files:{}", ui::BOLD, ui::RESET);
@@ -1009,10 +1101,7 @@ fn main() -> Result<()> {
                         println!("  URL:     {}{}{}", ui::DIM, url, ui::RESET);
                     }
                     backend::ModelBackend::Stub => {
-                        println!(
-                            "  Backend: {}stub{} (testing)",
-                            ui::YELLOW, ui::RESET
-                        );
+                        println!("  Backend: {}stub{} (testing)", ui::YELLOW, ui::RESET);
                     }
                 }
                 println!();
@@ -1030,7 +1119,10 @@ fn main() -> Result<()> {
                     println!();
                     ui::print_success(&format!(
                         "  Switched to {}{}{} via {}",
-                        ui::CYAN, model, ui::RESET, url
+                        ui::CYAN,
+                        model,
+                        ui::RESET,
+                        url
                     ));
                 }
                 println!();
@@ -1046,12 +1138,10 @@ fn main() -> Result<()> {
                     pending_update = update::check_for_update();
                 }
                 match &pending_update {
-                    Some((version, url)) => {
-                        match update::perform_update(url, version) {
-                            Ok(()) => {}
-                            Err(e) => ui::print_error(&e),
-                        }
-                    }
+                    Some((version, url)) => match update::perform_update(url, version) {
+                        Ok(()) => {}
+                        Err(e) => ui::print_error(&e),
+                    },
                     None => {
                         ui::print_success(&format!(
                             "  Already on latest version ({})",
@@ -1064,7 +1154,8 @@ fn main() -> Result<()> {
             "version" | "ver" | "v" => {
                 println!(
                     "  {}ClifCode{} v{}",
-                    ui::BOLD, ui::RESET,
+                    ui::BOLD,
+                    ui::RESET,
                     update::current_version()
                 );
                 continue;
@@ -1074,20 +1165,19 @@ fn main() -> Result<()> {
                 io::stdout().flush().unwrap();
                 ui::print_logo();
                 println!();
-                ui::print_banner(&workspace_str, bk.name(), &autonomy.to_string(), update::current_version());
+                ui::print_banner(
+                    &workspace_str,
+                    bk.name(),
+                    &autonomy.to_string(),
+                    update::current_version(),
+                );
                 continue;
             }
             _ => {}
         }
 
         // It's a message — send to the ongoing conversation
-        match run_turn(
-            &bk,
-            &mut conv,
-            input,
-            &mut workspace_str,
-            &autonomy,
-        ) {
+        match run_turn(&bk, &mut conv, input, &mut workspace_str, &autonomy) {
             Ok(usage) => {
                 if usage.prompt_tokens > 0 || usage.completion_tokens > 0 {
                     ui::print_usage(usage.prompt_tokens, usage.completion_tokens);
