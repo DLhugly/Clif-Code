@@ -1,6 +1,6 @@
 import { Component, Show, For, createSignal, createEffect } from "solid-js";
 import type { FileEntry } from "../../types/files";
-import { openFile, toggleDir, isDirExpanded, loadDirectory, refreshFileTree } from "../../stores/fileStore";
+import { openFile, toggleDir, isDirExpanded, loadDirectory, refreshFileTree, openPreview } from "../../stores/fileStore";
 import { renameEntry, deleteEntry, createFile, createDir, revealPath } from "../../lib/tauri";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 
@@ -276,6 +276,15 @@ const FileTreeItem: Component<FileTreeItemProps> = (props) => {
       action: () => revealPath(props.entry.path),
       separator: props.entry.is_dir,
     });
+
+    // Add Preview option for markdown files
+    if (!props.entry.is_dir && props.entry.name.endsWith(".md")) {
+      items.push({
+        label: "Preview Markdown",
+        action: () => openPreview(props.entry.path),
+      });
+    }
+
     items.push({
       label: "Rename",
       icon: RenameIcon,

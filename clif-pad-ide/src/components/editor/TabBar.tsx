@@ -10,18 +10,23 @@ const TabBar: Component = () => {
         style={{ height: "var(--tab-height, 36px)", "min-height": "var(--tab-height, 36px)" }}
       >
         <For each={openFiles}>
-          {(file) => (
-            <Tab
-              file={file}
-              isActive={activeFilePath() === file.path}
-              onSelect={() => setActiveFilePath(file.path)}
-              onClose={() => closeFile(file.path)}
-              onCloseOthers={() => closeOtherFiles(file.path)}
-              onCloseAll={() => closeAllFiles()}
-              onCloseToRight={() => closeFilesToRight(file.path)}
-              onPreview={!file.isPreview && file.name.endsWith(".md") ? () => openPreview(file.path) : undefined}
-            />
-          )}
+          {(file) => {
+            // Get actual file path (strip ::diff suffix if present)
+            const actualPath = file.path.replace(/::diff$/, "");
+            const isMarkdown = actualPath.endsWith(".md");
+            return (
+              <Tab
+                file={file}
+                isActive={activeFilePath() === file.path}
+                onSelect={() => setActiveFilePath(file.path)}
+                onClose={() => closeFile(file.path)}
+                onCloseOthers={() => closeOtherFiles(file.path)}
+                onCloseAll={() => closeAllFiles()}
+                onCloseToRight={() => closeFilesToRight(file.path)}
+                onPreview={!file.isPreview && !file.isBrowser && isMarkdown ? () => openPreview(actualPath) : undefined}
+              />
+            );
+          }}
         </For>
       </div>
     </Show>

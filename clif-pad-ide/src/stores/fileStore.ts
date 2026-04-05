@@ -457,9 +457,11 @@ function togglePreview() {
   }
 
   // If active file is markdown, open preview
+  // Strip ::diff suffix if present to get actual file path
+  const actualPath = path.replace(/::diff$/, "");
   const file = openFiles.find((f) => f.path === path);
-  if (file && file.name.endsWith(".md")) {
-    openPreview(path);
+  if (file && actualPath.endsWith(".md")) {
+    openPreview(actualPath);
   }
 }
 

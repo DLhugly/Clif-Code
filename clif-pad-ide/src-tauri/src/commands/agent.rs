@@ -240,6 +240,14 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
         prompt.push_str("\n\n---\n");
     }
 
+    // Load .clifrules project rules file if it exists (user-defined agent instructions)
+    let rules_path = std::path::Path::new(workspace_dir).join(".clifrules");
+    if let Ok(rules_content) = std::fs::read_to_string(&rules_path) {
+        prompt.push_str("\n\n## Project Rules (from .clifrules)\n\n");
+        prompt.push_str(&rules_content);
+        prompt.push_str("\n\n---\n");
+    }
+
     // Add git context (branch, modified files, recent commits)
     let git_context = get_git_context(workspace_dir);
     prompt.push_str("\n## Current Git State\n\n");
