@@ -1,3 +1,16 @@
+# [1.60.0](https://github.com/DLhugly/Clif-Code/compare/v1.59.1...v1.60.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* update files ([f6cc78e](https://github.com/DLhugly/Clif-Code/commit/f6cc78e12245cdf6a1f18ae161c00fc666506195))
+
+
+### Features
+
+* Add .clifrules support in TUI and IDE ([842cf0d](https://github.com/DLhugly/Clif-Code/commit/842cf0de08768b0cdd9ebdabb1bf237154df66f2))
+* parallelize read-only tools and fix git staged status handling ([46bd18a](https://github.com/DLhugly/Clif-Code/commit/46bd18a4a928209f51144e1277271feba688dc5a))
+
 ## [1.59.1](https://github.com/DLhugly/Clif-Code/compare/v1.59.0...v1.59.1) (2026-03-31)
 
 
