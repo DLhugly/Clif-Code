@@ -43,7 +43,7 @@ import EmptyState from "./EmptyState";
 
 
 
-const BATCH_SIZE = 30; // Number of messages to show/load at a time
+const BATCH_SIZE = 150; // Number of messages to show/load at a time
 
 const AgentChatPanel: Component = () => {
   let messagesEndRef: HTMLDivElement | undefined;

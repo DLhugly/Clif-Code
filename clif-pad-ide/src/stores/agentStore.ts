@@ -134,16 +134,56 @@ async function initAgentListeners() {
   // Use getCurrentWebviewWindow().listen() to scope events to this window only
   const appWindow = getCurrentWebviewWindow();
 
+  // State for requestAnimationFrame batching
+  let streamBuffer = "";
+  let rafId: number | null = null;
+
+  function flushBuffer() {
+    if (streamBuffer) {
+      setAgentMessages(
+        produce((msgs) => {
+          const last = msgs[msgs.length - 1];
+          if (last && last.role === "assistant" && last.status === "streaming") {
+            last.content += streamBuffer;
+          } else {
+            msgs.push({
+              id: genId(),
+              role: "assistant", // Using "assistant" consistently as it represents AI generated text
+              content: streamBuffer,
+              timestamp: Date.now(),
+              status: "streaming",
+            });
+          }
+        })
+      );
+      streamBuffer = "";
+    }
+    rafId = null;
+  }
+
   unlisteners.push(
     await appWindow.listen<string>("agent_stream", (event) => {
       const chunk = event.payload;
       if (chunk === "[DONE]") {
-        // Mark last assistant message as done
+        // Ensure any pending buffer is flushed before processing DONE state
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          flushBuffer();
+        }
+
+        // Mark last assistant message as done, or remove it if it has no
+        // content (tool-call-only turn — the LLM never emitted any text).
         setAgentMessages(
           produce((msgs) => {
             const last = msgs[msgs.length - 1];
             if (last && last.role === "assistant") {
-              last.status = "done";
+              if (last.content?.trim()) {
+                last.status = "done";
+              } else {
+                // Empty bubble from a tool-call-only turn — remove it so the
+                // UI doesn't show a blank box.
+                msgs.splice(msgs.length - 1, 1);
+              }
             }
           })
         );
@@ -157,23 +197,12 @@ async function initAgentListeners() {
         }
         return;
       }
-      // Append to last assistant message or create one
-      setAgentMessages(
-        produce((msgs) => {
-          const last = msgs[msgs.length - 1];
-          if (last && last.role === "assistant" && last.status === "streaming") {
-            last.content += chunk;
-          } else {
-            msgs.push({
-              id: genId(),
-              role: "assistant",
-              content: chunk,
-              timestamp: Date.now(),
-              status: "streaming",
-            });
-          }
-        })
-      );
+      
+      // Throttle streaming updates using requestAnimationFrame
+      streamBuffer += chunk;
+      if (!rafId) {
+        rafId = requestAnimationFrame(flushBuffer);
+      }
     })
   );
 

@@ -13,24 +13,67 @@ pub struct GitBranch {
     pub is_current: bool,
 }
 
-/// Parse a git status porcelain line into a GitFileStatus
-fn parse_status_line(line: &str) -> Option<GitFileStatus> {
+/// Parse a git status porcelain line into one or two GitFileStatus entries.
+///
+/// When a file has BOTH staged changes (index column) and unstaged changes
+/// (worktree column) — e.g. `MM`, `MD`, `AD` — we return two entries:
+/// one with `staged: true` and one with `staged: false`.  This lets the UI
+/// show the file correctly in both the "Staged" and "Changes" sections, and
+/// ensures that `git commit` only commits the already-staged portion.
+fn parse_status_line(line: &str) -> Vec<GitFileStatus> {
     if line.len() < 4 {
-        return None;
+        return vec![];
     }
 
-    let index_status = line.chars().nth(0)?;
-    let worktree_status = line.chars().nth(1)?;
+    let index_status = match line.chars().nth(0) {
+        Some(c) => c,
+        None => return vec![],
+    };
+    let worktree_status = match line.chars().nth(1) {
+        Some(c) => c,
+        None => return vec![],
+    };
     let file_path = line[3..].to_string();
+
+    // Files that are both staged AND have additional unstaged changes:
+    // emit two entries so both UI sections show the file.
+    let both_staged_and_unstaged = matches!(
+        (index_status, worktree_status),
+        ('M', 'M')
+            | ('M', 'D')
+            | ('A', 'M')
+            | ('A', 'D')
+            | ('R', 'M')
+            | ('R', 'D')
+            | ('C', 'M')
+            | ('C', 'D')
+    );
+
+    if both_staged_and_unstaged {
+        let staged_status = match index_status {
+            'A' => "added",
+            'R' => "renamed",
+            'C' => "copied",
+            _ => "modified",
+        };
+        let unstaged_status = match worktree_status {
+            'D' => "deleted",
+            _ => "modified",
+        };
+        return vec![
+            GitFileStatus { path: file_path.clone(), status: staged_status.to_string(), staged: true },
+            GitFileStatus { path: file_path, status: unstaged_status.to_string(), staged: false },
+        ];
+    }
 
     let (status, staged) = match (index_status, worktree_status) {
         ('?', '?') => ("untracked".to_string(), false),
         ('A', _) => ("added".to_string(), true),
         ('M', ' ') => ("modified".to_string(), true),
         (' ', 'M') => ("modified".to_string(), false),
-        ('M', 'M') => ("modified".to_string(), true),
-        ('D', _) => ("deleted".to_string(), true),
+        ('D', ' ') => ("deleted".to_string(), true),
         (' ', 'D') => ("deleted".to_string(), false),
+        ('D', _) => ("deleted".to_string(), true),
         ('R', _) => ("renamed".to_string(), true),
         ('C', _) => ("copied".to_string(), true),
         ('U', _) | (_, 'U') => ("unmerged".to_string(), false),
@@ -38,11 +81,11 @@ fn parse_status_line(line: &str) -> Option<GitFileStatus> {
         _ => ("unknown".to_string(), false),
     };
 
-    Some(GitFileStatus {
+    vec![GitFileStatus {
         path: file_path,
         status,
         staged,
-    })
+    }]
 }
 
 #[tauri::command]
@@ -62,7 +105,7 @@ pub fn git_status(path: String) -> Result<Vec<GitFileStatus>, String> {
     let statuses: Vec<GitFileStatus> = stdout
         .lines()
         .filter(|line| !line.is_empty())
-        .filter_map(|line| parse_status_line(line))
+        .flat_map(|line| parse_status_line(line))
         .collect();
 
     Ok(statuses)
@@ -111,19 +154,8 @@ pub fn git_diff_cached(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn git_commit(path: String, message: String) -> Result<String, String> {
-    // Stage all changes
-    let add_output = Command::new("git")
-        .args(["add", "-A"])
-        .current_dir(&path)
-        .output()
-        .map_err(|e| format!("Failed to run git add: {}", e))?;
-
-    if !add_output.status.success() {
-        let stderr = String::from_utf8_lossy(&add_output.stderr);
-        return Err(format!("git add failed: {}", stderr));
-    }
-
-    // Commit
+    // Commit only what is already staged — do NOT run `git add -A`.
+    // The caller is responsible for staging files explicitly via git_stage_file.
     let commit_output = Command::new("git")
         .args(["commit", "-m", &message])
         .current_dir(&path)

@@ -472,6 +472,7 @@ const ChatMessage: Component<{
   // Don't render tool_result messages (shown inside tool_call cards)
   if (isToolResult()) return null;
 
+  // For tool_call messages, always render the card.
   if (isToolCall()) {
     return <ToolCallCard message={props.message} pendingCommand={props.pendingCommand} onApprove={props.onApprove} />;
   }
@@ -499,90 +500,100 @@ const ChatMessage: Component<{
     );
   }
 
+  // Reactively hide assistant/user bubbles that have no content and are not
+  // actively streaming. This handles tool-call-only turns where the LLM emits
+  // zero text — we should see nothing, not an empty box with a copy button.
+  const hasVisibleContent = () =>
+    props.message.status === "streaming" ||
+    !!(props.message.content?.trim()) ||
+    !!(props.message.images && props.message.images.length > 0);
+
   return (
-    <div
-      class={`flex ${isUser() ? "justify-end" : "justify-start"} px-3 py-2`}
-    >
+    <Show when={hasVisibleContent()}>
       <div
-        class={`max-w-[85%] rounded-2xl group ${isUser() ? "rounded-br-md" : "rounded-bl-md"}`}
-        style={{
-          position: "relative",
-          background: isUser()
-            ? "var(--accent-primary)"
-            : "var(--bg-surface)",
-          color: isUser() ? "var(--accent-text, #fff)" : "var(--text-primary)",
-          border: isUser() ? "none" : "1px solid var(--border-muted)",
-          "box-shadow": isUser()
-            ? "0 1px 4px color-mix(in srgb, var(--accent-primary) 30%, transparent)"
-            : "0 1px 3px rgba(0,0,0,0.06)",
-          "font-size": `${fontSize()}px`,
-          "line-height": "1.6",
-          padding: "10px 14px",
-          "user-select": "text",
-          "-webkit-user-select": "text",
-          cursor: "text",
-        }}
+        class={`flex ${isUser() ? "justify-end" : "justify-start"} px-3 py-2`}
       >
-        <Show when={isUser()}>
-          {/* Image attachments shown above the text */}
-          <Show when={props.message.images && props.message.images.length > 0}>
-            <div class="flex flex-wrap gap-1.5 mb-2">
-              <For each={props.message.images}>
-                {(img) => (
-                  <img
-                    src={img}
-                    alt="attachment"
-                    style={{
-                      "max-width": "200px",
-                      "max-height": "160px",
-                      "object-fit": "contain",
-                      "border-radius": "6px",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      display: "block",
-                    }}
-                  />
-                )}
-              </For>
-            </div>
+        <div
+          class={`max-w-[85%] rounded-2xl group ${isUser() ? "rounded-br-md" : "rounded-bl-md"}`}
+          style={{
+            position: "relative",
+            background: isUser()
+              ? "var(--accent-primary)"
+              : "var(--bg-surface)",
+            color: isUser() ? "var(--accent-text, #fff)" : "var(--text-primary)",
+            border: isUser() ? "none" : "1px solid var(--border-muted)",
+            "box-shadow": isUser()
+              ? "0 1px 4px color-mix(in srgb, var(--accent-primary) 30%, transparent)"
+              : "0 1px 3px rgba(0,0,0,0.06)",
+            "font-size": `${fontSize()}px`,
+            "line-height": "1.6",
+            padding: "10px 14px",
+            "user-select": "text",
+            "-webkit-user-select": "text",
+            cursor: "text",
+          }}
+        >
+          <Show when={isUser()}>
+            {/* Image attachments shown above the text */}
+            <Show when={props.message.images && props.message.images.length > 0}>
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <For each={props.message.images}>
+                  {(img) => (
+                    <img
+                      src={img}
+                      alt="attachment"
+                      style={{
+                        "max-width": "200px",
+                        "max-height": "160px",
+                        "object-fit": "contain",
+                        "border-radius": "6px",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        display: "block",
+                      }}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Show when={props.message.content}>
+              <div class="whitespace-pre-wrap" style={{ "user-select": "text", "-webkit-user-select": "text" }}>{props.message.content}</div>
+            </Show>
           </Show>
-          <Show when={props.message.content}>
-            <div class="whitespace-pre-wrap" style={{ "user-select": "text", "-webkit-user-select": "text" }}>{props.message.content}</div>
-          </Show>
-        </Show>
-        <Show when={isAssistant()}>
-          <div
-            class="agent-markdown"
-            innerHTML={renderedHtml()}
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              if (target.tagName === "A") {
-                e.preventDefault();
-                const href = target.getAttribute("href");
-                if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
-                  openExternal(href);
+          <Show when={isAssistant()}>
+            <div
+              class="agent-markdown"
+              innerHTML={renderedHtml()}
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.tagName === "A") {
+                  e.preventDefault();
+                  const href = target.getAttribute("href");
+                  if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+                    openExternal(href);
+                  }
                 }
-              }
-            }}
-          />
-          <Show when={props.message.status === "streaming"}>
-            <span
-              class="inline-block animate-pulse"
-              style={{
-                width: "6px",
-                height: `${fontSize()}px`,
-                background: "var(--text-muted)",
-                "border-radius": "1px",
-                "vertical-align": "text-bottom",
-                "margin-left": "2px",
               }}
             />
+            <Show when={props.message.status === "streaming"}>
+              <span
+                class="inline-block animate-pulse"
+                style={{
+                  width: "6px",
+                  height: `${fontSize()}px`,
+                  background: "var(--text-muted)",
+                  "border-radius": "1px",
+                  "vertical-align": "text-bottom",
+                  "margin-left": "2px",
+                }}
+              />
+            </Show>
           </Show>
-        </Show>
-        <Show when={props.message.status !== "streaming"}>
-          <CopyButton text={props.message.content} />
-        </Show>
+          <Show when={props.message.status !== "streaming"}>
+            <CopyButton text={props.message.content} />
+          </Show>
+        </div>
       </div>
-    </div>
+    </Show>
   );
 };
 

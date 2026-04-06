@@ -818,7 +818,10 @@ fn estimate_conversation_tokens(conversation: &[serde_json::Value]) -> usize {
 /// 2. Stub old tool results (beyond recent 8 messages) to "[compacted]"
 /// 3. Drop old conversation turns, keeping system prompt + recent 8 messages
 fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens: usize) {
-    if estimate_conversation_tokens(conversation) < target_tokens || conversation.len() < 8 {
+    // Keep the 8 most recent conversation entries intact.
+    const KEEP_RECENT: usize = 8;
+
+    if estimate_conversation_tokens(conversation) < target_tokens || conversation.len() < KEEP_RECENT {
         return;
     }
 
@@ -850,8 +853,8 @@ fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens
         return;
     }
 
-    // Tier 2: Stub old tool results (keep recent 8 messages intact)
-    let recent_start = conversation.len().saturating_sub(8);
+    // Tier 2: Stub old tool results (keep recent KEEP_RECENT messages intact)
+    let recent_start = conversation.len().saturating_sub(KEEP_RECENT);
     for (i, msg) in conversation.iter_mut().enumerate() {
         if i >= recent_start {
             break;
@@ -869,9 +872,9 @@ fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens
         return;
     }
 
-    // Tier 3: Drop old turns, keep system prompt (index 0) + recent 8
+    // Tier 3: Drop old turns, keep system prompt (index 0) + recent KEEP_RECENT
     let keep_start = 1;
-    let keep_end = conversation.len().saturating_sub(8);
+    let keep_end = conversation.len().saturating_sub(KEEP_RECENT);
     if keep_end <= keep_start {
         return;
     }
@@ -1507,8 +1510,121 @@ async fn run_agent_loop(
         }
         conversation.push(assistant_msg);
 
-        // Execute each tool call (with cancellation checks between each)
+        // ── Parallel read-only tool execution ────────────────────────────────
+        // Read-only tools (read_file, search, list_files, find_file) are safe to
+        // run concurrently — they never mutate files or state. When the LLM emits
+        // a batch of such calls we run them in parallel then collect results in
+        // original order. Write/run tools still execute sequentially to avoid
+        // race conditions and to preserve the cancel/approval flow.
+        const READONLY_TOOLS: &[&str] = &["read_file", "search", "list_files", "find_file"];
+
+        // Pre-parse and validate all args first so we can handle errors uniformly.
+        // Produces Vec<(idx, id, name, args_str, parsed_args_or_err)>
+        struct PreparedCall {
+            id: String,
+            name: String,
+            args_str: String,
+            args: Result<serde_json::Value, String>,
+        }
+
+        let mut prepared: Vec<PreparedCall> = Vec::new();
         for (_, (id, name, args_str)) in &sorted_tool_calls {
+            let args = match serde_json::from_str::<serde_json::Value>(args_str) {
+                Ok(v) => Ok(v),
+                Err(_) => {
+                    let repaired = repair_json(args_str);
+                    match serde_json::from_str::<serde_json::Value>(&repaired) {
+                        Ok(v) => {
+                            log::info!("Repaired malformed JSON for tool '{}'", name);
+                            Ok(v)
+                        }
+                        Err(e) => Err(format!(
+                            "Failed to parse tool arguments for '{}': {}",
+                            name, e
+                        )),
+                    }
+                }
+            };
+            prepared.push(PreparedCall {
+                id: id.clone(),
+                name: name.clone(),
+                args_str: args_str.clone(),
+                args,
+            });
+        }
+
+        // Partition into read-only batches (can run in parallel) and the rest
+        // (must run sequentially, preserving original ordering).
+        // We collect all readonly calls that don't have parse errors, emit their
+        // tool_call events, run them concurrently, then emit results.
+        // Sequential calls are processed in their original position so ordering
+        // relative to each other is maintained.
+        //
+        // Strategy: find a contiguous run of readonly tools at the front, run
+        // them in parallel, then fall through to sequential for the rest.
+        // This is safe because LLMs almost always put reads first, then writes.
+        let readonly_count = prepared.iter().take_while(|c| {
+            c.args.is_ok()
+                && READONLY_TOOLS.contains(&c.name.as_str())
+                // submit must always be sequential (it terminates the session)
+                && c.name != "submit"
+        }).count();
+
+        // Run the leading read-only batch in parallel
+        if readonly_count > 1 {
+            let _ = app.emit_to(label, "agent_status", "Reading files...");
+            let batch = &prepared[..readonly_count];
+
+            // Emit all tool_call events upfront so UI shows them as running
+            for call in batch {
+                let _ = app.emit_to(
+                    label,
+                    "agent_tool_call",
+                    json!({ "id": call.id, "name": call.name, "arguments": call.args_str }),
+                );
+            }
+
+            // Execute in parallel
+            let workspace_clone = workspace_dir.clone();
+            let results: Vec<String> = futures::future::join_all(batch.iter().map(|call| {
+                let args = call.args.as_ref().unwrap().clone();
+                let name = call.name.clone();
+                let ws = workspace_clone.clone();
+                async move { execute_tool(&name, &args, &ws).await }
+            }))
+            .await;
+
+            // Collect results, emit, and push to conversation
+            const MAX_RESULT_CHARS: usize = 12000;
+            for (call, result) in batch.iter().zip(results.into_iter()) {
+                let _ = app.emit_to(
+                    label,
+                    "agent_tool_result",
+                    json!({ "tool_call_id": call.id, "result": &result }),
+                );
+                let context_result = if result.len() > MAX_RESULT_CHARS {
+                    let head = &result[..MAX_RESULT_CHARS / 2];
+                    let tail = &result[result.len() - MAX_RESULT_CHARS / 2..];
+                    format!(
+                        "{}\n\n[... {} chars omitted — use read_file with offset for full content ...]\n\n{}",
+                        head,
+                        result.len() - MAX_RESULT_CHARS,
+                        tail
+                    )
+                } else {
+                    result
+                };
+                conversation.push(json!({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": context_result,
+                }));
+            }
+        }
+
+        // Execute remaining calls sequentially (also handles readonly_count == 1)
+        let sequential_start = if readonly_count > 1 { readonly_count } else { 0 };
+        for call in &prepared[sequential_start..] {
             // Check cancellation before each tool execution
             if cancel_rx.try_recv().is_ok() {
                 let _ = app.emit_to(label, "agent_stream", "\n*[Stopped by user]*\n");
@@ -1516,58 +1632,44 @@ async fn run_agent_loop(
                 return Ok(());
             }
 
-            let args: serde_json::Value = match serde_json::from_str(args_str) {
-                Ok(value) => value,
-                Err(_e) => {
-                    // Try to repair common JSON issues from LLM output (malformed strings, trailing commas, etc.)
-                    let repaired = repair_json(args_str);
-                    match serde_json::from_str(&repaired) {
-                        Ok(value) => {
-                            log::info!("Repaired malformed JSON for tool '{}'", name);
-                            value
-                        }
-                        Err(e) => {
-                            let result = tool_error(
-                                "INVALID_TOOL_ARGUMENTS",
-                                format!("Failed to parse tool arguments for '{}': {}", name, e),
-                                true,
-                            );
-                            let _ = app.emit_to(
-                                label,
-                                "agent_tool_call",
-                                json!({ "id": id, "name": name, "arguments": args_str }),
-                            );
-                            let _ = app.emit_to(
-                                label,
-                                "agent_tool_result",
-                                json!({ "tool_call_id": id, "result": &result }),
-                            );
-                            conversation.push(json!({
-                                "role": "tool",
-                                "tool_call_id": id,
-                                "content": result,
-                            }));
-                            continue;
-                        }
-                    }
+            let args = match &call.args {
+                Ok(v) => v.clone(),
+                Err(e) => {
+                    let result = tool_error("INVALID_TOOL_ARGUMENTS", e.clone(), true);
+                    let _ = app.emit_to(
+                        label,
+                        "agent_tool_call",
+                        json!({ "id": call.id, "name": call.name, "arguments": call.args_str }),
+                    );
+                    let _ = app.emit_to(
+                        label,
+                        "agent_tool_result",
+                        json!({ "tool_call_id": call.id, "result": &result }),
+                    );
+                    conversation.push(json!({
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "content": result,
+                    }));
+                    continue;
                 }
             };
 
-            if let Err(e) = validate_tool_args(name, &args) {
+            if let Err(e) = validate_tool_args(&call.name, &args) {
                 let result = tool_error("INVALID_TOOL_ARGUMENTS", e, true);
                 let _ = app.emit_to(
                     label,
                     "agent_tool_call",
-                    json!({ "id": id, "name": name, "arguments": args_str }),
+                    json!({ "id": call.id, "name": call.name, "arguments": call.args_str }),
                 );
                 let _ = app.emit_to(
                     label,
                     "agent_tool_result",
-                    json!({ "tool_call_id": id, "result": &result }),
+                    json!({ "tool_call_id": call.id, "result": &result }),
                 );
                 conversation.push(json!({
                     "role": "tool",
-                    "tool_call_id": id,
+                    "tool_call_id": call.id,
                     "content": result,
                 }));
                 continue;
@@ -1575,7 +1677,7 @@ async fn run_agent_loop(
 
             // Handle submit specially — emit the summary as a final assistant
             // message rather than a tool call card, then finish the session.
-            if name == "submit" {
+            if call.name == "submit" {
                 let summary = args
                     .get("summary")
                     .and_then(|v| v.as_str())
@@ -1585,7 +1687,7 @@ async fn run_agent_loop(
                 return Ok(());
             }
 
-            let tool_status = match name.as_str() {
+            let tool_status = match call.name.as_str() {
                 "read_file" => "Reading file...",
                 "write_file" => "Writing file...",
                 "edit_file" => "Editing file...",
@@ -1602,12 +1704,12 @@ async fn run_agent_loop(
             let _ = app.emit_to(
                 label,
                 "agent_tool_call",
-                json!({ "id": id, "name": name, "arguments": args_str }),
+                json!({ "id": call.id, "name": call.name, "arguments": call.args_str }),
             );
 
             // For run_command: request user approval before executing.
             // Emit approval request, wait for frontend response (or cancel).
-            let result = if name == "run_command" {
+            let result = if call.name == "run_command" {
                 let command_preview = args.get("command").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
                 let (approval_tx, approval_rx) = tokio::sync::oneshot::channel::<bool>();
@@ -1619,7 +1721,7 @@ async fn run_agent_loop(
                 let _ = app.emit_to(label, "agent_command_approval", json!({
                     "session_id": session_id,
                     "command": command_preview,
-                    "tool_call_id": id,
+                    "tool_call_id": call.id,
                 }));
 
                 // Wait for approval or cancel
@@ -1642,7 +1744,7 @@ async fn run_agent_loop(
                 } else {
                     // Execute with cancel-race
                     tokio::select! {
-                        res = execute_tool(name, &args, &workspace_dir) => res,
+                        res = execute_tool(&call.name, &args, &workspace_dir) => res,
                         _ = async {
                             loop {
                                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
@@ -1656,12 +1758,12 @@ async fn run_agent_loop(
                     }
                 }
             } else {
-                execute_tool(name, &args, &workspace_dir).await
+                execute_tool(&call.name, &args, &workspace_dir).await
             };
 
             // Notify frontend of file changes so open tabs, git status, and file tree update
             // without relying solely on the OS file watcher (which can be delayed on macOS).
-            if matches!(name.as_str(), "write_file" | "edit_file") {
+            if matches!(call.name.as_str(), "write_file" | "edit_file") {
                 if let Some(path_str) = args.get("path").and_then(|v| v.as_str()) {
                     let full_path = std::path::Path::new(&workspace_dir).join(path_str);
                     let abs_path = full_path.to_string_lossy().to_string();
@@ -1673,7 +1775,7 @@ async fn run_agent_loop(
             let _ = app.emit_to(
                 label,
                 "agent_tool_result",
-                json!({ "tool_call_id": id, "result": &result }),
+                json!({ "tool_call_id": call.id, "result": &result }),
             );
 
             // Cap tool result before adding to conversation to prevent context explosion.
@@ -1694,7 +1796,7 @@ async fn run_agent_loop(
 
             conversation.push(json!({
                 "role": "tool",
-                "tool_call_id": id,
+                "tool_call_id": call.id,
                 "content": context_result,
             }));
         }
