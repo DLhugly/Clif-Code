@@ -514,7 +514,7 @@ const ChatMessage: Component<{
         class={`flex ${isUser() ? "justify-end" : "justify-start"} px-3 py-2`}
       >
         <div
-          class={`max-w-[85%] rounded-2xl group ${isUser() ? "rounded-br-md" : "rounded-bl-md"}`}
+          class={`max-w-[85%] rounded-2xl group selectable-text ${isUser() ? "rounded-br-md" : "rounded-bl-md"}`}
           style={{
             position: "relative",
             background: isUser()
@@ -528,8 +528,6 @@ const ChatMessage: Component<{
             "font-size": `${fontSize()}px`,
             "line-height": "1.6",
             padding: "10px 14px",
-            "user-select": "text",
-            "-webkit-user-select": "text",
             cursor: "text",
           }}
         >
