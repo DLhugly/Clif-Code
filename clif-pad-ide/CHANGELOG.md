@@ -1,3 +1,10 @@
+# [1.61.0](https://github.com/DLhugly/Clif-Code/compare/v1.60.0...v1.61.0) (2026-04-07)
+
+
+### Features
+
+* add scroll-to-bottom button with auto-scroll guard ([3432266](https://github.com/DLhugly/Clif-Code/commit/34322661c4bf7a62f7fb73e8648ec8ffedaa8a27))
+
 # [1.60.0](https://github.com/DLhugly/Clif-Code/compare/v1.59.1...v1.60.0) (2026-04-06)
 
 
