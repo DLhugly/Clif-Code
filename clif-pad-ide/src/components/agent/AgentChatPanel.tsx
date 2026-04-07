@@ -47,7 +47,9 @@ const BATCH_SIZE = 150; // Number of messages to show/load at a time
 
 const AgentChatPanel: Component = () => {
   let messagesEndRef: HTMLDivElement | undefined;
+  let scrollContainerRef: HTMLDivElement | undefined;
   let inputRef: HTMLTextAreaElement | undefined;
+  const [isUserScrolledUp, setIsUserScrolledUp] = createSignal(false);
   // model browser state is held in signals below
   const [inputValue, setInputValue] = createSignal("");
   const [visibleCount, setVisibleCount] = createSignal(BATCH_SIZE); // how many messages to show from the end
@@ -290,11 +292,27 @@ const AgentChatPanel: Component = () => {
     setVisibleCount(prev => prev + BATCH_SIZE);
   }
 
-  // Auto-scroll on new messages
+  // Track whether user has scrolled up manually
+  function handleScroll() {
+    if (!scrollContainerRef) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef;
+    // Consider "at bottom" if within 80px of the bottom
+    const atBottom = scrollHeight - scrollTop - clientHeight < 80;
+    setIsUserScrolledUp(!atBottom);
+  }
+
+  // Scroll to bottom programmatically
+  function scrollToBottom(smooth = true) {
+    if (messagesEndRef) {
+      messagesEndRef.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
+    }
+  }
+
+  // Auto-scroll on new messages — only if user hasn't scrolled up
   createEffect(() => {
     const _len = agentMessages.length;
-    if (messagesEndRef) {
-      messagesEndRef.scrollIntoView({ behavior: "smooth" });
+    if (!isUserScrolledUp()) {
+      scrollToBottom();
     }
   });
 
@@ -619,7 +637,12 @@ const AgentChatPanel: Component = () => {
       </Show>
 
       {/* Messages */}
-      <div class="flex-1 min-h-0 overflow-y-auto py-2" style={{ "padding-bottom": agentStreaming() ? "56px" : "12px" }}>
+      <div
+        ref={scrollContainerRef}
+        class="flex-1 min-h-0 overflow-y-auto py-2 relative"
+        style={{ "padding-bottom": agentStreaming() ? "56px" : "12px" }}
+        onScroll={handleScroll}
+      >
         <Show
           when={agentMessages.length > 0}
           fallback={
@@ -654,6 +677,23 @@ const AgentChatPanel: Component = () => {
             </div>
           </Show>
           <div ref={messagesEndRef} />
+        </Show>
+        {/* Scroll-to-bottom button */}
+        <Show when={isUserScrolledUp()}>
+          <button
+            onClick={() => { setIsUserScrolledUp(false); scrollToBottom(); }}
+            class="sticky bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg transition-all z-10"
+            style={{
+              background: "var(--bg-tertiary)",
+              color: "var(--text-muted)",
+              border: "1px solid var(--border-color)",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12l7 7 7-7" />
+            </svg>
+            Jump to bottom
+          </button>
         </Show>
       </div>
 
