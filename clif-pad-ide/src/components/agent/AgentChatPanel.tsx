@@ -604,62 +604,6 @@ const AgentChatPanel: Component = () => {
         </Show>
       </div>
 
-      <div
-        class="flex items-center justify-between shrink-0 px-2 py-1"
-        style={{ "border-bottom": "1px solid var(--border-default)" }}
-      >
-        <div class="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border-muted)" }}>
-          <button
-            class="px-2 py-1 transition-colors"
-            style={{
-              background: agentMode() === "agent" ? "var(--accent-primary)" : "var(--bg-base)",
-              color: agentMode() === "agent" ? "#fff" : "var(--text-muted)",
-              border: "none",
-              cursor: "pointer",
-              "font-size": "11px",
-              "font-weight": "500",
-            }}
-            onClick={() => setAgentMode("agent")}
-            title="Full mode: can read, edit, and run approved commands"
-          >
-            Agent
-          </button>
-          <button
-            class="px-2 py-1 transition-colors"
-            style={{
-              background: agentMode() === "ask" ? "var(--accent-primary)" : "var(--bg-base)",
-              color: agentMode() === "ask" ? "#fff" : "var(--text-muted)",
-              border: "none",
-              cursor: "pointer",
-              "font-size": "11px",
-              "font-weight": "500",
-            }}
-            onClick={() => setAgentMode("ask")}
-            title="Ask mode: read-only analysis, no edits or commands"
-          >
-            Ask
-          </button>
-          <button
-            class="px-2 py-1 transition-colors"
-            style={{
-              background: agentMode() === "plan" ? "var(--accent-primary)" : "var(--bg-base)",
-              color: agentMode() === "plan" ? "#fff" : "var(--text-muted)",
-              border: "none",
-              cursor: "pointer",
-              "font-size": "11px",
-              "font-weight": "500",
-            }}
-            onClick={() => setAgentMode("plan")}
-            title="Plan mode: read-only planning before implementation"
-          >
-            Plan
-          </button>
-        </div>
-        <span style={{ color: "var(--text-muted)", "font-size": "11px" }}>
-          {agentMode() === "agent" ? "Editing enabled" : "Read-only"}
-        </span>
-      </div>
-
       {/* Header row 2: provider + model selectors (always visible) */}
       <ProviderModelSelector
         modelDropdownOpen={modelDropdownOpen}
@@ -815,14 +759,14 @@ const AgentChatPanel: Component = () => {
       {/* Agent Task List */}
       <Show when={sessionTodos().length > 0}>
         <div
-          class="shrink-0 mx-3 mt-1 rounded-md overflow-hidden"
+          class="shrink-0 mx-3 mt-2 rounded-lg overflow-hidden"
           style={{
             border: "1px solid var(--border-default)",
             background: "var(--bg-base)",
           }}
         >
           <button
-            class="w-full flex items-center justify-between px-2 py-1.5"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5"
             style={{
               background: "transparent",
               border: "none",
@@ -833,16 +777,38 @@ const AgentChatPanel: Component = () => {
             onClick={() => setTaskListExpanded(!taskListExpanded())}
             title="Toggle task list"
           >
-            <span>Task List · {todoCounts().total}</span>
-            <span style={{ color: "var(--text-muted)" }}>
-              {todoCounts().in_progress} active · {todoCounts().completed} done
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{ transform: taskListExpanded() ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", "flex-shrink": "0", color: "var(--text-muted)" }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <span class="font-medium" style={{ "flex-shrink": "0" }}>
+              Tasks
+            </span>
+            <span class="flex-1 flex items-center gap-1.5 flex-wrap" style={{ "font-size": "10.5px" }}>
+              <Show when={todoCounts().in_progress > 0}>
+                <span class="px-1.5 rounded" style={{ background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", color: "var(--accent-blue)", "font-weight": "500" }}>
+                  {todoCounts().in_progress} active
+                </span>
+              </Show>
+              <Show when={todoCounts().pending > 0}>
+                <span class="px-1.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}>
+                  {todoCounts().pending} pending
+                </span>
+              </Show>
+              <Show when={todoCounts().completed > 0}>
+                <span class="px-1.5 rounded" style={{ background: "color-mix(in srgb, var(--accent-green) 12%, transparent)", color: "var(--accent-green)" }}>
+                  {todoCounts().completed} done
+                </span>
+              </Show>
+            </span>
+            <span style={{ color: "var(--text-muted)", "font-size": "10.5px", "flex-shrink": "0" }}>
+              {todoCounts().total}
             </span>
           </button>
           <Show when={taskListExpanded()}>
             <div
-              class="px-2 pb-2"
+              class="px-2.5 pb-2"
               style={{
-                "max-height": "160px",
+                "max-height": "180px",
                 overflow: "auto",
                 "font-size": "12px",
                 color: "var(--text-secondary)",
@@ -851,11 +817,20 @@ const AgentChatPanel: Component = () => {
             >
               <For each={sessionTodos()}>
                 {(todo) => (
-                  <div class="flex items-start gap-2 py-1">
-                    <span style={{ color: todo.status === "completed" ? "var(--accent-green)" : todo.status === "in_progress" ? "var(--accent-blue)" : todo.status === "cancelled" ? "var(--accent-red)" : "var(--text-muted)", "margin-top": "1px" }}>
-                      {todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "▶" : todo.status === "cancelled" ? "✕" : "•"}
+                  <div class="flex items-start gap-2 py-1" style={{ opacity: todo.status === "cancelled" ? "0.55" : "1" }}>
+                    <span style={{
+                      color: todo.status === "completed" ? "var(--accent-green)" : todo.status === "in_progress" ? "var(--accent-blue)" : todo.status === "cancelled" ? "var(--accent-red)" : "var(--text-muted)",
+                      "margin-top": "1px",
+                      "font-size": "11px",
+                      "flex-shrink": "0",
+                      width: "12px",
+                    }}>
+                      {todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "▶" : todo.status === "cancelled" ? "✕" : "○"}
                     </span>
-                    <span style={{ "text-decoration": todo.status === "completed" ? "line-through" : "none", opacity: todo.status === "cancelled" ? "0.7" : "1" }}>
+                    <span style={{
+                      "text-decoration": todo.status === "completed" ? "line-through" : "none",
+                      opacity: todo.status === "completed" ? "0.7" : "1",
+                    }}>
                       {todo.content}
                     </span>
                   </div>
@@ -930,14 +905,15 @@ const AgentChatPanel: Component = () => {
           class="flex flex-row items-end gap-2 rounded-xl px-3 py-2"
           style={{
             background: "var(--bg-base)",
-            border: "1px solid var(--border-default)",
+            border: `1px solid ${agentMode() === "ask" ? "color-mix(in srgb, var(--accent-yellow) 50%, var(--border-default))" : agentMode() === "plan" ? "color-mix(in srgb, var(--accent-blue) 50%, var(--border-default))" : "var(--border-default)"}`,
+            transition: "border-color 0.15s",
           }}
         >
           {/* Attach file button - LEFT */}
           <button
-            class="flex items-center justify-center shrink-0 rounded p-1"
+            class="flex items-center justify-center shrink-0 rounded p-1 relative"
             style={{
-              color: "var(--text-muted)",
+              color: contextFiles().length > 0 ? "var(--accent-primary)" : "var(--text-muted)",
               background: "transparent",
               border: "none",
               cursor: "pointer",
@@ -946,14 +922,34 @@ const AgentChatPanel: Component = () => {
               (e.currentTarget as HTMLElement).style.color = "var(--accent-primary)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+              (e.currentTarget as HTMLElement).style.color = contextFiles().length > 0 ? "var(--accent-primary)" : "var(--text-muted)";
             }}
             onClick={addActiveFileAsContext}
-            title="Attach current file as context"
+            title={contextFiles().length > 0 ? `${contextFiles().length} file${contextFiles().length === 1 ? "" : "s"} attached — click to add active file` : "Attach current file as context"}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
+            <Show when={contextFiles().length > 0}>
+              <span
+                class="absolute flex items-center justify-center"
+                style={{
+                  top: "-2px",
+                  right: "-2px",
+                  "min-width": "13px",
+                  height: "13px",
+                  padding: "0 3px",
+                  "border-radius": "7px",
+                  background: "var(--accent-primary)",
+                  color: "#fff",
+                  "font-size": "9px",
+                  "font-weight": "600",
+                  "line-height": "1",
+                }}
+              >
+                {contextFiles().length}
+              </span>
+            </Show>
           </button>
 
           {/* Textarea - CENTER */}
@@ -1016,15 +1012,21 @@ const AgentChatPanel: Component = () => {
                     class="flex items-center justify-center shrink-0 rounded-lg p-1.5 transition-colors"
                     style={{
                       background: (inputValue().trim() || pastedImages().length > 0)
-                        ? "var(--accent-primary)"
+                        ? (agentMode() === "ask" ? "var(--accent-yellow)" : agentMode() === "plan" ? "var(--accent-blue)" : "var(--accent-primary)")
                         : "var(--bg-hover)",
-                      color: (inputValue().trim() || pastedImages().length > 0) ? "#fff" : "var(--text-muted)",
+                      color: (inputValue().trim() || pastedImages().length > 0)
+                        ? (agentMode() === "ask" ? "#000" : "#fff")
+                        : "var(--text-muted)",
                       border: "none",
                       cursor: (inputValue().trim() || pastedImages().length > 0) ? "pointer" : "default",
                     }}
                     onClick={() => handleSend(false)}
                     disabled={!inputValue().trim() && pastedImages().length === 0}
-                    title="Send message"
+                    title={
+                      agentMode() === "ask" ? "Send (Ask mode — read-only)" :
+                      agentMode() === "plan" ? "Send (Plan mode — read-only)" :
+                      "Send message"
+                    }
                   >
                     <SendIcon />
                   </button>
@@ -1065,75 +1067,144 @@ const AgentChatPanel: Component = () => {
           </Show>
         </div>
 
-        {/* Status bar: streaming | web search + tokens - ONE LINE */}
+        {/* Status: streaming indicator on its own row (only when active) */}
+        <Show when={agentStreaming()}>
+          <div
+            class="flex items-center gap-2 mt-2 px-1"
+            style={{ height: "20px", "font-size": "11px", color: "var(--text-muted)" }}
+          >
+            <span
+              class="inline-block animate-pulse"
+              style={{ width: "7px", height: "7px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
+            />
+            <span style={{ "font-weight": "500" }}>Running</span>
+            <Show when={agentStatus()}>
+              <span style={{ opacity: 0.8 }}>· {agentStatus()}</span>
+            </Show>
+            <button
+              class="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
+              style={{
+                background: "color-mix(in srgb, var(--accent-red) 15%, transparent)",
+                color: "var(--accent-red)",
+                border: "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)",
+                cursor: "pointer",
+                "font-size": "10.5px",
+                "font-weight": "600",
+              }}
+              onClick={stopAgent}
+              title="Force stop all agent operations"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+              Stop
+            </button>
+          </div>
+        </Show>
+
+        {/* Control bar: mode (left) + web + tokens (right) */}
         <div
           class="flex flex-row items-center justify-between mt-2 px-1"
-          style={{ height: "20px", "font-size": "12px", color: "var(--text-muted)" }}
+          style={{ "font-size": "11px", color: "var(--text-muted)" }}
         >
-          {/* Left: streaming indicator + force stop */}
-          <div class="flex items-center gap-3" style={{ "min-width": "0" }}>
-            <Show when={agentStreaming()}>
-              <div class="flex items-center gap-2">
-                <span
-                  class="inline-block animate-pulse"
-                  style={{ width: "8px", height: "8px", "border-radius": "50%", background: "var(--accent-yellow)", "flex-shrink": "0" }}
-                />
-                <span style={{ "font-weight": "500" }}>Running...</span>
-              </div>
+          {/* Left: mode switcher */}
+          <div class="flex items-center gap-2" style={{ "min-width": "0" }}>
+            <div
+              class="flex rounded-md overflow-hidden"
+              style={{
+                border: `1px solid ${agentMode() === "ask" ? "color-mix(in srgb, var(--accent-yellow) 40%, var(--border-muted))" : agentMode() === "plan" ? "color-mix(in srgb, var(--accent-blue) 40%, var(--border-muted))" : "var(--border-muted)"}`,
+                transition: "border-color 0.15s",
+              }}
+            >
               <button
-                class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors"
+                class="px-2 py-0.5 transition-colors"
                 style={{
-                  background: "var(--accent-red)",
-                  color: "#fff",
+                  background: agentMode() === "agent" ? "var(--accent-primary)" : "transparent",
+                  color: agentMode() === "agent" ? "#fff" : "var(--text-muted)",
                   border: "none",
                   cursor: "pointer",
                   "font-size": "11px",
-                  "font-weight": "600",
+                  "font-weight": "500",
                 }}
-                onClick={stopAgent}
-                title="Force stop all agent operations"
+                onClick={() => setAgentMode("agent")}
+                title="Agent mode — can read, edit, and run approved commands"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="6" width="12" height="12" rx="2"/>
-                </svg>
-                <span>Force Stop</span>
+                Agent
               </button>
+              <button
+                class="px-2 py-0.5 transition-colors"
+                style={{
+                  background: agentMode() === "ask" ? "var(--accent-yellow)" : "transparent",
+                  color: agentMode() === "ask" ? "#000" : "var(--text-muted)",
+                  border: "none",
+                  cursor: "pointer",
+                  "font-size": "11px",
+                  "font-weight": "500",
+                }}
+                onClick={() => setAgentMode("ask")}
+                title="Ask mode — read-only analysis, no edits or commands"
+              >
+                Ask
+              </button>
+              <button
+                class="px-2 py-0.5 transition-colors"
+                style={{
+                  background: agentMode() === "plan" ? "var(--accent-blue)" : "transparent",
+                  color: agentMode() === "plan" ? "#fff" : "var(--text-muted)",
+                  border: "none",
+                  cursor: "pointer",
+                  "font-size": "11px",
+                  "font-weight": "500",
+                }}
+                onClick={() => setAgentMode("plan")}
+                title="Plan mode — read-only planning before implementation"
+              >
+                Plan
+              </button>
+            </div>
+            <Show when={agentMode() !== "agent"}>
+              <span style={{
+                color: agentMode() === "ask" ? "var(--accent-yellow)" : "var(--accent-blue)",
+                "font-size": "10.5px",
+                "font-weight": "500",
+              }}>
+                Read-only
+              </span>
             </Show>
           </div>
 
-          {/* Center: keyboard hint */}
-          <div class="flex items-center" style={{ opacity: 0.6, "font-size": "11px" }}>
-            <span>Enter to send · Shift+Enter for new line</span>
-          </div>
-
           {/* Right: web search + tokens */}
-          <div class="flex items-center gap-4" style={{ "flex-shrink": "0" }}>
+          <div class="flex items-center gap-2" style={{ "flex-shrink": "0" }}>
             <Show when={settings().aiProvider === "openrouter"}>
               <button
-                class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors"
+                class="flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-colors"
                 style={{
                   color: webSearchEnabled() ? "var(--accent-blue)" : "var(--text-muted)",
-                  background: webSearchEnabled() ? "rgba(59, 130, 246, 0.1)" : "transparent",
-                  border: "none",
+                  background: webSearchEnabled() ? "color-mix(in srgb, var(--accent-blue) 12%, transparent)" : "transparent",
+                  border: `1px solid ${webSearchEnabled() ? "color-mix(in srgb, var(--accent-blue) 30%, transparent)" : "transparent"}`,
                   cursor: "pointer",
-                  "font-size": "12px",
+                  "font-size": "11px",
                   "font-weight": "500",
                 }}
                 onClick={() => setWebSearchEnabled(!webSearchEnabled())}
                 title={webSearchEnabled() ? "Web search enabled" : "Enable web search"}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="2" y1="12" x2="22" y2="12"/>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                <span>
-                  {webSearchEnabled() ? "Web on" : "Web"}
-                </span>
+                <span>Web</span>
               </button>
             </Show>
 
-            <span style={{ "font-family": "var(--font-mono, monospace)", opacity: 0.8, "font-size": "12px" }}>
+            <span
+              title={(() => {
+                const t = agentTokens();
+                return `Prompt: ${t.prompt.toLocaleString()} · Completion: ${t.completion.toLocaleString()} · Context: ${t.context.toLocaleString()}`;
+              })()}
+              style={{ "font-family": "var(--font-mono, monospace)", opacity: 0.75, "font-size": "11px" }}
+            >
               {(() => {
                 const t = agentTokens();
                 const total = t.prompt + t.completion;
