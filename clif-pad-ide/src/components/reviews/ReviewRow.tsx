@@ -97,21 +97,21 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
           <span
             style={{
               "font-family": "var(--font-mono, monospace)",
-              "font-size": "10.5px",
+              "font-size": "calc(var(--ui-font-size) - 3.5px)",
               color: "var(--text-muted)",
             }}
           >
             #{props.pr.number}
           </span>
           <Show when={props.pr.isDraft}>
-            <span style={{ color: "var(--text-muted)", "font-size": "9px" }}>draft</span>
+            <span style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 5px)" }}>draft</span>
           </Show>
         </div>
         <div class="flex flex-col flex-1 min-w-0 gap-1">
-          <div class="truncate" style={{ "font-size": "12.5px", "font-weight": "500" }}>
+          <div class="truncate" style={{ "font-size": "calc(var(--ui-font-size) - 1.5px)", "font-weight": "500" }}>
             {props.pr.title}
           </div>
-          <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "10.5px", color: "var(--text-muted)" }}>
+          <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3.5px)", color: "var(--text-muted)" }}>
             <span>@{props.pr.author?.login ?? "unknown"}</span>
             <span>·</span>
             <span>{formatAge(props.pr)}</span>
@@ -129,7 +129,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
               <span>{props.pr.commits?.length} commit{(props.pr.commits?.length ?? 0) === 1 ? "" : "s"}</span>
             </Show>
           </div>
-          <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "10.5px" }}>
+          <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
             {/* Review status pill */}
             <Show when={isRunning()}>
               <span class="flex items-center gap-1" style={{ color: "var(--accent-yellow)" }}>
@@ -247,7 +247,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
               }}
               onClick={() => openExternal(props.pr.url)}
             >
@@ -260,7 +260,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 color: "#fff",
                 border: "none",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
                 "font-weight": "500",
               }}
               onClick={(e) => {
@@ -281,7 +281,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
                 cursor: review() ? "pointer" : "not-allowed",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
                 opacity: review() ? 1 : 0.6,
               }}
               onClick={(e) => {
@@ -298,10 +298,10 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
           </div>
 
           <Show when={(props.pr.commits?.length ?? 0) > 0}>
-            <div class="py-1" style={{ "font-size": "11px" }}>
+            <div class="py-1" style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
               <div
                 class="mb-1"
-                style={{ color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.04em", "font-size": "10px" }}
+                style={{ color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.04em", "font-size": "calc(var(--ui-font-size) - 4px)" }}
               >
                 Commits
               </div>
@@ -313,7 +313,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                         style={{
                           "font-family": "var(--font-mono, monospace)",
                           color: "var(--accent-primary)",
-                          "font-size": "10.5px",
+                          "font-size": "calc(var(--ui-font-size) - 3.5px)",
                           "flex-shrink": "0",
                         }}
                       >
@@ -321,7 +321,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                       </span>
                       <span class="truncate flex-1">{c.messageHeadline ?? ""}</span>
                       <Show when={(c.authors?.[0]?.name ?? "").length > 0}>
-                        <span style={{ color: "var(--text-muted)", "font-size": "10px", "flex-shrink": "0" }}>
+                        <span style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 4px)", "flex-shrink": "0" }}>
                           {c.authors![0].name}
                         </span>
                       </Show>
@@ -329,7 +329,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                   )}
                 </For>
                 <Show when={(props.pr.commits?.length ?? 0) > 20}>
-                  <div style={{ color: "var(--text-muted)", "font-size": "10.5px" }}>
+                  <div style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
                     +{(props.pr.commits?.length ?? 0) - 20} more commits
                   </div>
                 </Show>
@@ -338,10 +338,10 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
           </Show>
 
           <Show when={(props.pr.statusCheckRollup?.length ?? 0) > 0}>
-            <div class="py-1" style={{ "font-size": "11px" }}>
+            <div class="py-1" style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
               <div
                 class="mb-1"
-                style={{ color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.04em", "font-size": "10px" }}
+                style={{ color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.04em", "font-size": "calc(var(--ui-font-size) - 4px)" }}
               >
                 Checks
               </div>
@@ -365,7 +365,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                         style={{
                           background: `color-mix(in srgb, ${color} 14%, transparent)`,
                           color,
-                          "font-size": "10px",
+                          "font-size": "calc(var(--ui-font-size) - 4px)",
                         }}
                       >
                         {(c.name ?? "check").slice(0, 24)}
@@ -374,7 +374,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                   }}
                 </For>
                 <Show when={(props.pr.statusCheckRollup?.length ?? 0) > 24}>
-                  <span style={{ color: "var(--text-muted)", "font-size": "10.5px" }}>
+                  <span style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
                     +{(props.pr.statusCheckRollup?.length ?? 0) - 24} more
                   </span>
                 </Show>

@@ -80,7 +80,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
           class="flex items-center justify-between px-4 py-2 shrink-0"
           style={{ "border-bottom": "1px solid var(--border-default)" }}
         >
-          <div style={{ "font-size": "13px", "font-weight": "600" }}>Sign off on PR #{props.prNumber}</div>
+          <div style={{ "font-size": "calc(var(--ui-font-size) - 1px)", "font-weight": "600" }}>Sign off on PR #{props.prNumber}</div>
           <button
             class="flex items-center justify-center"
             style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
@@ -100,7 +100,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
               style={{
                 background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
                 color: "var(--accent-red)",
-                "font-size": "12px",
+                "font-size": "calc(var(--ui-font-size) - 2px)",
                 border: "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)",
               }}
             >
@@ -109,7 +109,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
           </Show>
 
           <div>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
               Action
             </div>
             <div class="flex gap-2">
@@ -121,7 +121,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
                     color: action() === a.id ? a.color : "var(--text-muted)",
                     border: `1px solid ${action() === a.id ? a.bg : "var(--border-default)"}`,
                     cursor: "pointer",
-                    "font-size": "12px",
+                    "font-size": "calc(var(--ui-font-size) - 2px)",
                     "font-weight": "500",
                   }}
                   onClick={() => setAction(a.id)}
@@ -133,7 +133,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
           </div>
 
           <div>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
               Reviewer note (optional)
             </div>
             <textarea
@@ -142,7 +142,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
                 background: "var(--bg-base)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
-                "font-size": "12px",
+                "font-size": "calc(var(--ui-font-size) - 2px)",
                 "min-height": "60px",
                 "font-family": "inherit",
                 resize: "vertical",
@@ -154,7 +154,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
           </div>
 
           <div>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
               Payload preview
             </div>
             <pre
@@ -162,7 +162,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
               style={{
                 background: "var(--bg-base)",
                 border: "1px solid var(--border-default)",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
                 "max-height": "220px",
                 "overflow-y": "auto",
                 "font-family": "var(--font-mono, monospace)",
@@ -177,7 +177,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
           <Show when={error()}>
             <div
               class="rounded px-3 py-2"
-              style={{ background: "color-mix(in srgb, var(--accent-red) 12%, transparent)", color: "var(--accent-red)", "font-size": "12px" }}
+              style={{ background: "color-mix(in srgb, var(--accent-red) 12%, transparent)", color: "var(--accent-red)", "font-size": "calc(var(--ui-font-size) - 2px)" }}
             >
               {error()}
             </div>
@@ -195,7 +195,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
               color: "var(--text-muted)",
               border: "1px solid var(--border-default)",
               cursor: "pointer",
-              "font-size": "12px",
+              "font-size": "calc(var(--ui-font-size) - 2px)",
             }}
             onClick={() => props.onClose()}
             disabled={posting()}
@@ -209,7 +209,7 @@ const SignOffOverlay: Component<{ prNumber: number; onClose: () => void }> = (pr
               color: "#fff",
               border: "none",
               cursor: posting() ? "wait" : "pointer",
-              "font-size": "12px",
+              "font-size": "calc(var(--ui-font-size) - 2px)",
               "font-weight": "500",
               opacity: posting() ? 0.7 : 1,
             }}

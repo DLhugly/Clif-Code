@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use uuid::Uuid;
 
+use crate::commands::gh::augmented_path;
+
 use super::driver::{GhCliDriver, ReviewDriver};
 use super::engine::{is_allowlisted, list_cached};
 use super::rules::{load_review_config, ReviewConfig};
@@ -294,6 +296,7 @@ pub async fn apply_polish(
 async fn check_patch(worktree: &Path, patch: &str) -> Result<(), String> {
     let mut child = Command::new("git")
         .args(["apply", "--check", "-"])
+        .env("PATH", augmented_path())
         .current_dir(worktree)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -320,6 +323,7 @@ async fn check_patch(worktree: &Path, patch: &str) -> Result<(), String> {
 async fn apply_patch(worktree: &Path, patch: &str) -> Result<(), String> {
     let mut child = Command::new("git")
         .args(["apply", "-"])
+        .env("PATH", augmented_path())
         .current_dir(worktree)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -353,6 +357,7 @@ async fn commit_staged(
 ) -> Result<(), String> {
     let output = Command::new("git")
         .args(["commit", "--author", author, "-m", message])
+        .env("PATH", augmented_path())
         .env("GIT_COMMITTER_NAME", committer_name)
         .env("GIT_COMMITTER_EMAIL", committer_email)
         .current_dir(worktree)
@@ -368,6 +373,7 @@ async fn commit_staged(
 async fn current_head_sha(worktree: &Path) -> Result<String, String> {
     let output = Command::new("git")
         .args(["rev-parse", "HEAD"])
+        .env("PATH", augmented_path())
         .current_dir(worktree)
         .output()
         .await
@@ -381,8 +387,10 @@ async fn current_head_sha(worktree: &Path) -> Result<String, String> {
 async fn run_shell(worktree: &Path, command: &str) -> Result<(), String> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
     let output = Command::new(&shell)
+        .arg("-l")
         .arg("-c")
         .arg(command)
+        .env("PATH", augmented_path())
         .current_dir(worktree)
         .output()
         .await

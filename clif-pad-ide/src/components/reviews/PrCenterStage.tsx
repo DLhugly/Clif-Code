@@ -57,7 +57,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
               <path d="M13 6h3a2 2 0 0 1 2 2v7" />
               <line x1="6" y1="9" x2="6" y2="21" />
             </svg>
-            <div style={{ "font-size": "13px" }}>Select a PR from the left to see findings</div>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 1px)" }}>Select a PR from the left to see findings</div>
           </div>
         }
       >
@@ -70,10 +70,10 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
           }}
         >
           <div class="flex items-center gap-2 min-w-0">
-            <span style={{ color: "var(--text-muted)", "font-family": "var(--font-mono, monospace)", "font-size": "11px" }}>
+            <span style={{ color: "var(--text-muted)", "font-family": "var(--font-mono, monospace)", "font-size": "calc(var(--ui-font-size) - 3px)" }}>
               #{selected()!.number}
             </span>
-            <span class="truncate" style={{ color: "var(--text-primary)", "font-weight": "500", "font-size": "13px" }}>
+            <span class="truncate" style={{ color: "var(--text-primary)", "font-weight": "500", "font-size": "calc(var(--ui-font-size) - 1px)" }}>
               {selected()!.title}
             </span>
             <Show when={findingsCount() > 0}>
@@ -82,7 +82,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                 style={{
                   background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
                   color: "var(--accent-primary)",
-                  "font-size": "10.5px",
+                  "font-size": "calc(var(--ui-font-size) - 3.5px)",
                 }}
               >
                 {findingsCount()} findings
@@ -91,7 +91,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
             <Show when={review()?.risk_score != null}>
               <span
                 class="px-1.5 rounded"
-                style={{ background: "var(--bg-base)", color: "var(--text-muted)", "font-size": "10.5px", border: "1px solid var(--border-default)" }}
+                style={{ background: "var(--bg-base)", color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)", border: "1px solid var(--border-default)" }}
                 title="Risk score"
               >
                 risk {review()!.risk_score}
@@ -109,7 +109,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                     color: "var(--text-primary)",
                     border: "1px solid var(--border-default)",
                     cursor: "pointer",
-                    "font-size": "11px",
+                    "font-size": "calc(var(--ui-font-size) - 3px)",
                   }}
                   onClick={() => {
                     const n = selectedPrNumber();
@@ -128,7 +128,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                   color: "var(--accent-red)",
                   border: "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)",
                   cursor: "pointer",
-                  "font-size": "11px",
+                  "font-size": "calc(var(--ui-font-size) - 3px)",
                 }}
                 onClick={() => {
                   const n = selectedPrNumber();
@@ -145,7 +145,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
               }}
               onClick={() => setPolishOpen(true)}
               disabled={!review()}
@@ -160,7 +160,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                 color: "#fff",
                 border: "none",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
                 "font-weight": "500",
               }}
               onClick={() => setSignOffOpen(true)}
@@ -175,7 +175,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                 color: "var(--text-muted)",
                 border: "1px solid var(--border-default)",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
               }}
               onClick={() => props.onToggleChat()}
               title={props.chatOpen ? "Hide chat" : "Show chat"}
@@ -204,7 +204,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
                 border: "none",
                 "border-bottom": tab() === t.id ? "2px solid var(--accent-primary)" : "2px solid transparent",
                 cursor: "pointer",
-                "font-size": "11.5px",
+                "font-size": "calc(var(--ui-font-size) - 2.5px)",
                 "font-weight": "500",
               }}
               onClick={() => setTab(t.id)}
@@ -216,7 +216,7 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
 
         <div class="flex-1 min-h-0 overflow-auto">
           <Show when={isRunning() && !review()}>
-            <div class="flex items-center gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+            <div class="flex items-center gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
@@ -230,17 +230,17 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
             <PrDiffView prNumber={selected()!.number} />
           </Show>
           <Show when={tab() === "commits"}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
               Commit list — see the expanded PR row in the left column for the full commit history.
             </div>
           </Show>
           <Show when={tab() === "checks"}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
               Checks — see the expanded PR row in the left column for the complete CI rollup.
             </div>
           </Show>
           <Show when={tab() === "rules"}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
               Rules loaded in priority order: .clifreview.yaml, AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md.
             </div>
           </Show>

@@ -137,7 +137,7 @@ const ReviewsPanel: Component = () => {
             <path d="M13 6h3a2 2 0 0 1 2 2v7" />
             <line x1="6" y1="9" x2="6" y2="21" />
           </svg>
-          <span class="font-medium" style={{ "font-size": "12px", color: "var(--text-primary)" }}>
+          <span class="font-medium" style={{ "font-size": "calc(var(--ui-font-size) - 2px)", color: "var(--text-primary)" }}>
             Reviews
           </span>
           <Show when={counts().total > 0}>
@@ -146,7 +146,7 @@ const ReviewsPanel: Component = () => {
               style={{
                 background: "var(--bg-hover)",
                 color: "var(--text-muted)",
-                "font-size": "10.5px",
+                "font-size": "calc(var(--ui-font-size) - 3.5px)",
               }}
             >
               {counts().shown}/{counts().total}
@@ -161,7 +161,7 @@ const ReviewsPanel: Component = () => {
               color: autoReviewEnabled() ? "var(--accent-primary)" : "var(--text-muted)",
               border: `1px solid ${autoReviewEnabled() ? "color-mix(in srgb, var(--accent-primary) 30%, transparent)" : "var(--border-default)"}`,
               cursor: "pointer",
-              "font-size": "10.5px",
+              "font-size": "calc(var(--ui-font-size) - 3.5px)",
               "font-weight": "500",
             }}
             onClick={() => setAutoReviewEnabled(!autoReviewEnabled())}
@@ -176,7 +176,7 @@ const ReviewsPanel: Component = () => {
               color: "var(--text-primary)",
               border: "1px solid var(--border-default)",
               cursor: "pointer",
-              "font-size": "10.5px",
+              "font-size": "calc(var(--ui-font-size) - 3.5px)",
               "font-weight": "500",
             }}
             onClick={() => runAllShown(rows().map((p) => p.number))}
@@ -227,7 +227,7 @@ const ReviewsPanel: Component = () => {
           <input
             type="text"
             class="flex-1 min-w-0 outline-none bg-transparent"
-            style={{ color: "var(--text-primary)", border: "none", "font-size": "11.5px" }}
+            style={{ color: "var(--text-primary)", border: "none", "font-size": "calc(var(--ui-font-size) - 2.5px)" }}
             placeholder="Search title, author, branch..."
             value={search()}
             onInput={(e) => setSearch(e.currentTarget.value)}
@@ -246,7 +246,7 @@ const ReviewsPanel: Component = () => {
           </Show>
         </div>
 
-        <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "11px" }}>
+        <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
           <div class="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border-muted)" }}>
             <For each={STATE_OPTIONS}>
               {(opt) => (
@@ -257,7 +257,7 @@ const ReviewsPanel: Component = () => {
                     color: stateFilter() === opt.value ? "#fff" : "var(--text-muted)",
                     border: "none",
                     cursor: "pointer",
-                    "font-size": "11px",
+                    "font-size": "calc(var(--ui-font-size) - 3px)",
                   }}
                   onClick={() => setStateFilter(opt.value)}
                 >
@@ -272,7 +272,7 @@ const ReviewsPanel: Component = () => {
               background: "var(--bg-base)",
               color: "var(--text-primary)",
               border: "1px solid var(--border-default)",
-              "font-size": "11px",
+              "font-size": "calc(var(--ui-font-size) - 3px)",
               cursor: "pointer",
             }}
             value={sort()}
@@ -282,7 +282,7 @@ const ReviewsPanel: Component = () => {
           </select>
         </div>
 
-        <div class="flex items-center gap-3 flex-wrap" style={{ "font-size": "11px", color: "var(--text-muted)" }}>
+        <div class="flex items-center gap-3 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)" }}>
           <input
             type="text"
             class="outline-none rounded px-1.5 py-0.5"
@@ -290,7 +290,7 @@ const ReviewsPanel: Component = () => {
               background: "var(--bg-base)",
               color: "var(--text-primary)",
               border: "1px solid var(--border-default)",
-              "font-size": "11px",
+              "font-size": "calc(var(--ui-font-size) - 3px)",
               "min-width": "0",
               flex: "1",
             }}
@@ -312,7 +312,7 @@ const ReviewsPanel: Component = () => {
       {/* Body */}
       <div class="flex-1 min-h-0 overflow-y-auto">
         <Show when={gh() && !gh()!.installed}>
-          <div class="flex flex-col gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+          <div class="flex flex-col gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
             <div style={{ color: "var(--text-primary)", "font-weight": "500" }}>GitHub CLI not installed</div>
             <div>Clif Reviews needs the `gh` CLI to list and act on pull requests.</div>
             <button
@@ -322,7 +322,7 @@ const ReviewsPanel: Component = () => {
                 color: "#fff",
                 border: "none",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
                 "font-weight": "500",
               }}
               onClick={() => openExternal("https://cli.github.com/")}
@@ -332,12 +332,12 @@ const ReviewsPanel: Component = () => {
           </div>
         </Show>
         <Show when={gh() && gh()!.installed && !gh()!.authenticated}>
-          <div class="flex flex-col gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+          <div class="flex flex-col gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
             <div style={{ color: "var(--text-primary)", "font-weight": "500" }}>`gh` is not authenticated</div>
             <div>Run the following in your terminal and retry:</div>
             <code
               class="rounded px-2 py-1"
-              style={{ background: "var(--bg-base)", color: "var(--text-primary)", "font-size": "11px" }}
+              style={{ background: "var(--bg-base)", color: "var(--text-primary)", "font-size": "calc(var(--ui-font-size) - 3px)" }}
             >
               gh auth login
             </code>
@@ -348,7 +348,7 @@ const ReviewsPanel: Component = () => {
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
               }}
               onClick={() => checkGhAvailability()}
             >
@@ -357,17 +357,17 @@ const ReviewsPanel: Component = () => {
           </div>
         </Show>
         <Show when={!projectRoot()}>
-          <div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)", "font-size": "12px", padding: "24px" }}>
+          <div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)", padding: "24px" }}>
             Open a folder to see its PRs.
           </div>
         </Show>
         <Show when={projectRoot() && !loading() && !error() && rows().length === 0 && gh()?.installed && gh()?.authenticated}>
-          <div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)", "font-size": "12px", padding: "24px" }}>
+          <div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)", padding: "24px" }}>
             No PRs match.
           </div>
         </Show>
         <Show when={error()}>
-          <div class="flex flex-col gap-2 p-4" style={{ color: "var(--accent-red)", "font-size": "12px" }}>
+          <div class="flex flex-col gap-2 p-4" style={{ color: "var(--accent-red)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
             <div style={{ "font-weight": "500" }}>Failed to load PRs</div>
             <div style={{ color: "var(--text-muted)" }}>{error()}</div>
             <button
@@ -377,7 +377,7 @@ const ReviewsPanel: Component = () => {
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
               }}
               onClick={() => {
                 const root = projectRoot();
@@ -401,7 +401,7 @@ const ReviewsPanel: Component = () => {
         style={{
           "border-top": "1px solid var(--border-default)",
           color: "var(--text-muted)",
-          "font-size": "10.5px",
+          "font-size": "calc(var(--ui-font-size) - 3.5px)",
           background: "var(--bg-base)",
         }}
       >

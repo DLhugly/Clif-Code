@@ -38,7 +38,7 @@ const ModeToggle: Component = () => {
           color: isCode() ? "#fff" : "var(--text-muted)",
           border: "none",
           cursor: "pointer",
-          "font-size": "11px",
+          "font-size": "calc(var(--ui-font-size) - 3px)",
           "font-weight": "600",
         }}
         onClick={() => setViewMode("code")}
@@ -55,7 +55,7 @@ const ModeToggle: Component = () => {
           color: isReview() ? "#fff" : "var(--text-muted)",
           border: "none",
           cursor: "pointer",
-          "font-size": "11px",
+          "font-size": "calc(var(--ui-font-size) - 3px)",
           "font-weight": "600",
           "border-left": "1px solid var(--border-default)",
         }}

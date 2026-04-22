@@ -78,7 +78,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
           class="flex items-center justify-between px-4 py-2 shrink-0"
           style={{ "border-bottom": "1px solid var(--border-default)" }}
         >
-          <div style={{ "font-size": "13px", "font-weight": "600" }}>Polish PR #{props.prNumber}</div>
+          <div style={{ "font-size": "calc(var(--ui-font-size) - 1px)", "font-weight": "600" }}>Polish PR #{props.prNumber}</div>
           <button
             class="flex items-center justify-center"
             style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
@@ -93,7 +93,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
 
         <div class="flex-1 min-h-0 overflow-auto px-4 py-3 flex flex-col gap-3">
           <div>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
               Mode
             </div>
             <div class="flex flex-col gap-1">
@@ -106,12 +106,12 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
                       color: mode() === opt.id ? "var(--accent-primary)" : "var(--text-primary)",
                       border: mode() === opt.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
                       cursor: "pointer",
-                      "font-size": "12px",
+                      "font-size": "calc(var(--ui-font-size) - 2px)",
                     }}
                     onClick={() => setMode(opt.id)}
                   >
                     <div style={{ "font-weight": "500" }}>{opt.label}</div>
-                    <div style={{ color: "var(--text-muted)", "font-size": "11px" }}>{opt.description}</div>
+                    <div style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3px)" }}>{opt.description}</div>
                   </button>
                 )}
               </For>
@@ -119,7 +119,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
           </div>
 
           <Show when={plan.loading}>
-            <div class="flex items-center gap-2" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+            <div class="flex items-center gap-2" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
@@ -129,10 +129,10 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
 
           <Show when={!plan.loading && plan()}>
             <div>
-              <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
+              <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
                 Plan
               </div>
-              <div class="rounded px-3 py-2" style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)", "font-size": "12px" }}>
+              <div class="rounded px-3 py-2" style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
                 <div>
                   <strong>{plan()!.chunks.length}</strong> change{plan()!.chunks.length === 1 ? "" : "s"} across{" "}
                   <strong>{new Set(plan()!.chunks.map((c) => c.path)).size}</strong> file(s)
@@ -144,7 +144,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
             </div>
 
             <div>
-              <div style={{ "font-size": "11px", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
+              <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "margin-bottom": "6px", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>
                 Commits
               </div>
               <div class="flex flex-col gap-1">
@@ -152,10 +152,10 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
                   {(c) => (
                     <div
                       class="rounded px-2 py-1"
-                      style={{ background: "var(--bg-base)", border: "1px solid var(--border-muted)", "font-size": "11.5px" }}
+                      style={{ background: "var(--bg-base)", border: "1px solid var(--border-muted)", "font-size": "calc(var(--ui-font-size) - 2.5px)" }}
                     >
                       <div style={{ "font-weight": "500" }}>{c.message}</div>
-                      <div style={{ color: "var(--text-muted)", "font-size": "10.5px" }}>
+                      <div style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
                         {c.chunk_ids.length} change{c.chunk_ids.length === 1 ? "" : "s"} · category {c.category}
                       </div>
                     </div>
@@ -167,7 +167,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
             <Show when={nonAllowlisted(plan()).length > 0}>
               <div
                 class="rounded px-3 py-2"
-                style={{ background: "color-mix(in srgb, var(--accent-yellow) 12%, transparent)", color: "var(--accent-yellow)", "font-size": "12px", border: "1px solid color-mix(in srgb, var(--accent-yellow) 30%, transparent)" }}
+                style={{ background: "color-mix(in srgb, var(--accent-yellow) 12%, transparent)", color: "var(--accent-yellow)", "font-size": "calc(var(--ui-font-size) - 2px)", border: "1px solid color-mix(in srgb, var(--accent-yellow) 30%, transparent)" }}
               >
                 Heads up: {nonAllowlisted(plan()).join(", ")} changes are outside the safe allowlist. Review carefully before applying.
               </div>
@@ -177,7 +177,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
           <Show when={error()}>
             <div
               class="rounded px-3 py-2"
-              style={{ background: "color-mix(in srgb, var(--accent-red) 12%, transparent)", color: "var(--accent-red)", "font-size": "12px" }}
+              style={{ background: "color-mix(in srgb, var(--accent-red) 12%, transparent)", color: "var(--accent-red)", "font-size": "calc(var(--ui-font-size) - 2px)" }}
             >
               {error()}
             </div>
@@ -186,7 +186,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
           <Show when={appliedReport()}>
             <div
               class="rounded px-3 py-2"
-              style={{ background: "color-mix(in srgb, var(--accent-green) 12%, transparent)", color: "var(--accent-green)", "font-size": "12px", border: "1px solid color-mix(in srgb, var(--accent-green) 30%, transparent)" }}
+              style={{ background: "color-mix(in srgb, var(--accent-green) 12%, transparent)", color: "var(--accent-green)", "font-size": "calc(var(--ui-font-size) - 2px)", border: "1px solid color-mix(in srgb, var(--accent-green) 30%, transparent)" }}
             >
               Pushed {appliedReport()!.commits} commit{appliedReport()!.commits === 1 ? "" : "s"} to {appliedReport()!.branch}. Manifest saved at {appliedReport()!.manifestPath}.
             </div>
@@ -196,7 +196,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
         <div class="flex items-center justify-end gap-2 px-4 py-2 shrink-0" style={{ "border-top": "1px solid var(--border-default)" }}>
           <button
             class="px-3 py-1.5 rounded"
-            style={{ background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-default)", cursor: "pointer", "font-size": "12px" }}
+            style={{ background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-default)", cursor: "pointer", "font-size": "calc(var(--ui-font-size) - 2px)" }}
             onClick={() => props.onClose()}
             disabled={applying()}
           >
@@ -209,7 +209,7 @@ const PolishDrawer: Component<{ prNumber: number; onClose: () => void }> = (prop
               color: "#fff",
               border: "none",
               cursor: applying() ? "wait" : plan() ? "pointer" : "not-allowed",
-              "font-size": "12px",
+              "font-size": "calc(var(--ui-font-size) - 2px)",
               "font-weight": "500",
               opacity: applying() || !plan() ? 0.7 : 1,
             }}

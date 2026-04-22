@@ -51,7 +51,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
   return (
     <div class="flex flex-col h-full">
       <Show when={!props.review}>
-        <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+        <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
           No review yet for this PR. Click <strong>Review</strong> in the header to run one.
         </div>
       </Show>
@@ -59,16 +59,16 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
       <Show when={props.review}>
         <Show when={props.review!.summary}>
           <div class="px-4 py-3" style={{ "border-bottom": "1px solid var(--border-muted)" }}>
-            <div style={{ "font-size": "11px", color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.04em", "margin-bottom": "4px" }}>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.04em", "margin-bottom": "4px" }}>
               Summary
             </div>
-            <div style={{ "font-size": "12.5px", color: "var(--text-primary)", "line-height": "1.5" }}>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 1.5px)", color: "var(--text-primary)", "line-height": "1.5" }}>
               {props.review!.summary}
             </div>
           </div>
         </Show>
 
-        <div class="px-3 py-2 flex items-center gap-2 flex-wrap" style={{ "border-bottom": "1px solid var(--border-muted)", "font-size": "11px" }}>
+        <div class="px-3 py-2 flex items-center gap-2 flex-wrap" style={{ "border-bottom": "1px solid var(--border-muted)", "font-size": "calc(var(--ui-font-size) - 3px)" }}>
           <div class="flex rounded overflow-hidden" style={{ border: "1px solid var(--border-muted)" }}>
             <button
               class="px-2 py-0.5 transition-colors"
@@ -77,7 +77,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                 color: severityFilter() === "all" ? "#fff" : "var(--text-muted)",
                 border: "none",
                 cursor: "pointer",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
               }}
               onClick={() => setSeverityFilter("all")}
             >
@@ -94,7 +94,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                       border: "none",
                       "border-left": "1px solid var(--border-muted)",
                       cursor: "pointer",
-                      "font-size": "11px",
+                      "font-size": "calc(var(--ui-font-size) - 3px)",
                     }}
                     onClick={() => setSeverityFilter(sev)}
                   >
@@ -112,7 +112,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                 background: "var(--bg-base)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-default)",
-                "font-size": "11px",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
                 cursor: "pointer",
               }}
               value={categoryFilter()}
@@ -128,7 +128,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
 
         <div class="flex-1 min-h-0 overflow-auto">
           <Show when={findings().length === 0}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
               <Show when={(props.review?.findings?.length ?? 0) === 0} fallback="No findings match your filters.">
                 No issues found.
               </Show>
@@ -150,7 +150,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                     style={{
                       background: `color-mix(in srgb, ${severityColor(f.severity)} 15%, transparent)`,
                       color: severityColor(f.severity),
-                      "font-size": "10px",
+                      "font-size": "calc(var(--ui-font-size) - 4px)",
                       "font-weight": "600",
                       "text-transform": "uppercase",
                       "margin-top": "2px",
@@ -159,8 +159,8 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                     {f.severity}
                   </span>
                   <div class="flex-1 min-w-0">
-                    <div style={{ "font-size": "12.5px", "font-weight": "500" }}>{f.message}</div>
-                    <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "10.5px", color: "var(--text-muted)", "margin-top": "2px" }}>
+                    <div style={{ "font-size": "calc(var(--ui-font-size) - 1.5px)", "font-weight": "500" }}>{f.message}</div>
+                    <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3.5px)", color: "var(--text-muted)", "margin-top": "2px" }}>
                       <span
                         class="cursor-pointer"
                         style={{ color: "var(--accent-primary)", "font-family": "var(--font-mono, monospace)" }}
@@ -184,7 +184,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                   </div>
                 </button>
                 <Show when={expanded() === f.id}>
-                  <div class="mt-2 ml-2" style={{ "font-size": "12px", color: "var(--text-secondary)" }}>
+                  <div class="mt-2 ml-2" style={{ "font-size": "calc(var(--ui-font-size) - 2px)", color: "var(--text-secondary)" }}>
                     <Show when={f.rationale}>
                       <div style={{ "margin-bottom": "8px", "line-height": "1.5" }}>{f.rationale}</div>
                     </Show>
@@ -194,7 +194,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                         style={{
                           background: "var(--bg-base)",
                           border: "1px solid var(--border-default)",
-                          "font-size": "11px",
+                          "font-size": "calc(var(--ui-font-size) - 3px)",
                           "overflow-x": "auto",
                           "font-family": "var(--font-mono, monospace)",
                           "white-space": "pre",
@@ -212,7 +212,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                             color: "#fff",
                             border: "none",
                             cursor: "pointer",
-                            "font-size": "11px",
+                            "font-size": "calc(var(--ui-font-size) - 3px)",
                           }}
                           onClick={() => applyFindingPatch(props.prNumber, f.id)}
                         >
@@ -226,7 +226,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                           color: "var(--text-muted)",
                           border: "1px solid var(--border-default)",
                           cursor: "pointer",
-                          "font-size": "11px",
+                          "font-size": "calc(var(--ui-font-size) - 3px)",
                         }}
                         onClick={() => dismissFinding(props.prNumber, f.id)}
                       >
@@ -239,7 +239,7 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
                           color: "var(--text-muted)",
                           border: "1px solid var(--border-default)",
                           cursor: "pointer",
-                          "font-size": "11px",
+                          "font-size": "calc(var(--ui-font-size) - 3px)",
                         }}
                         onClick={() => promoteFindingRequired(props.prNumber, f.id)}
                       >

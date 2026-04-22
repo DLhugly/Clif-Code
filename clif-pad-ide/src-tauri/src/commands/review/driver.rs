@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::process::Command;
 
+use crate::commands::gh::{augmented_path, gh_command, gh_std_command};
+
 /// Context returned from fetch_pr. Minimal surface that any review run needs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrContext {
@@ -65,7 +67,8 @@ impl GhCliDriver {
 
 impl ReviewDriver for GhCliDriver {
     fn fetch_pr(&self, number: i64) -> Result<PrContext, String> {
-        let output = std::process::Command::new("gh")
+        let mut cmd = gh_std_command()?;
+        let output = cmd
             .arg("pr")
             .arg("view")
             .arg(number.to_string())
@@ -115,7 +118,8 @@ impl ReviewDriver for GhCliDriver {
     }
 
     fn fetch_diff(&self, number: i64) -> Result<String, String> {
-        let output = std::process::Command::new("gh")
+        let mut cmd = gh_std_command()?;
+        let output = cmd
             .arg("pr")
             .arg("diff")
             .arg(number.to_string())
@@ -151,6 +155,7 @@ impl ReviewDriver for GhCliDriver {
                 "origin",
                 &format!("pull/{}/head:{}", number, branch),
             ])
+            .env("PATH", augmented_path())
             .current_dir(&self.workspace_dir)
             .output();
 
@@ -161,30 +166,33 @@ impl ReviewDriver for GhCliDriver {
                 target.to_string_lossy().as_ref(),
                 &branch,
             ])
+            .env("PATH", augmented_path())
             .current_dir(&self.workspace_dir)
             .output()
             .map_err(|e| format!("git worktree add failed to start: {}", e))?;
 
         if !out.status.success() {
             // Fallback: try via gh pr checkout within a detached clone
-            let fallback = std::process::Command::new("gh")
-                .args([
-                    "pr",
-                    "checkout",
-                    &number.to_string(),
-                    "--repo",
-                    ".",
-                    "--branch",
-                    &branch,
-                ])
-                .current_dir(&target)
-                .output();
-            if fallback.is_err() {
-                return Err(format!(
-                    "git worktree add failed: {}. Tried spec {}",
-                    String::from_utf8_lossy(&out.stderr),
-                    ref_spec
-                ));
+            if let Ok(mut cmd) = gh_std_command() {
+                let fallback = cmd
+                    .args([
+                        "pr",
+                        "checkout",
+                        &number.to_string(),
+                        "--repo",
+                        ".",
+                        "--branch",
+                        &branch,
+                    ])
+                    .current_dir(&target)
+                    .output();
+                if fallback.is_err() {
+                    return Err(format!(
+                        "git worktree add failed: {}. Tried spec {}",
+                        String::from_utf8_lossy(&out.stderr),
+                        ref_spec
+                    ));
+                }
             }
         }
 
@@ -203,6 +211,7 @@ impl ReviewDriver for GhCliDriver {
                 "--force",
                 target.to_string_lossy().as_ref(),
             ])
+            .env("PATH", augmented_path())
             .current_dir(&self.workspace_dir)
             .output();
     }
@@ -218,7 +227,8 @@ impl ReviewDriver for GhCliDriver {
             PostedAction::Approve => "--approve",
             PostedAction::RequestChanges => "--request-changes",
         };
-        let output = std::process::Command::new("gh")
+        let mut cmd = gh_std_command()?;
+        let output = cmd
             .args(["pr", "review", &number.to_string(), flag, "--body", body])
             .current_dir(&self.workspace_dir)
             .output()
@@ -235,6 +245,7 @@ impl ReviewDriver for GhCliDriver {
     fn push_branch(&self, worktree: &std::path::Path, branch: &str) -> Result<(), String> {
         let output = std::process::Command::new("git")
             .args(["push", "origin", branch])
+            .env("PATH", augmented_path())
             .current_dir(worktree)
             .output()
             .map_err(|e| format!("git push failed to start: {}", e))?;
@@ -250,7 +261,8 @@ impl ReviewDriver for GhCliDriver {
 
 /// Fetch the diff async for UI usage (doesn't need trait object).
 pub async fn fetch_pr_diff_async(workspace_dir: &str, number: i64) -> Result<String, String> {
-    let output = Command::new("gh")
+    let mut cmd = gh_command()?;
+    let output = cmd
         .arg("pr")
         .arg("diff")
         .arg(number.to_string())

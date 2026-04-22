@@ -67,7 +67,7 @@ const PrDiffView: Component<{ prNumber: number }> = (props) => {
   return (
     <div class="flex flex-col">
       <Show when={diff.loading}>
-        <div class="flex items-center gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "12px" }}>
+        <div class="flex items-center gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
@@ -76,7 +76,7 @@ const PrDiffView: Component<{ prNumber: number }> = (props) => {
       </Show>
       <Show when={!diff.loading && diff()}>
         <Show when={(diff() || "").startsWith("Error")}>
-          <div class="p-4" style={{ color: "var(--accent-red)", "font-size": "12px" }}>{diff()}</div>
+          <div class="p-4" style={{ color: "var(--accent-red)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>{diff()}</div>
         </Show>
         <Show when={!(diff() || "").startsWith("Error")}>
           <For each={parseDiff(diff() ?? "")}>
@@ -88,7 +88,7 @@ const PrDiffView: Component<{ prNumber: number }> = (props) => {
                     top: "0",
                     background: "var(--bg-surface)",
                     "font-family": "var(--font-mono, monospace)",
-                    "font-size": "11.5px",
+                    "font-size": "calc(var(--ui-font-size) - 2.5px)",
                     color: "var(--text-primary)",
                     "z-index": "1",
                     "border-bottom": "1px solid var(--border-default)",
@@ -96,7 +96,7 @@ const PrDiffView: Component<{ prNumber: number }> = (props) => {
                 >
                   {file.file}
                 </div>
-                <div style={{ "font-family": "var(--font-mono, monospace)", "font-size": "11px", "line-height": "1.4" }}>
+                <div style={{ "font-family": "var(--font-mono, monospace)", "font-size": "calc(var(--ui-font-size) - 3px)", "line-height": "1.4" }}>
                   <For each={file.lines.slice(1)}>
                     {(ln) => (
                       <div

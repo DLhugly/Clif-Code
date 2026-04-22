@@ -1,5 +1,76 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use tokio::process::Command;
+
+/// Common install locations for `gh` on macOS and Linux. GUI-launched apps on
+/// macOS get a minimal PATH that excludes Homebrew locations, so we scan these
+/// candidates before giving up.
+const GH_CANDIDATES: &[&str] = &[
+    "/opt/homebrew/bin/gh",
+    "/usr/local/bin/gh",
+    "/usr/bin/gh",
+    "/home/linuxbrew/.linuxbrew/bin/gh",
+];
+
+/// Additional PATH entries to expose to the `gh` process so its internal
+/// PATH-based lookups (e.g. git, helpers) work when we launched outside a shell.
+const PATH_AUGMENT: &[&str] = &[
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    "/usr/sbin",
+    "/sbin",
+];
+
+/// Resolve the absolute path to the `gh` binary. Returns `None` if not found
+/// in any known install location or on PATH.
+pub fn resolve_gh() -> Option<PathBuf> {
+    if let Ok(p) = which::which("gh") {
+        return Some(p);
+    }
+    for candidate in GH_CANDIDATES {
+        let p = PathBuf::from(candidate);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+/// Augment PATH so that `gh` can find its helpers (git, etc.) when we're
+/// running outside a shell.
+pub fn augmented_path() -> String {
+    let current = std::env::var("PATH").unwrap_or_default();
+    let mut parts: Vec<String> = PATH_AUGMENT.iter().map(|s| s.to_string()).collect();
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts.join(":")
+}
+
+/// Build a tokio `Command` for `gh` with augmented PATH, or return an error if
+/// `gh` is not installed.
+pub fn gh_command() -> Result<Command, String> {
+    let bin = resolve_gh().ok_or_else(|| {
+        "`gh` CLI not found. Install from https://cli.github.com/ or ensure it is on PATH."
+            .to_string()
+    })?;
+    let mut cmd = Command::new(bin);
+    cmd.env("PATH", augmented_path());
+    Ok(cmd)
+}
+
+/// Std (sync) version of `gh_command` for callers that use `std::process::Command`.
+pub fn gh_std_command() -> Result<std::process::Command, String> {
+    let bin = resolve_gh().ok_or_else(|| {
+        "`gh` CLI not found. Install from https://cli.github.com/ or ensure it is on PATH."
+            .to_string()
+    })?;
+    let mut cmd = std::process::Command::new(bin);
+    cmd.env("PATH", augmented_path());
+    Ok(cmd)
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GhAvailability {
@@ -76,13 +147,31 @@ pub struct PrSummary {
 
 #[tauri::command]
 pub async fn gh_check_available() -> Result<GhAvailability, String> {
-    let version_out = Command::new("gh").arg("--version").output().await;
+    let Some(gh_path) = resolve_gh() else {
+        return Ok(GhAvailability {
+            installed: false,
+            authenticated: false,
+            version: None,
+            message: Some(
+                "`gh` CLI not found. Install from https://cli.github.com/ or add it to PATH.".into(),
+            ),
+        });
+    };
+
+    let version_out = Command::new(&gh_path)
+        .arg("--version")
+        .env("PATH", augmented_path())
+        .output()
+        .await;
     let Ok(version_result) = version_out else {
         return Ok(GhAvailability {
             installed: false,
             authenticated: false,
             version: None,
-            message: Some("`gh` CLI not found on PATH. Install from https://cli.github.com/.".into()),
+            message: Some(format!(
+                "Found gh at {} but failed to execute it.",
+                gh_path.display()
+            )),
         });
     };
     if !version_result.status.success() {
@@ -98,7 +187,12 @@ pub async fn gh_check_available() -> Result<GhAvailability, String> {
         .next()
         .map(|s| s.trim().to_string());
 
-    let auth_out = Command::new("gh").arg("auth").arg("status").output().await;
+    let auth_out = Command::new(&gh_path)
+        .arg("auth")
+        .arg("status")
+        .env("PATH", augmented_path())
+        .output()
+        .await;
     let authenticated = match auth_out {
         Ok(out) => out.status.success(),
         Err(_) => false,
@@ -151,7 +245,8 @@ pub async fn gh_list_prs(
     ]
     .join(",");
 
-    let output = Command::new("gh")
+    let mut cmd = gh_command()?;
+    let output = cmd
         .arg("pr")
         .arg("list")
         .arg("--state")

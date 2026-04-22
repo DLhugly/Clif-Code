@@ -190,6 +190,7 @@ pub async fn pr_review_apply_finding(
     use tokio::io::AsyncWriteExt;
     let mut child = tokio::process::Command::new("git")
         .args(["apply", "-"])
+        .env("PATH", crate::commands::gh::augmented_path())
         .current_dir(&worktree)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
