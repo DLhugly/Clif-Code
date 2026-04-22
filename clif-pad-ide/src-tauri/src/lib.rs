@@ -166,6 +166,17 @@ pub fn run() {
             commands::lsp::lsp_send,
             commands::lsp::lsp_stop,
             commands::lsp::lsp_check_servers,
+            commands::gh::gh_check_available,
+            commands::gh::gh_list_prs,
+            commands::review::pr_fetch_diff,
+            commands::review::pr_review_run,
+            commands::review::pr_review_stop,
+            commands::review::pr_review_get,
+            commands::review::pr_review_list,
+            commands::review::pr_review_post,
+            commands::review::pr_review_apply_finding,
+            commands::review::pr_polish_preview,
+            commands::review::pr_polish_apply,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

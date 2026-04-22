@@ -2,7 +2,7 @@ import { createSignal, createEffect } from "solid-js";
 
 export type Theme = "midnight" | "graphite" | "dawn" | "arctic" | "dusk" | "cyberpunk" | "ember" | "forest" | "solarized-dark" | "monokai" | "nord" | "dracula" | "one-dark" | "tokyo-night" | "catppuccin" | "rose-pine" | "ayu-dark" | "vesper" | "poimandres" | "pale-fire";
 
-export type Panel = "terminal" | "agent" | "files" | "editor";
+export type Panel = "terminal" | "agent" | "files" | "editor" | "reviews";
 
 export interface ThemeMeta {
   label: string;
@@ -41,18 +41,19 @@ const [visiblePanels, setVisiblePanels] = createSignal<Set<Panel>>(new Set(["fil
 const [terminalHeight, setTerminalHeight] = createSignal(30);
 const [sidebarWidth, setSidebarWidth] = createSignal(240);
 const [agentWidth, setAgentWidth] = createSignal(380);
+const [reviewsWidth, setReviewsWidth] = createSignal(340);
 
 // Clamp panel width to ensure it doesn't push other panels off screen
 export function clampPanelWidth(
   panelWidth: number,
-  panelType: "sidebar" | "agent",
+  panelType: "sidebar" | "agent" | "reviews",
   windowWidth: number,
   otherPanelWidth: number
 ): number {
   const minWidth = 200;
   // Allow panels to expand flexibly based on window size
   // Agent: up to 70% for reading responses
-  // Sidebar: up to 50% for file tree / git views
+  // Sidebar / Reviews: up to 50% for list / git views
   const maxPercentOfWindow = panelType === "agent" ? 0.7 : 0.5;
   const calculatedMax = Math.floor(windowWidth * maxPercentOfWindow);
 
@@ -70,11 +71,38 @@ const [showCommandPalette, setShowCommandPalette] = createSignal(false);
 const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
 
+// Top-level view mode — Code (normal IDE) or Review (PR review workspace)
+export type ViewMode = "code" | "review";
+const VIEW_MODE_STORAGE_KEY = "clif.viewMode";
+const initialViewMode: ViewMode =
+  typeof localStorage !== "undefined" && localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "review"
+    ? "review"
+    : "code";
+const [viewMode, setViewModeSignal] = createSignal<ViewMode>(initialViewMode);
+
+function setViewMode(mode: ViewMode) {
+  setViewModeSignal(mode);
+  try {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  } catch {
+    // localStorage unavailable; persistence is optional
+  }
+}
+
+function toggleViewMode() {
+  setViewMode(viewMode() === "code" ? "review" : "code");
+}
+
+// Layout widths inside Review mode
+const [reviewLeftWidth, setReviewLeftWidth] = createSignal(340);
+const [reviewRightWidth, setReviewRightWidth] = createSignal(360);
+
 // Derived visibility signals for backward compatibility
 const terminalVisible = () => visiblePanels().has("terminal");
 const agentVisible = () => visiblePanels().has("agent");
 const sidebarVisible = () => visiblePanels().has("files");
 const editorVisible = () => visiblePanels().has("editor");
+const reviewsVisible = () => visiblePanels().has("reviews");
 
 // Helper functions to toggle panels
 function togglePanel(panel: Panel) {
@@ -144,6 +172,14 @@ function toggleEditor() {
   togglePanel("editor");
 }
 
+function toggleReviewsPanel() {
+  togglePanel("reviews");
+}
+
+function setReviewsVisible(visible: boolean) {
+  visible ? showPanel("reviews") : hidePanel("reviews");
+}
+
 // Backward-compatible setter functions (deprecated, but kept for compatibility)
 function setTerminalVisible(visible: boolean) {
   visible ? showPanel("terminal") : hidePanel("terminal");
@@ -176,10 +212,13 @@ export {
   toggleSidebar,
   toggleAgentPanel,
   toggleEditor,
+  toggleReviewsPanel,
   setTerminalVisible,
   setSidebarVisible,
   setAgentVisible,
   setEditorVisible,
+  setReviewsVisible,
+  reviewsVisible,
 
   // Panel sizes
   terminalHeight,
@@ -188,6 +227,8 @@ export {
   setSidebarWidth,
   agentWidth,
   setAgentWidth,
+  reviewsWidth,
+  setReviewsWidth,
 
   // Theme
   theme,
@@ -205,4 +246,15 @@ export {
   setDevDrawerOpen,
   devDrawerHeight,
   setDevDrawerHeight,
+
+  // Top-level mode
+  viewMode,
+  setViewMode,
+  toggleViewMode,
+
+  // Review mode layout
+  reviewLeftWidth,
+  setReviewLeftWidth,
+  reviewRightWidth,
+  setReviewRightWidth,
 };

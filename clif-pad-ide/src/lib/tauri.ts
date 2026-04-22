@@ -379,3 +379,69 @@ export async function scanFilesSecurity(paths: string[]): Promise<SecurityIssue[
 export async function scanRepoSecurity(workspaceDir: string): Promise<SecurityIssue[]> {
   return invoke("scan_repo_security", { workspaceDir });
 }
+
+// GitHub CLI integration
+export interface GhAvailability {
+  installed: boolean;
+  authenticated: boolean;
+  version: string | null;
+  message: string | null;
+}
+
+export interface PrCheck {
+  name: string | null;
+  status: string | null;
+  conclusion: string | null;
+}
+
+export interface PrCommitAuthor {
+  name: string | null;
+  email: string | null;
+}
+
+export interface PrCommit {
+  oid: string | null;
+  messageHeadline: string | null;
+  committedDate: string | null;
+  authors: PrCommitAuthor[] | null;
+}
+
+export interface PrReviewRequest {
+  login: string | null;
+}
+
+export interface PrSummary {
+  number: number;
+  title: string;
+  url: string;
+  isDraft: boolean;
+  author: { login: string | null; name: string | null } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  headRefName: string | null;
+  baseRefName: string | null;
+  mergeable: string | null;
+  additions: number | null;
+  deletions: number | null;
+  changedFiles: number | null;
+  commits: PrCommit[] | null;
+  statusCheckRollup: PrCheck[] | null;
+  reviewDecision: string | null;
+  reviewRequests: PrReviewRequest[] | null;
+}
+
+export async function ghCheckAvailable(): Promise<GhAvailability> {
+  return invoke("gh_check_available");
+}
+
+export async function ghListPrs(
+  workspaceDir: string,
+  state?: "open" | "closed" | "merged" | "all",
+  limit?: number,
+): Promise<PrSummary[]> {
+  return invoke("gh_list_prs", {
+    workspaceDir,
+    state: state ?? null,
+    limit: limit ?? null,
+  });
+}

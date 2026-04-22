@@ -5,6 +5,7 @@ import type { Theme } from "../../stores/uiStore";
 import { settings, updateSettings } from "../../stores/settingsStore";
 import { projectRoot } from "../../stores/fileStore";
 import { MONO_FONTS, loadGoogleFont, applyUiFont } from "../../lib/fonts";
+import ModeToggle from "./ModeToggle";
 
 const SparkleIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -271,6 +272,8 @@ const TopBar: Component<{
             {getProjectName()}
           </span>
         </Show>
+        <div style={{ width: "1px", height: "16px", background: "var(--border-default)", opacity: "0.6", "margin-left": "6px" }} />
+        <ModeToggle />
       </div>
 
       {/* Spacer — also draggable */}
