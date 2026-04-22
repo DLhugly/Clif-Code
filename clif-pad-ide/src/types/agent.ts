@@ -32,6 +32,7 @@ export interface AgentContext {
   selection?: { path: string; text: string; startLine: number; endLine: number };
   activeFile?: string;
   gitBranch?: string;
+  agentMode?: "agent" | "ask" | "plan";
 }
 
 export interface EditPreview {

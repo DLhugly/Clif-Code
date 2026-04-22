@@ -128,6 +128,8 @@ const ArgumentsDisplay: Component<{ args: Record<string, unknown>; toolName: str
     if (key === "query") return "🔍";
     if (key === "old_string" || key === "new_string") return "✏️";
     if (key === "content") return "📝";
+    if (key === "todos") return "☑";
+    if (key === "merge") return "🔀";
     return "•";
   };
 
@@ -268,6 +270,12 @@ const ToolCallCard: Component<{
         const p = (args.path as string) || ".";
         return p.split("/").pop() || p;
       }
+      case "todo_write": {
+        const todos = Array.isArray(args.todos) ? args.todos.length : 0;
+        return `${todos} task${todos === 1 ? "" : "s"}${args.merge ? " (merge)" : ""}`;
+      }
+      case "todo_read":
+        return "current tasks";
       default: return "";
     }
   };

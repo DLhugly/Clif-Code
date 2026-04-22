@@ -1,5 +1,6 @@
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -12,6 +13,21 @@ static AGENT_SESSIONS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync
 
 // Pending command approvals: session_id -> oneshot sender with bool (true=approved)
 static COMMAND_APPROVALS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>> =
+    std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+// Files read during an agent session: session_id -> canonical paths
+static SESSION_READ_FILES: std::sync::LazyLock<Arc<Mutex<HashMap<String, HashSet<PathBuf>>>>> =
+    std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TodoItem {
+    id: String,
+    content: String,
+    status: String,
+}
+
+// Session-scoped todo lists: session_id -> todo items
+static SESSION_TODOS: std::sync::LazyLock<Arc<Mutex<HashMap<String, Vec<TodoItem>>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 /// Frontend calls this to approve or deny a pending run_command
@@ -34,6 +50,35 @@ pub fn kill_all_agent_sessions() {
             let _ = tx.send(());
         }
     }
+    if let Ok(mut reads) = SESSION_READ_FILES.lock() {
+        reads.clear();
+    }
+    if let Ok(mut todos) = SESSION_TODOS.lock() {
+        todos.clear();
+    }
+}
+
+fn track_file_read(session_id: Option<&str>, path: &Path) {
+    let Some(sid) = session_id else { return };
+    if let Ok(mut reads) = SESSION_READ_FILES.lock() {
+        reads
+            .entry(sid.to_string())
+            .or_insert_with(HashSet::new)
+            .insert(path.to_path_buf());
+    }
+}
+
+fn has_read_file(session_id: Option<&str>, path: &Path) -> bool {
+    let Some(sid) = session_id else { return true };
+    let Ok(reads) = SESSION_READ_FILES.lock() else { return false };
+    reads
+        .get(sid)
+        .map(|files| files.contains(path))
+        .unwrap_or(false)
+}
+
+fn is_valid_todo_status(status: &str) -> bool {
+    matches!(status, "pending" | "in_progress" | "completed" | "cancelled")
 }
 
 /// Strip OpenAI-only fields that cause 400 errors on other providers
@@ -99,7 +144,8 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                     "properties": {
                         "path": { "type": "string", "description": "Path to the file to edit. Prefer paths inside the current workspace." },
                         "old_string": { "type": "string", "description": "Exact text to find and replace. Include enough surrounding context to make the match unique when possible." },
-                        "new_string": { "type": "string", "description": "Replacement text." }
+                        "new_string": { "type": "string", "description": "Replacement text." },
+                        "replace_all": { "type": ["boolean", "null"], "description": "Set true to replace all matches in the file. Defaults to false (single replacement)." }
                     },
                     "required": ["path", "old_string", "new_string"]
                 }
@@ -175,16 +221,44 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         json!({
             "type": "function",
             "function": {
-                "name": "change_directory",
-                "description": "Change the working directory for subsequent tool calls. Use only when the task clearly requires operating from a different folder inside the workspace.",
+                "name": "todo_write",
+                "description": "Create or update a structured todo list for this session. Use this for multi-step tasks to track progress and verification steps.",
                 "strict": true,
                 "parameters": {
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
-                        "path": { "type": "string", "description": "Directory path to switch to. Must stay inside the workspace." }
+                        "todos": {
+                            "type": "array",
+                            "description": "List of todo items.",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "id": { "type": "string", "description": "Unique id for the task." },
+                                    "content": { "type": "string", "description": "Task description." },
+                                    "status": { "type": "string", "description": "One of: pending, in_progress, completed, cancelled." }
+                                },
+                                "required": ["id", "content", "status"]
+                            }
+                        },
+                        "merge": { "type": ["boolean", "null"], "description": "If true, merge by id into the existing todo list. If false or omitted, replace the list." }
                     },
-                    "required": ["path"]
+                    "required": ["todos"]
+                }
+            }
+        }),
+        json!({
+            "type": "function",
+            "function": {
+                "name": "todo_read",
+                "description": "Read the current structured todo list for this session.",
+                "strict": true,
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {},
+                    "required": []
                 }
             }
         }),
@@ -207,8 +281,8 @@ fn tool_definitions() -> Vec<serde_json::Value> {
     ]
 }
 
-/// Build the system prompt
-fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
+/// Build the static system prompt (cache-friendly)
+fn build_system_prompt(workspace_dir: &str) -> String {
     let mut prompt = format!(
         "You are an AI coding assistant embedded in ClifPad, a desktop code editor. \
          You help users with their code by reading files, making edits, searching codebases, and running commands.\n\n\
@@ -227,7 +301,7 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
          - If a tool returns an error, fix the arguments or approach and retry deliberately.\n\
          - Do not call submit until the user's request is complete or you are clearly blocked.\n\
          - Always confirm destructive operations before proceeding.\n\
-         - Stay inside the current workspace when reading, writing, searching, or changing directories.\n\
+         - Stay inside the current workspace when reading, writing, searching, or running commands.\n\
          - Format responses in markdown.\n",
         workspace_dir
     );
@@ -248,33 +322,116 @@ fn build_system_prompt(workspace_dir: &str, context: Option<&str>) -> String {
         prompt.push_str("\n\n---\n");
     }
 
-    // Add git context (branch, modified files, recent commits)
-    let git_context = get_git_context(workspace_dir);
-    prompt.push_str("\n## Current Git State\n\n");
-    prompt.push_str(&git_context);
+    // Interop: load popular instruction files when present
+    let agents_path = std::path::Path::new(workspace_dir).join("AGENTS.md");
+    if let Ok(agents_content) = std::fs::read_to_string(&agents_path) {
+        prompt.push_str("\n\n## Project Instructions (from AGENTS.md)\n\n");
+        prompt.push_str(&agents_content);
+        prompt.push_str("\n\n---\n");
+    }
 
-    if let Some(ctx) = context {
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
-            if let Some(active_file) = parsed.get("activeFile").and_then(|v| v.as_str()) {
-                prompt.push_str(&format!("\nCurrently active file: {}\n", active_file));
-            }
-            if let Some(branch) = parsed.get("gitBranch").and_then(|v| v.as_str()) {
-                prompt.push_str(&format!("Current git branch: {}\n", branch));
-            }
-            if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
-                let file_list: Vec<&str> = files.iter().filter_map(|v| v.as_str()).collect();
-                if !file_list.is_empty() {
-                    prompt.push_str(&format!("\nAttached files for context: {}\n", file_list.join(", ")));
-                }
-            }
-        }
+    let claude_path = std::path::Path::new(workspace_dir).join("CLAUDE.md");
+    if let Ok(claude_content) = std::fs::read_to_string(&claude_path) {
+        prompt.push_str("\n\n## Project Instructions (from CLAUDE.md)\n\n");
+        prompt.push_str(&claude_content);
+        prompt.push_str("\n\n---\n");
     }
 
     prompt
 }
 
+/// Build volatile runtime context that should not be cached.
+fn build_runtime_context(workspace_dir: &str, context: Option<&str>) -> String {
+    let mut runtime = String::new();
+    let mode = mode_from_context(context);
+
+    runtime.push_str("## Interaction Mode\n\n");
+    runtime.push_str(&format!("Current mode: {}\n", mode.as_str()));
+    if mode == AgentMode::Ask {
+        runtime.push_str("Constraint: Ask mode is read-only. Do not call edit_file, write_file, or run_command.\n");
+    } else if mode == AgentMode::Plan {
+        runtime.push_str("Constraint: Plan mode is read-only. Explore and produce a plan without editing files or running commands.\n");
+    }
+
+    let git_context = get_git_context(workspace_dir);
+    runtime.push_str("## Current Git State\n\n");
+    runtime.push_str(&git_context);
+
+    if let Some(ctx) = context {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
+            if let Some(active_file) = parsed.get("activeFile").and_then(|v| v.as_str()) {
+                runtime.push_str(&format!("\nCurrently active file: {}\n", active_file));
+            }
+            if let Some(branch) = parsed.get("gitBranch").and_then(|v| v.as_str()) {
+                runtime.push_str(&format!("Current git branch: {}\n", branch));
+            }
+            if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
+                let file_list: Vec<&str> = files.iter().filter_map(|v| v.as_str()).collect();
+                if !file_list.is_empty() {
+                    runtime.push_str(&format!("\nAttached files for context: {}\n", file_list.join(", ")));
+                }
+            }
+        }
+    }
+
+    runtime
+}
+
+/// Parse attached context files from frontend context.
+fn context_files_from_json(context: Option<&str>) -> Vec<String> {
+    let Some(ctx) = context else { return Vec::new() };
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) else {
+        return Vec::new();
+    };
+    parsed
+        .get("files")
+        .and_then(|v| v.as_array())
+        .map(|files| {
+            files
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AgentMode {
+    Agent,
+    Ask,
+    Plan,
+}
+
+impl AgentMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            AgentMode::Agent => "agent",
+            AgentMode::Ask => "ask",
+            AgentMode::Plan => "plan",
+        }
+    }
+}
+
+fn mode_from_context(context: Option<&str>) -> AgentMode {
+    let Some(ctx) = context else { return AgentMode::Agent };
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) else {
+        return AgentMode::Agent;
+    };
+    match parsed.get("agentMode").and_then(|v| v.as_str()) {
+        Some("ask") => AgentMode::Ask,
+        Some("plan") => AgentMode::Plan,
+        _ => AgentMode::Agent,
+    }
+}
+
 /// Execute a tool call and return the result
-async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str) -> String {
+async fn execute_tool(
+    name: &str,
+    args: &serde_json::Value,
+    workspace_dir: &str,
+    session_id: Option<&str>,
+    mode: AgentMode,
+) -> String {
     match name {
         "read_file" => {
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
@@ -314,12 +471,20 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                     } else {
                         format!("{}{}", header, numbered)
                     };
+                    track_file_read(session_id, &full_path);
                     tool_success(json!(value))
                 }
                 Err(e) => tool_error("READ_FAILED", format!("Error reading file: {}", e), true),
             }
         }
         "write_file" => {
+            if mode != AgentMode::Agent {
+                return tool_error(
+                    "MODE_RESTRICTED",
+                    format!("write_file is disabled in {} mode. Switch to agent mode to edit files.", mode.as_str()),
+                    false,
+                );
+            }
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
             let content = args.get("content").and_then(|v| v.as_str()).unwrap_or("");
             let full_path = match ensure_path_in_workspace(path, workspace_dir, true) {
@@ -333,6 +498,13 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
 
             // Check if file existed before write (for metadata)
             let existed = full_path.exists();
+            if existed && !has_read_file(session_id, &full_path) {
+                return tool_error(
+                    "READ_REQUIRED",
+                    format!("Read '{}' before modifying it with write_file.", path),
+                    true,
+                );
+            }
             let old_line_count = if existed {
                 tokio::fs::read_to_string(&full_path)
                     .await
@@ -376,13 +548,28 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
             }
         }
         "edit_file" => {
+            if mode != AgentMode::Agent {
+                return tool_error(
+                    "MODE_RESTRICTED",
+                    format!("edit_file is disabled in {} mode. Switch to agent mode to edit files.", mode.as_str()),
+                    false,
+                );
+            }
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
             let old_string = args.get("old_string").and_then(|v| v.as_str()).unwrap_or("");
             let new_string = args.get("new_string").and_then(|v| v.as_str()).unwrap_or("");
+            let replace_all = args.get("replace_all").and_then(|v| v.as_bool()).unwrap_or(false);
             let full_path = match ensure_path_in_workspace(path, workspace_dir, true) {
                 Ok(path) => path,
                 Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
             };
+            if full_path.exists() && !has_read_file(session_id, &full_path) {
+                return tool_error(
+                    "READ_REQUIRED",
+                    format!("Read '{}' before modifying it with edit_file.", path),
+                    true,
+                );
+            }
 
             match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => {
@@ -421,7 +608,16 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                         );
                     }
 
-                    // Compute line range of the match before replacing
+                    let occurrence_count = content.matches(&actual_old_string).count();
+                    if occurrence_count > 1 && !replace_all {
+                        return tool_error(
+                            "MULTIPLE_MATCHES",
+                            "Found multiple matches for old_string. Add more context or set replace_all=true.",
+                            true,
+                        );
+                    }
+
+                    // Compute line range of the first match before replacing
                     let match_byte_start = content.find(&actual_old_string).unwrap_or(0);
                     let start_line = content[..match_byte_start].lines().count().max(1);
                     let old_line_count = actual_old_string.lines().count().max(1);
@@ -435,14 +631,25 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                     for l in &old_lines { diff_preview.push_str(&format!("-{}\n", l)); }
                     for l in &new_lines { diff_preview.push_str(&format!("+{}\n", l)); }
 
-                    let new_content = content.replacen(&actual_old_string, new_string, 1);
+                    let new_content = if replace_all {
+                        content.replace(&actual_old_string, new_string)
+                    } else {
+                        content.replacen(&actual_old_string, new_string, 1)
+                    };
                     match tokio::fs::write(&full_path, &new_content).await {
                         Ok(()) => {
                             json!({
                                 "ok": true,
                                 "tool": "edit_file",
                                 "path": path,
-                                "summary": format!("Edited {} — lines {}-{}", path, start_line, end_line),
+                                "summary": if replace_all {
+                                    format!(
+                                        "Edited {} — replaced {} occurrences (first match lines {}-{})",
+                                        path, occurrence_count, start_line, end_line
+                                    )
+                                } else {
+                                    format!("Edited {} — lines {}-{}", path, start_line, end_line)
+                                },
                                 "edit": {
                                     "start_line": start_line,
                                     "end_line": end_line,
@@ -450,6 +657,8 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                                     "new_line_count": new_line_count,
                                     "before": old_string,
                                     "after": new_string,
+                                    "replace_all": replace_all,
+                                    "occurrences": occurrence_count,
                                 },
                                 "diff_preview": diff_preview,
                             })
@@ -524,6 +733,13 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
             }
         }
         "run_command" => {
+            if mode != AgentMode::Agent {
+                return tool_error(
+                    "MODE_RESTRICTED",
+                    format!("run_command is disabled in {} mode. Switch to agent mode to run commands.", mode.as_str()),
+                    false,
+                );
+            }
             let command = args.get("command").and_then(|v| v.as_str()).unwrap_or("");
             let working_dir = args
                 .get("working_dir")
@@ -608,17 +824,73 @@ async fn execute_tool(name: &str, args: &serde_json::Value, workspace_dir: &str)
                 Err(e) => tool_error("FIND_FAILED", format!("Find error: {}", e), true),
             }
         }
-        "change_directory" => {
-            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            let full_path = match ensure_path_in_workspace(path, workspace_dir, false) {
-                Ok(path) => path,
-                Err(e) => return tool_error("PATH_OUTSIDE_WORKSPACE", e, false),
+        "todo_write" => {
+            let Some(sid) = session_id else {
+                return tool_error("SESSION_REQUIRED", "todo_write requires an active agent session.", false);
             };
-            if full_path.is_dir() {
-                tool_success(json!(format!("Changed workspace to {}", full_path.display())))
-            } else {
-                tool_error("NOT_A_DIRECTORY", format!("{} is not a directory", full_path.display()), true)
+            let merge = args.get("merge").and_then(|v| v.as_bool()).unwrap_or(false);
+            let Some(todos_array) = args.get("todos").and_then(|v| v.as_array()) else {
+                return tool_error("INVALID_ARGS", "Field 'todos' must be an array.", false);
+            };
+            let mut parsed: Vec<TodoItem> = Vec::new();
+            for item in todos_array {
+                let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+                let content = item.get("content").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+                let status = item.get("status").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+                if id.is_empty() || content.is_empty() || !is_valid_todo_status(&status) {
+                    return tool_error(
+                        "INVALID_TODO_ITEM",
+                        "Each todo item must include non-empty id/content and status in: pending, in_progress, completed, cancelled.",
+                        false,
+                    );
+                }
+                parsed.push(TodoItem { id, content, status });
             }
+
+            let Ok(mut todos_map) = SESSION_TODOS.lock() else {
+                return tool_error("STATE_LOCK_FAILED", "Failed to lock todo state.", true);
+            };
+            let entry = todos_map.entry(sid.to_string()).or_insert_with(Vec::new);
+
+            if merge {
+                for incoming in parsed {
+                    if let Some(existing) = entry.iter_mut().find(|t| t.id == incoming.id) {
+                        *existing = incoming;
+                    } else {
+                        entry.push(incoming);
+                    }
+                }
+            } else {
+                *entry = parsed;
+            }
+
+            let in_progress = entry.iter().filter(|t| t.status == "in_progress").count();
+            let pending = entry.iter().filter(|t| t.status == "pending").count();
+            let completed = entry.iter().filter(|t| t.status == "completed").count();
+            tool_success(json!({
+                "updated": true,
+                "merge": merge,
+                "counts": {
+                    "total": entry.len(),
+                    "pending": pending,
+                    "in_progress": in_progress,
+                    "completed": completed
+                },
+                "todos": entry,
+            }))
+        }
+        "todo_read" => {
+            let Some(sid) = session_id else {
+                return tool_error("SESSION_REQUIRED", "todo_read requires an active agent session.", false);
+            };
+            let Ok(todos_map) = SESSION_TODOS.lock() else {
+                return tool_error("STATE_LOCK_FAILED", "Failed to lock todo state.", true);
+            };
+            let todos = todos_map.get(sid).cloned().unwrap_or_default();
+            tool_success(json!({
+                "todos": todos,
+                "total": todos.len(),
+            }))
         }
         "submit" => {
             let summary = args.get("summary").and_then(|v| v.as_str()).unwrap_or("Task complete");
@@ -696,12 +968,13 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
     let allowed: &[&str] = match name {
         "read_file" => &["path", "offset", "limit"],
         "write_file" => &["path", "content"],
-        "edit_file" => &["path", "old_string", "new_string"],
+        "edit_file" => &["path", "old_string", "new_string", "replace_all"],
         "list_files" => &["path"],
         "search" => &["query", "path"],
         "run_command" => &["command", "working_dir"],
         "find_file" => &["name", "dir"],
-        "change_directory" => &["path"],
+        "todo_write" => &["todos", "merge"],
+        "todo_read" => &[],
         "submit" => &["summary"],
         _ => return Err(format!("Unknown tool: {}", name)),
     };
@@ -735,7 +1008,7 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
             }
             Ok(())
         }
-        "list_files" | "change_directory" => require_string("path"),
+        "list_files" => require_string("path"),
         "write_file" => {
             require_string("path")?;
             require_string("content")
@@ -743,7 +1016,13 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
         "edit_file" => {
             require_string("path")?;
             require_string("old_string")?;
-            require_string("new_string")
+            require_string("new_string")?;
+            if let Some(v) = obj.get("replace_all") {
+                if !v.is_boolean() && !v.is_null() {
+                    return Err("Field 'replace_all' must be a boolean or null".to_string());
+                }
+            }
+            Ok(())
         }
         "search" => {
             require_string("query")?;
@@ -767,6 +1046,47 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
             }
             Ok(())
         }
+        "todo_write" => {
+            let todos = obj
+                .get("todos")
+                .ok_or_else(|| "Missing required field 'todos'".to_string())?;
+            let arr = todos
+                .as_array()
+                .ok_or_else(|| "Field 'todos' must be an array".to_string())?;
+            for (i, item) in arr.iter().enumerate() {
+                let todo = item
+                    .as_object()
+                    .ok_or_else(|| format!("todos[{}] must be an object", i))?;
+                let id = todo
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| format!("todos[{}].id must be a string", i))?;
+                let content = todo
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| format!("todos[{}].content must be a string", i))?;
+                let status = todo
+                    .get("status")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| format!("todos[{}].status must be a string", i))?;
+                if id.trim().is_empty() || content.trim().is_empty() {
+                    return Err(format!("todos[{}].id/content cannot be empty", i));
+                }
+                if !is_valid_todo_status(status) {
+                    return Err(format!(
+                        "todos[{}].status must be one of: pending, in_progress, completed, cancelled",
+                        i
+                    ));
+                }
+            }
+            if let Some(v) = obj.get("merge") {
+                if !v.is_boolean() && !v.is_null() {
+                    return Err("Field 'merge' must be a boolean or null".to_string());
+                }
+            }
+            Ok(())
+        }
+        "todo_read" => Ok(()),
         "submit" => require_string("summary"),
         _ => Err(format!("Unknown tool: {}", name)),
     }
@@ -1026,6 +1346,18 @@ pub async fn agent_chat(
             .map_err(|e| format!("Failed to lock sessions: {}", e))?;
         sessions.insert(session_id.clone(), cancel_tx);
     }
+    {
+        let mut reads = SESSION_READ_FILES
+            .lock()
+            .map_err(|e| format!("Failed to lock session read files: {}", e))?;
+        reads.insert(session_id.clone(), HashSet::new());
+    }
+    {
+        let mut todos = SESSION_TODOS
+            .lock()
+            .map_err(|e| format!("Failed to lock session todos: {}", e))?;
+        todos.insert(session_id.clone(), Vec::new());
+    }
 
     // Emit session ID to frontend so it can call agent_stop
     let _ = window.emit("agent_session_id", &session_id);
@@ -1057,6 +1389,12 @@ pub async fn agent_chat(
         if let Ok(mut sessions) = AGENT_SESSIONS.lock() {
             sessions.remove(&sid);
         }
+        if let Ok(mut reads) = SESSION_READ_FILES.lock() {
+            reads.remove(&sid);
+        }
+        if let Ok(mut todos) = SESSION_TODOS.lock() {
+            todos.remove(&sid);
+        }
     });
 
     Ok(())
@@ -1077,7 +1415,10 @@ async fn run_agent_loop(
     let url = get_provider_url(&provider);
     let key = api_key.or_else(|| load_api_key(&provider));
 
-    let system_prompt = build_system_prompt(&workspace_dir, context.as_deref());
+    let system_prompt = build_system_prompt(&workspace_dir);
+    let runtime_context = build_runtime_context(&workspace_dir, context.as_deref());
+    let context_files = context_files_from_json(context.as_deref());
+    let mode = mode_from_context(context.as_deref());
 
     // Build conversation from initial messages
     // For OpenRouter: Use array content with cache_control for 90% cost reduction on cached prompts
@@ -1090,31 +1431,7 @@ async fn run_agent_loop(
             "type": "text",
             "text": system_prompt
         })];
-        
-        // Add context file contents as additional text parts (same system message)
-        if let Some(ref ctx) = context {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
-                if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
-                    for file_val in files {
-                        if let Some(file_path) = file_val.as_str() {
-                            let full_path = resolve_path(file_path, &workspace_dir);
-                            if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
-                                let truncated = if content.len() > 30000 {
-                                    format!("{}... (truncated)", &content[..30000])
-                                } else {
-                                    content
-                                };
-                                system_parts.push(json!({
-                                    "type": "text",
-                                    "text": format!("Content of {}:\n```\n{}\n```", file_path, truncated)
-                                }));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
+
         // Tag the LAST static block with cache_control for Anthropic/OpenRouter caching
         // This enables 90% cost reduction on subsequent requests with same prefix
         if let Some(last_part) = system_parts.last_mut().and_then(|p| p.as_object_mut()) {
@@ -1127,37 +1444,35 @@ async fn run_agent_loop(
         })]
     } else {
         // Ollama: use simple string format (no caching, but maximum compatibility)
-        let mut conv = vec![json!({
+        let conv = vec![json!({
             "role": "system",
             "content": system_prompt,
         })];
-        
-        // Add context files as separate system messages
-        if let Some(ref ctx) = context {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(ctx) {
-                if let Some(files) = parsed.get("files").and_then(|v| v.as_array()) {
-                    for file_val in files {
-                        if let Some(file_path) = file_val.as_str() {
-                            let full_path = resolve_path(file_path, &workspace_dir);
-                            if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
-                                let truncated = if content.len() > 30000 {
-                                    format!("{}... (truncated)", &content[..30000])
-                                } else {
-                                    content
-                                };
-                                conv.push(json!({
-                                    "role": "system",
-                                    "content": format!("Content of {}:\n```\n{}\n```", file_path, truncated),
-                                }));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
+
         conv
     };
+
+    // Add volatile runtime context after static system content to preserve cacheability.
+    conversation.push(json!({
+        "role": "system",
+        "content": runtime_context,
+    }));
+
+    // Add attached file contents as separate volatile system messages.
+    for file_path in &context_files {
+        let full_path = resolve_path(file_path, &workspace_dir);
+        if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
+            let truncated = if content.len() > 30000 {
+                format!("{}... (truncated)", &content[..30000])
+            } else {
+                content
+            };
+            conversation.push(json!({
+                "role": "system",
+                "content": format!("Content of {}:\n```\n{}\n```", file_path, truncated),
+            }));
+        }
+    }
 
     for msg in &initial_messages {
         // Build content as vision multi-part array when images are present,
@@ -1586,11 +1901,14 @@ async fn run_agent_loop(
 
             // Execute in parallel
             let workspace_clone = workspace_dir.clone();
+            let session_id_owned = session_id.to_string();
+            let mode_for_batch = mode;
             let results: Vec<String> = futures::future::join_all(batch.iter().map(|call| {
                 let args = call.args.as_ref().unwrap().clone();
                 let name = call.name.clone();
                 let ws = workspace_clone.clone();
-                async move { execute_tool(&name, &args, &ws).await }
+                let sid = session_id_owned.clone();
+                async move { execute_tool(&name, &args, &ws, Some(sid.as_str()), mode_for_batch).await }
             }))
             .await;
 
@@ -1694,8 +2012,9 @@ async fn run_agent_loop(
                 "list_files" => "Exploring files...",
                 "search" => "Searching codebase...",
                 "find_file" => "Finding file...",
+                "todo_write" => "Updating task list...",
+                "todo_read" => "Reading task list...",
                 "run_command" => "Running command...",
-                "change_directory" => "Changing directory...",
                 _ => "Working...",
             };
             let _ = app.emit_to(label, "agent_status", tool_status);
@@ -1744,7 +2063,7 @@ async fn run_agent_loop(
                 } else {
                     // Execute with cancel-race
                     tokio::select! {
-                        res = execute_tool(&call.name, &args, &workspace_dir) => res,
+                        res = execute_tool(&call.name, &args, &workspace_dir, Some(session_id), mode) => res,
                         _ = async {
                             loop {
                                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
@@ -1758,7 +2077,7 @@ async fn run_agent_loop(
                     }
                 }
             } else {
-                execute_tool(&call.name, &args, &workspace_dir).await
+                execute_tool(&call.name, &args, &workspace_dir, Some(session_id), mode).await
             };
 
             // Notify frontend of file changes so open tabs, git status, and file tree update
@@ -1824,6 +2143,12 @@ pub async fn agent_stop(session_id: String) -> Result<(), String> {
     match cancel_tx {
         Some(tx) => {
             let _ = tx.send(());
+            if let Ok(mut reads) = SESSION_READ_FILES.lock() {
+                reads.remove(&session_id);
+            }
+            if let Ok(mut todos) = SESSION_TODOS.lock() {
+                todos.remove(&session_id);
+            }
             Ok(())
         }
         None => Err(format!("Session not found: {}", session_id)),
@@ -2021,7 +2346,7 @@ pub async fn clif_init_project(
                 return Ok(());
             }
 
-            let result = execute_tool(&name, &args, &workspace_dir).await;
+            let result = execute_tool(&name, &args, &workspace_dir, None, AgentMode::Agent).await;
             conversation.push(json!({ "role": "tool", "tool_call_id": id, "content": result }));
         }
     }

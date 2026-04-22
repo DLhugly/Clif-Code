@@ -41,6 +41,31 @@ import InitProjectBanner from "./InitProjectBanner";
 import ProviderModelSelector from "./ProviderModelSelector";
 import EmptyState from "./EmptyState";
 
+type SessionTodo = {
+  id: string;
+  content: string;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+};
+
+function extractTodosFromToolResult(raw: string): SessionTodo[] | null {
+  try {
+    const parsed = JSON.parse(raw);
+    const todos = parsed?.ok ? parsed?.result?.todos : parsed?.todos;
+    if (!Array.isArray(todos)) return null;
+    const validStatuses = new Set(["pending", "in_progress", "completed", "cancelled"]);
+    return todos
+      .filter((t) => t && typeof t.id === "string" && typeof t.content === "string" && typeof t.status === "string")
+      .filter((t) => validStatuses.has(t.status))
+      .map((t) => ({
+        id: t.id,
+        content: t.content,
+        status: t.status as SessionTodo["status"],
+      }));
+  } catch {
+    return null;
+  }
+}
+
 
 
 const BATCH_SIZE = 150; // Number of messages to show/load at a time
@@ -77,6 +102,8 @@ const AgentChatPanel: Component = () => {
   const [mentionStart, setMentionStart] = createSignal(0);
   const [loadingOllamaModels, setLoadingOllamaModels] = createSignal(false);
   const [pastedImages, setPastedImages] = createSignal<string[]>([]); // base64 data URLs
+  const [agentMode, setAgentMode] = createSignal<"agent" | "ask" | "plan">("agent");
+  const [taskListExpanded, setTaskListExpanded] = createSignal(true);
 
   function flattenFileTree(entries: FileEntry[]): string[] {
     const result: string[] = [];
@@ -287,6 +314,27 @@ const AgentChatPanel: Component = () => {
     return Math.max(0, total - visible);
   });
 
+  const sessionTodos = createMemo<SessionTodo[]>(() => {
+    for (let i = agentMessages.length - 1; i >= 0; i--) {
+      const msg = agentMessages[i];
+      if (msg.role !== "tool_result") continue;
+      const todos = extractTodosFromToolResult(msg.content);
+      if (todos) return todos;
+    }
+    return [];
+  });
+
+  const todoCounts = createMemo(() => {
+    const todos = sessionTodos();
+    return {
+      pending: todos.filter((t) => t.status === "pending").length,
+      in_progress: todos.filter((t) => t.status === "in_progress").length,
+      completed: todos.filter((t) => t.status === "completed").length,
+      cancelled: todos.filter((t) => t.status === "cancelled").length,
+      total: todos.length,
+    };
+  });
+
   // Load older messages in batches
   function loadMoreMessages() {
     setVisibleCount(prev => prev + BATCH_SIZE);
@@ -329,6 +377,7 @@ const AgentChatPanel: Component = () => {
     if (branch) ctx.gitBranch = branch;
     const files = contextFiles();
     if (files.length > 0) ctx.files = files;
+    ctx.agentMode = agentMode();
     return Object.keys(ctx).length > 0 ? ctx : undefined;
   }
 
@@ -555,6 +604,62 @@ const AgentChatPanel: Component = () => {
         </Show>
       </div>
 
+      <div
+        class="flex items-center justify-between shrink-0 px-2 py-1"
+        style={{ "border-bottom": "1px solid var(--border-default)" }}
+      >
+        <div class="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border-muted)" }}>
+          <button
+            class="px-2 py-1 transition-colors"
+            style={{
+              background: agentMode() === "agent" ? "var(--accent-primary)" : "var(--bg-base)",
+              color: agentMode() === "agent" ? "#fff" : "var(--text-muted)",
+              border: "none",
+              cursor: "pointer",
+              "font-size": "11px",
+              "font-weight": "500",
+            }}
+            onClick={() => setAgentMode("agent")}
+            title="Full mode: can read, edit, and run approved commands"
+          >
+            Agent
+          </button>
+          <button
+            class="px-2 py-1 transition-colors"
+            style={{
+              background: agentMode() === "ask" ? "var(--accent-primary)" : "var(--bg-base)",
+              color: agentMode() === "ask" ? "#fff" : "var(--text-muted)",
+              border: "none",
+              cursor: "pointer",
+              "font-size": "11px",
+              "font-weight": "500",
+            }}
+            onClick={() => setAgentMode("ask")}
+            title="Ask mode: read-only analysis, no edits or commands"
+          >
+            Ask
+          </button>
+          <button
+            class="px-2 py-1 transition-colors"
+            style={{
+              background: agentMode() === "plan" ? "var(--accent-primary)" : "var(--bg-base)",
+              color: agentMode() === "plan" ? "#fff" : "var(--text-muted)",
+              border: "none",
+              cursor: "pointer",
+              "font-size": "11px",
+              "font-weight": "500",
+            }}
+            onClick={() => setAgentMode("plan")}
+            title="Plan mode: read-only planning before implementation"
+          >
+            Plan
+          </button>
+        </div>
+        <span style={{ color: "var(--text-muted)", "font-size": "11px" }}>
+          {agentMode() === "agent" ? "Editing enabled" : "Read-only"}
+        </span>
+      </div>
+
       {/* Header row 2: provider + model selectors (always visible) */}
       <ProviderModelSelector
         modelDropdownOpen={modelDropdownOpen}
@@ -705,6 +810,60 @@ const AgentChatPanel: Component = () => {
           onRemove={removeContextFile}
           fontSize={fontSize()}
         />
+      </Show>
+
+      {/* Agent Task List */}
+      <Show when={sessionTodos().length > 0}>
+        <div
+          class="shrink-0 mx-3 mt-1 rounded-md overflow-hidden"
+          style={{
+            border: "1px solid var(--border-default)",
+            background: "var(--bg-base)",
+          }}
+        >
+          <button
+            class="w-full flex items-center justify-between px-2 py-1.5"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              "font-size": "12px",
+            }}
+            onClick={() => setTaskListExpanded(!taskListExpanded())}
+            title="Toggle task list"
+          >
+            <span>Task List · {todoCounts().total}</span>
+            <span style={{ color: "var(--text-muted)" }}>
+              {todoCounts().in_progress} active · {todoCounts().completed} done
+            </span>
+          </button>
+          <Show when={taskListExpanded()}>
+            <div
+              class="px-2 pb-2"
+              style={{
+                "max-height": "160px",
+                overflow: "auto",
+                "font-size": "12px",
+                color: "var(--text-secondary)",
+                "border-top": "1px solid var(--border-muted)",
+              }}
+            >
+              <For each={sessionTodos()}>
+                {(todo) => (
+                  <div class="flex items-start gap-2 py-1">
+                    <span style={{ color: todo.status === "completed" ? "var(--accent-green)" : todo.status === "in_progress" ? "var(--accent-blue)" : todo.status === "cancelled" ? "var(--accent-red)" : "var(--text-muted)", "margin-top": "1px" }}>
+                      {todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "▶" : todo.status === "cancelled" ? "✕" : "•"}
+                    </span>
+                    <span style={{ "text-decoration": todo.status === "completed" ? "line-through" : "none", opacity: todo.status === "cancelled" ? "0.7" : "1" }}>
+                      {todo.content}
+                    </span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
       </Show>
 
       {/* @ mention dropdown */}
