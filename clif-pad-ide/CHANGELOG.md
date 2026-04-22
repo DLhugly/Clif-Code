@@ -1,3 +1,10 @@
+# [1.64.0](https://github.com/DLhugly/Clif-Code/compare/v1.63.0...v1.64.0) (2026-04-22)
+
+
+### Features
+
+* implement review mode and UI enhancements ([706e472](https://github.com/DLhugly/Clif-Code/commit/706e472eb33d4a83896c6b0610b0c17acd13111c))
+
 # [1.63.0](https://github.com/DLhugly/Clif-Code/compare/v1.62.0...v1.63.0) (2026-04-22)
 
 
