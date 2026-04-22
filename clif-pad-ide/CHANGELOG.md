@@ -1,3 +1,10 @@
+# [1.62.0](https://github.com/DLhugly/Clif-Code/compare/v1.61.0...v1.62.0) (2026-04-22)
+
+
+### Features
+
+* implement session-based todo management in AgentChatPanel ([156955e](https://github.com/DLhugly/Clif-Code/commit/156955e5513295f11ab77b4f59994658a7a32e10))
+
 # [1.61.0](https://github.com/DLhugly/Clif-Code/compare/v1.60.0...v1.61.0) (2026-04-07)
 
 
