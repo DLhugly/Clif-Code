@@ -1,3 +1,10 @@
+# [1.65.0](https://github.com/DLhugly/Clif-Code/compare/v1.64.0...v1.65.0) (2026-04-22)
+
+
+### Features
+
+* update font sizes across components for consistency ([f092d3d](https://github.com/DLhugly/Clif-Code/commit/f092d3d7c8119d52293bb47e0fd29294e99c8409))
+
 # [1.64.0](https://github.com/DLhugly/Clif-Code/compare/v1.63.0...v1.64.0) (2026-04-22)
 
 
