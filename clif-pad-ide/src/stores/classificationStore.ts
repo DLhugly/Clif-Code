@@ -3,6 +3,7 @@ import { createStore, produce } from "solid-js/store";
 import { projectRoot } from "./fileStore";
 import { prClassify, prClassifyBatch } from "../lib/tauri";
 import type { PrClassification, Tier } from "../types/classification";
+import { recordDecision } from "./syncStore";
 
 const [classifications, setClassifications] = createStore<Record<number, PrClassification>>({});
 const [classifying, setClassifying] = createSignal<Set<number>>(new Set());
@@ -33,6 +34,7 @@ async function fetchClassification(
         state[prNumber] = result;
       }),
     );
+    void recordClassifyDecision(prNumber, result.tier);
     return result;
   } catch {
     return null;
@@ -54,11 +56,26 @@ async function classifyAllVisible(prNumbers: number[]): Promise<void> {
         for (const r of results) state[r.pr_number] = r;
       }),
     );
+    for (const r of results) {
+      void recordClassifyDecision(r.pr_number, r.tier);
+    }
   } catch {
     // ignore
   } finally {
     for (const n of missing) markClassifying(n, false);
   }
+}
+
+/**
+ * Record a classify decision at most once per (PR, tier) pair per session.
+ * Prevents the decision log from ballooning with duplicate entries when the
+ * PR list is refreshed frequently.
+ */
+const classifyRecorded = new Map<number, string>();
+async function recordClassifyDecision(prNumber: number, tier: Tier): Promise<void> {
+  if (classifyRecorded.get(prNumber) === tier) return;
+  classifyRecorded.set(prNumber, tier);
+  await recordDecision({ pr_number: prNumber, kind: "classify", tier });
 }
 
 export function tierRank(t: Tier): number {

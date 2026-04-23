@@ -391,7 +391,18 @@ async function postReview(
   action: "comment" | "approve" | "request_changes",
   body: string,
 ): Promise<void> {
-  return invoke("pr_review_post", { workspaceDir, prNumber, action, body });
+  await invoke("pr_review_post", { workspaceDir, prNumber, action, body });
+  // Record a local decision so the sync layer can mirror the right label.
+  const { recordDecision } = await import("./syncStore");
+  if (action === "approve") {
+    await recordDecision({ pr_number: prNumber, kind: "mark_ready_to_merge", note: body || null });
+    await recordDecision({ pr_number: prNumber, kind: "mark_reviewed", note: null });
+  } else if (action === "request_changes") {
+    await recordDecision({ pr_number: prNumber, kind: "mark_kicked_back", note: body || null });
+    await recordDecision({ pr_number: prNumber, kind: "mark_reviewed", note: null });
+  } else {
+    await recordDecision({ pr_number: prNumber, kind: "mark_reviewed", note: body || null });
+  }
 }
 
 async function polishPreview(
@@ -407,7 +418,37 @@ async function polishApply(
   prNumber: number,
   planId: string,
 ): Promise<PolishApplyReport> {
-  return invoke<PolishApplyReport>("pr_polish_apply", { workspaceDir, prNumber, planId });
+  const report = await invoke<PolishApplyReport>("pr_polish_apply", {
+    workspaceDir,
+    prNumber,
+    planId,
+  });
+  const { recordDecision } = await import("./syncStore");
+  await recordDecision({ pr_number: prNumber, kind: "mark_polished", note: null });
+  return report;
+}
+
+async function markKickedBack(prNumber: number, note?: string): Promise<void> {
+  const { recordDecision } = await import("./syncStore");
+  await recordDecision({
+    pr_number: prNumber,
+    kind: "mark_kicked_back",
+    note: note ?? null,
+  });
+}
+
+async function markReadyToMerge(prNumber: number, note?: string): Promise<void> {
+  const { recordDecision } = await import("./syncStore");
+  await recordDecision({
+    pr_number: prNumber,
+    kind: "mark_ready_to_merge",
+    note: note ?? null,
+  });
+}
+
+async function clearPrDecisions(prNumber: number): Promise<void> {
+  const { recordDecision } = await import("./syncStore");
+  await recordDecision({ pr_number: prNumber, kind: "clear", note: null });
 }
 
 function getWorkspaceDir(): string | null {
@@ -800,6 +841,9 @@ export {
   postReview,
   polishPreview,
   polishApply,
+  markKickedBack,
+  markReadyToMerge,
+  clearPrDecisions,
   dismissFinding,
   promoteFindingRequired,
   applyFindingPatch,

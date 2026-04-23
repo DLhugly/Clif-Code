@@ -23,6 +23,8 @@ import ShortcutsOverlay from "./ShortcutsOverlay";
 import PendingComments from "./PendingComments";
 import ConsolidationView from "./ConsolidationView";
 import WorkspaceHeader from "./WorkspaceHeader";
+import SyncDrawer from "./SyncDrawer";
+import { loadDecisions, previewSync } from "../../stores/syncStore";
 import { consolidationOpen, closeConsolidation, openConsolidationFromSelection } from "./consolidationHub";
 import { pendingComments, loadPendingComments } from "../../stores/reviewsStore";
 import { projectRoot } from "../../stores/fileStore";
@@ -36,6 +38,7 @@ const ReviewWorkspace: Component = () => {
   const [auditOpen, setAuditOpen] = createSignal(false);
   const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
   const [pendingOpen, setPendingOpen] = createSignal(false);
+  const [syncOpen, setSyncOpen] = createSignal(false);
 
   function onKey(e: KeyboardEvent) {
     // Ignore when focus is in an input/textarea
@@ -87,6 +90,8 @@ const ReviewWorkspace: Component = () => {
     window.addEventListener("keydown", onKey);
     const root = projectRoot();
     if (root) loadPendingComments(root);
+    void loadDecisions();
+    void previewSync();
   });
   onCleanup(() => {
     window.removeEventListener("keydown", onKey);
@@ -153,6 +158,10 @@ const ReviewWorkspace: Component = () => {
         onOpenPending={() => setPendingOpen(true)}
         onOpenAudit={() => setAuditOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        onOpenSync={() => {
+          setSyncOpen(true);
+          void previewSync();
+        }}
       />
       <div class="flex flex-1 min-h-0 overflow-hidden">
       {/* Left: PR list */}
@@ -208,6 +217,9 @@ const ReviewWorkspace: Component = () => {
       </Show>
       <Show when={consolidationOpen()}>
         <ConsolidationView onClose={() => closeConsolidation()} />
+      </Show>
+      <Show when={syncOpen()}>
+        <SyncDrawer onClose={() => setSyncOpen(false)} />
       </Show>
     </div>
   );

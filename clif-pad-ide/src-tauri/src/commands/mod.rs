@@ -10,4 +10,5 @@ pub mod review;
 pub mod search;
 pub mod security;
 pub mod settings;
+pub mod sync;
 pub mod window;

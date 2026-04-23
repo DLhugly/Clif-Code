@@ -192,6 +192,13 @@ pub fn run() {
             commands::review::pr_consolidate_apply,
             commands::review::pr_classify,
             commands::review::pr_classify_batch,
+            commands::sync::sync_record_decision,
+            commands::sync::sync_list_decisions,
+            commands::sync::sync_pending_prs,
+            commands::sync::sync_preview,
+            commands::sync::sync_apply,
+            commands::sync::sync_status,
+            commands::sync::sync_bootstrap_labels,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

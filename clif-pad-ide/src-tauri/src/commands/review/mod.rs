@@ -1,4 +1,4 @@
-mod audit;
+pub(crate) mod audit;
 mod auto_comment;
 mod classifier;
 mod consolidate;

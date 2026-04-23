@@ -30,6 +30,7 @@ import {
   classifying,
   fetchClassification,
 } from "../../stores/classificationStore";
+import { pendingPrs, previewPlans } from "../../stores/syncStore";
 
 const CheckGlyph: Component<{ state: "passing" | "failing" | "pending" | "none" }> = (props) => {
   const color = () =>
@@ -77,6 +78,29 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
   const relatedCount = createMemo(() => (relatedPrs[props.pr.number] ?? []).length);
   const classification = createMemo(() => classifications[props.pr.number] ?? null);
   const isClassifying = () => classifying().has(props.pr.number);
+
+  const syncIndicator = createMemo(() => {
+    const plan = previewPlans[props.pr.number];
+    if (plan && plan.add.length + plan.remove.length > 0) {
+      const adds = plan.add.map((l) => `+ ${l}`);
+      const removes = plan.remove.map((l) => `- ${l}`);
+      const lines = [...adds, ...removes].join("\n");
+      const heading = `Sync pending (${plan.add.length + plan.remove.length} change${
+        plan.add.length + plan.remove.length === 1 ? "" : "s"
+      }):`;
+      return {
+        color: "var(--accent-primary)",
+        title: `${heading}\n${lines}`,
+      };
+    }
+    if (pendingPrs().has(props.pr.number)) {
+      return {
+        color: "var(--accent-yellow)",
+        title: "New decisions not yet pushed — open Sync drawer to preview",
+      };
+    }
+    return null;
+  });
 
   // Lazy-load detail (commits + checks) the first time the row is expanded
   createEffect(() => {
@@ -161,12 +185,26 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
           />
         </div>
         <div class="flex flex-col items-center gap-1 shrink-0" style={{ width: "44px", "padding-top": "2px" }}>
-          <TierChip
-            classification={classification()}
-            loading={isClassifying()}
-            size="sm"
-            showScore={false}
-          />
+          <div class="flex items-center gap-1">
+            <TierChip
+              classification={classification()}
+              loading={isClassifying()}
+              size="sm"
+              showScore={false}
+            />
+            <Show when={syncIndicator()}>
+              <span
+                title={syncIndicator()!.title}
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  "border-radius": "50%",
+                  background: syncIndicator()!.color,
+                  "flex-shrink": "0",
+                }}
+              />
+            </Show>
+          </div>
           <span
             style={{
               "font-family": "var(--font-mono, monospace)",

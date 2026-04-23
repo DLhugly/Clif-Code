@@ -10,6 +10,7 @@ import {
   selectByTier,
 } from "../../stores/reviewsStore";
 import { TIER_META, type Tier } from "../../types/classification";
+import { pendingPrs, previewPlans, syncRunning } from "../../stores/syncStore";
 
 const Chip: Component<{
   label: string;
@@ -63,6 +64,7 @@ const WorkspaceHeader: Component<{
   onOpenPending: () => void;
   onOpenAudit: () => void;
   onOpenShortcuts: () => void;
+  onOpenSync: () => void;
 }> = (props) => {
   const reviewing = () => runningReviews().size;
   const pending = () => pendingComments.length;
@@ -194,6 +196,77 @@ const WorkspaceHeader: Component<{
         >
           Audit
         </button>
+        {(() => {
+          const plannedDelta = () => {
+            let n = 0;
+            for (const key of Object.keys(previewPlans)) {
+              const p = previewPlans[Number(key)];
+              if (p) n += p.add.length + p.remove.length;
+            }
+            return n;
+          };
+          const pendingCount = () => pendingPrs().size;
+          const hasWork = () => plannedDelta() > 0 || pendingCount() > 0;
+          return (
+            <button
+              class="flex items-center gap-1 rounded-full px-2 py-0.5"
+              style={{
+                background: hasWork()
+                  ? "color-mix(in srgb, var(--accent-primary) 16%, transparent)"
+                  : "transparent",
+                color: hasWork() ? "var(--accent-primary)" : "var(--text-muted)",
+                border: `1px solid ${
+                  hasWork()
+                    ? "color-mix(in srgb, var(--accent-primary) 30%, transparent)"
+                    : "var(--border-default)"
+                }`,
+                cursor: syncRunning() ? "wait" : "pointer",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
+                "font-weight": hasWork() ? "500" : "400",
+              }}
+              onClick={props.onOpenSync}
+              title={
+                syncRunning()
+                  ? "Sync in progress"
+                  : hasWork()
+                  ? `${plannedDelta()} label change${plannedDelta() === 1 ? "" : "s"} planned across ${pendingCount()} PR${pendingCount() === 1 ? "" : "s"} — click to preview and push`
+                  : "All local decisions are in sync with GitHub"
+              }
+            >
+              <Show
+                when={hasWork() || syncRunning()}
+                fallback={
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                }
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </Show>
+              <span>{syncRunning() ? "Syncing" : hasWork() ? "Sync" : "Synced"}</span>
+              <Show when={hasWork() && !syncRunning()}>
+                <span
+                  class="px-1.5 rounded-full"
+                  style={{
+                    background: "var(--accent-primary)",
+                    color: "#fff",
+                    "font-weight": "700",
+                    "min-width": "14px",
+                    "text-align": "center",
+                    "font-size": "calc(var(--ui-font-size) - 4px)",
+                  }}
+                >
+                  {plannedDelta() > 0 ? plannedDelta() : pendingCount()}
+                </span>
+              </Show>
+            </button>
+          );
+        })()}
         <Show when={pending() > 0}>
           <button
             class="flex items-center gap-1 rounded-full px-2 py-0.5"
