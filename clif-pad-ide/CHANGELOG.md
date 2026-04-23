@@ -1,3 +1,10 @@
+# [1.68.0](https://github.com/DLhugly/Clif-Code/compare/v1.67.0...v1.68.0) (2026-04-23)
+
+
+### Features
+
+* implement structured context compaction messaging in ChatMessage component ([24e5c03](https://github.com/DLhugly/Clif-Code/commit/24e5c03aa862f6e1b90d4d21580ec199a421b722))
+
 # [1.67.0](https://github.com/DLhugly/Clif-Code/compare/v1.66.0...v1.67.0) (2026-04-23)
 
 
