@@ -243,6 +243,23 @@ fn tool_definitions() -> Vec<serde_json::Value> {
         json!({
             "type": "function",
             "function": {
+                "name": "find_symbol",
+                "description": "Fast lookup of function, class, struct, interface, type, enum, or constant definitions across the workspace. Uses the local codebase index — returns file path and line number for each definition. Prefer this over `search` when you know the name of the thing you are looking for.",
+                "strict": true,
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": { "type": "string", "description": "Symbol name to look up (case-insensitive substring match)." },
+                        "limit": { "type": "integer", "description": "Max results to return. Defaults to 10." }
+                    },
+                    "required": ["name"]
+                }
+            }
+        }),
+        json!({
+            "type": "function",
+            "function": {
                 "name": "todo_write",
                 "description": "Create or update a structured todo list for this session. Use this for multi-step tasks to track progress and verification steps.",
                 "strict": true,
@@ -891,6 +908,60 @@ async fn execute_tool(
                 Err(e) => tool_error("FIND_FAILED", format!("Find error: {}", e), true),
             }
         }
+        "find_symbol" => {
+            // Ranked symbol lookup against the local index. If the index
+            // hasn't been built yet we tell the model so it falls back to
+            // `search` instead of reporting a false negative.
+            let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+            if name.is_empty() {
+                return tool_error("INVALID_ARGS", "find_symbol requires a non-empty `name`.", false);
+            }
+            let limit = args
+                .get("limit")
+                .and_then(|v| v.as_u64())
+                .map(|n| n.min(50) as u32)
+                .unwrap_or(10);
+
+            // Call through to the indexer module directly — stays in-process.
+            let hits = crate::commands::indexer::index_find_symbol(
+                workspace_dir.to_string(),
+                name.to_string(),
+                Some(limit),
+            );
+
+            match hits {
+                Ok(list) if list.is_empty() => {
+                    tool_success(json!(format!(
+                        "No symbols matching '{}' in the index. If the codebase index isn't built yet, fall back to `search`.",
+                        name
+                    )))
+                }
+                Ok(list) => {
+                    let lines: Vec<String> = list
+                        .into_iter()
+                        .map(|h| {
+                            format!(
+                                "{}:{} — {} {} ({})",
+                                h.symbol.file,
+                                h.symbol.line,
+                                h.symbol.kind.as_str(),
+                                h.symbol.name,
+                                h.symbol.language
+                            )
+                        })
+                        .collect();
+                    tool_success(json!(lines.join("\n")))
+                }
+                Err(e) => tool_error(
+                    "INDEX_NOT_READY",
+                    format!(
+                        "Symbol index not available: {}. Use `search` as a fallback.",
+                        e
+                    ),
+                    true,
+                ),
+            }
+        }
         "todo_write" => {
             let Some(sid) = session_id else {
                 return tool_error("SESSION_REQUIRED", "todo_write requires an active agent session.", false);
@@ -1040,6 +1111,7 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
         "search" => &["query", "path"],
         "run_command" => &["command", "working_dir"],
         "find_file" => &["name", "dir"],
+        "find_symbol" => &["name", "limit"],
         "todo_write" => &["todos", "merge"],
         "todo_read" => &[],
         "submit" => &["summary"],
@@ -1109,6 +1181,15 @@ fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String
             if let Some(v) = obj.get("dir") {
                 if !v.is_string() {
                     return Err("Field 'dir' must be a string".to_string());
+                }
+            }
+            Ok(())
+        }
+        "find_symbol" => {
+            require_string("name")?;
+            if let Some(v) = obj.get("limit") {
+                if !v.is_null() && !v.is_u64() && !v.is_i64() {
+                    return Err("Field 'limit' must be an integer or null".to_string());
                 }
             }
             Ok(())
@@ -2103,6 +2184,7 @@ async fn run_agent_loop(
                 "list_files" => "Exploring files...",
                 "search" => "Searching codebase...",
                 "find_file" => "Finding file...",
+                "find_symbol" => "Looking up symbol...",
                 "todo_write" => "Updating task list...",
                 "todo_read" => "Reading task list...",
                 "run_command" => "Running command...",

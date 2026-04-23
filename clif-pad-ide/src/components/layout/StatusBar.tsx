@@ -9,6 +9,12 @@ import {
   editorVisible,
   toggleEditor,
 } from "../../stores/uiStore";
+import {
+  indexStatus,
+  indexProgress,
+  isBuilding,
+  buildIndex,
+} from "../../stores/indexStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -281,7 +287,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (_props) => {
         </Show>
       </div>
 
-      {/* Center: Editor pill · tiny file meta */}
+      {/* Center: Editor pill · index chip · tiny file meta */}
       <div class="flex items-center gap-2 shrink-0">
         <PillButton
           label="Editor"
@@ -291,6 +297,125 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (_props) => {
         >
           <EditorIcon />
         </PillButton>
+
+        {/* Index chip — progress while building, muted badge when ready. */}
+        {(() => {
+          const status = () => indexStatus();
+          const progress = () => indexProgress();
+          const building = () => isBuilding();
+          const phase = () => progress()?.phase;
+          const phaseLabel = () => {
+            switch (phase()) {
+              case "scan":
+                return "Scanning…";
+              case "recency":
+                return "Reading git log…";
+              case "symbols":
+                return `Parsing ${progress()?.current ?? 0}/${progress()?.total ?? "?"}`;
+              case "postings":
+                return "Building index…";
+              case "save":
+                return "Saving…";
+              case "done":
+                return "Index ready";
+              case "error":
+                return "Index failed";
+              default:
+                return "Indexing…";
+            }
+          };
+          const isError = () => phase() === "error" || status().state === "error";
+          const isReady = () => status().state === "ready" && !building();
+          const isRunning = () => building() || (progress() && phase() !== "done" && phase() !== "error");
+          return (
+            <Show when={building() || progress() || status().state !== "missing"}>
+              <button
+                class="statusbar-index flex items-center gap-1.5 rounded-full transition-colors"
+                style={{
+                  background: isError()
+                    ? "color-mix(in srgb, var(--accent-red) 14%, transparent)"
+                    : isRunning()
+                    ? "color-mix(in srgb, var(--accent-yellow) 14%, transparent)"
+                    : "var(--bg-hover)",
+                  color: isError()
+                    ? "var(--accent-red)"
+                    : isRunning()
+                    ? "var(--accent-yellow)"
+                    : "var(--text-muted)",
+                  border: `1px solid ${
+                    isError()
+                      ? "color-mix(in srgb, var(--accent-red) 34%, transparent)"
+                      : isRunning()
+                      ? "color-mix(in srgb, var(--accent-yellow) 34%, transparent)"
+                      : "var(--border-default)"
+                  }`,
+                  cursor: "pointer",
+                  padding: "2px 10px",
+                  height: "20px",
+                  "font-size": "11px",
+                  "font-weight": "500",
+                }}
+                onClick={() => {
+                  if (!building()) void buildIndex();
+                }}
+                title={
+                  isError()
+                    ? `Index error: ${status().error ?? "unknown"} — click to retry`
+                    : isRunning()
+                    ? "Building codebase index…"
+                    : isReady()
+                    ? `Index ready · ${status().file_count} files · ${status().symbol_count} symbols (click to rebuild)`
+                    : "Click to build codebase index"
+                }
+              >
+                <Show
+                  when={isRunning()}
+                  fallback={
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  }
+                >
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    class="animate-spin"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                </Show>
+                <span>
+                  {isRunning() ? phaseLabel() : isError() ? "Index failed" : "Index"}
+                </span>
+                <Show when={isReady() && !isRunning()}>
+                  <span
+                    style={{
+                      opacity: 0.7,
+                      "font-family": "var(--font-mono, monospace)",
+                      "font-size": "10px",
+                    }}
+                  >
+                    {status().file_count}
+                  </span>
+                </Show>
+              </button>
+            </Show>
+          );
+        })()}
+
         <Show when={language() || activeFile()}>
           <span
             class="statusbar-filemeta"

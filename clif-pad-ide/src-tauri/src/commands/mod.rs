@@ -4,6 +4,7 @@ pub mod claude_code;
 pub mod fs;
 pub mod gh;
 pub mod git;
+pub mod indexer;
 pub mod lsp;
 pub mod pty;
 pub mod review;

@@ -397,6 +397,18 @@ async function saveFile(path: string) {
     await writeFile(path, file.content);
     const idx = openFiles.findIndex((f) => f.path === path);
     setOpenFiles(idx, "isDirty", false);
+
+    // Best-effort incremental index update so the agent's symbol lookups
+    // reflect the edit. Loaded lazily to avoid a circular store import.
+    const root = projectRoot();
+    if (root && path.startsWith(root)) {
+      const relPath = path.slice(root.length).replace(/^[\\/]+/, "");
+      import("./indexStore").then(({ touchFile }) => {
+        void touchFile(relPath);
+      }).catch(() => {
+        // indexStore not ready; ignore
+      });
+    }
   } catch (e) {
     console.error("Failed to save file:", e);
   }
