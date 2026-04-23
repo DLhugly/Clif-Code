@@ -1,3 +1,10 @@
+# [1.67.0](https://github.com/DLhugly/Clif-Code/compare/v1.66.0...v1.67.0) (2026-04-23)
+
+
+### Features
+
+* enhance AgentChatPanel and ModelBrowser with provider-specific model fetching ([b37789f](https://github.com/DLhugly/Clif-Code/commit/b37789ff386bf6fa50969a3622b2901f056eb7be))
+
 # [1.66.0](https://github.com/DLhugly/Clif-Code/compare/v1.65.0...v1.66.0) (2026-04-23)
 
 
