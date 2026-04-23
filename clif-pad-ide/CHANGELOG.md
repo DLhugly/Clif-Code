@@ -1,3 +1,10 @@
+# [1.70.0](https://github.com/DLhugly/Clif-Code/compare/v1.69.0...v1.70.0) (2026-04-23)
+
+
+### Features
+
+* update index snapshot storage to OS cache directory ([bfe5dc0](https://github.com/DLhugly/Clif-Code/commit/bfe5dc060d310dcfc48c52d699a44f1634422be4))
+
 # [1.69.0](https://github.com/DLhugly/Clif-Code/compare/v1.68.0...v1.69.0) (2026-04-23)
 
 
