@@ -296,6 +296,15 @@ const AgentChatPanel: Component = () => {
     }
     // Re-check API key for new provider
     setTimeout(() => checkApiKey(), 100);
+    // Pull live model lists for the newly-selected provider so the browser
+    // doesn't sit on a stale or empty list. Previously the fetch only ran
+    // when the model dropdown was opened from a fresh state — switching
+    // providers inside the open browser left it empty.
+    if (provider === "openrouter") {
+      void fetchOpenRouterModels();
+    } else if (provider === "ollama") {
+      void loadOllamaModels();
+    }
   }
 
   function handleModelChange(model: string) {
@@ -576,80 +585,85 @@ const AgentChatPanel: Component = () => {
         position: "relative",
       }}
     >
-      {/* Header: tabs + new session */}
+      {/* Unified header: tabs (with inline + button) · model chip · init.
+          Two chunky rows + a duplicate "+" collapsed into one 32px strip. */}
       <div
         class="flex items-center shrink-0"
         style={{
           "border-bottom": "1px solid var(--border-muted)",
-          height: "28px",
+          height: "32px",
           background: "var(--bg-surface)",
+          padding: "0 6px",
+          gap: "6px",
         }}
       >
-        <AgentTabs />
+        {/* Left: tabs (already includes its own + button) */}
+        <div class="flex-1 min-w-0" style={{ display: "flex", "align-items": "center" }}>
+          <AgentTabs />
+        </div>
 
-        {/* New session button */}
-        <button
-          class="flex items-center justify-center shrink-0"
-          style={{
-            width: "28px", height: "28px",
-            color: "var(--text-muted)", background: "transparent",
-            border: "none", cursor: "pointer", "font-size": "15px",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-          onClick={startNewSession}
-          title="New chat"
-        >
-          +
-        </button>
+        {/* Right: model chip + init project. Provider toggle lives inside
+            the model chip's browser now, so we don't duplicate controls. */}
+        <ProviderModelSelector
+          modelDropdownOpen={modelDropdownOpen}
+          setModelDropdownOpen={setModelDropdownOpen}
+          openRouterModels={openRouterModels}
+          fetchOpenRouterModels={fetchOpenRouterModels}
+          hasApiKey={hasApiKey}
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          handleProviderChange={handleProviderChange}
+        />
 
-        {/* Init project button */}
         <Show when={projectRoot() && settings().aiProvider !== "ollama"}>
           <button
-            class="flex items-center justify-center shrink-0"
+            class="flex items-center justify-center shrink-0 rounded-full transition-colors"
             style={{
-              width: "28px", height: "28px",
-              color: clifInitializing() ? "var(--accent-primary)" : clifExists() ? "var(--accent-green)" : "var(--text-muted)",
-              background: "transparent", border: "none",
+              width: "22px",
+              height: "22px",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-hover)",
+              color: clifInitializing()
+                ? "var(--accent-primary)"
+                : clifExists()
+                ? "var(--accent-green)"
+                : "var(--text-muted)",
               cursor: clifInitializing() ? "default" : "pointer",
-              "font-size": "13px",
             }}
-            onMouseEnter={(e) => { if (!clifInitializing()) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            onMouseEnter={(e) => {
+              if (!clifInitializing())
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+            }}
             onClick={handleInitProject}
-            title={clifInitializing()
-              ? "Analyzing project..."
-              : clifExists()
-              ? "Re-initialize project context (CLIF.md exists)"
-              : "Initialize project context — analyze codebase and write .clif/CLIF.md"}
+            title={
+              clifInitializing()
+                ? "Analyzing project..."
+                : clifExists()
+                ? "Re-initialize project context (CLIF.md exists)"
+                : "Initialize project context — analyze codebase and write .clif/CLIF.md"
+            }
           >
-            <Show when={clifInitializing()} fallback={
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <Show when={clifExists()}>
-                  <polyline points="9 11 12 14 22 4" />
-                </Show>
-              </svg>
-            }>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            <Show
+              when={clifInitializing()}
+              fallback={
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <Show when={clifExists()}>
+                    <polyline points="9 11 12 14 22 4" />
+                  </Show>
+                </svg>
+              }
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
             </Show>
           </button>
         </Show>
       </div>
-
-      {/* Header row 2: provider + model selectors (always visible) */}
-      <ProviderModelSelector
-        modelDropdownOpen={modelDropdownOpen}
-        setModelDropdownOpen={setModelDropdownOpen}
-        openRouterModels={openRouterModels}
-        fetchOpenRouterModels={fetchOpenRouterModels}
-        hasApiKey={hasApiKey}
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        handleProviderChange={handleProviderChange}
-      />
 
       {/* API key input (toggled by key icon) */}
       <Show when={showSettings() && settings().aiProvider !== "ollama"}>
@@ -717,6 +731,7 @@ const AgentChatPanel: Component = () => {
           filteredModels={filteredModels}
           handleModelChange={handleModelChange}
           setModelDropdownOpen={setModelDropdownOpen}
+          handleProviderChange={handleProviderChange}
         />
       </Show>
 
@@ -940,7 +955,13 @@ const AgentChatPanel: Component = () => {
           class="flex flex-row items-end gap-2 rounded-xl px-3 py-2"
           style={{
             background: "var(--bg-base)",
-            border: `1px solid ${agentMode() === "ask" ? "color-mix(in srgb, var(--accent-yellow) 50%, var(--border-default))" : agentMode() === "plan" ? "color-mix(in srgb, var(--accent-blue) 50%, var(--border-default))" : "var(--border-default)"}`,
+            border: `1px solid ${
+              agentMode() === "ask"
+                ? "color-mix(in srgb, var(--accent-yellow) 25%, var(--border-default))"
+                : agentMode() === "plan"
+                ? "color-mix(in srgb, var(--accent-blue) 25%, var(--border-default))"
+                : "var(--border-default)"
+            }`,
             transition: "border-color 0.15s",
           }}
         >
@@ -1142,67 +1163,82 @@ const AgentChatPanel: Component = () => {
           class="flex flex-row items-center justify-between mt-2 px-1"
           style={{ "font-size": "11px", color: "var(--text-muted)" }}
         >
-          {/* Left: mode switcher */}
+          {/* Left: mode switcher — pill segmented control matching Code/Review
+              and Provider toggles. Each mode has its own accent color so the
+              panel border and send button reflect the current mode. */}
           <div class="flex items-center gap-2" style={{ "min-width": "0" }}>
-            <div
-              class="flex rounded-md overflow-hidden"
-              style={{
-                border: `1px solid ${agentMode() === "ask" ? "color-mix(in srgb, var(--accent-yellow) 40%, var(--border-muted))" : agentMode() === "plan" ? "color-mix(in srgb, var(--accent-blue) 40%, var(--border-muted))" : "var(--border-muted)"}`,
-                transition: "border-color 0.15s",
-              }}
-            >
-              <button
-                class="px-2 py-0.5 transition-colors"
-                style={{
-                  background: agentMode() === "agent" ? "var(--accent-primary)" : "transparent",
-                  color: agentMode() === "agent" ? "#fff" : "var(--text-muted)",
-                  border: "none",
-                  cursor: "pointer",
-                  "font-size": "11px",
-                  "font-weight": "500",
-                }}
-                onClick={() => setAgentMode("agent")}
-                title="Agent mode — can read, edit, and run approved commands"
-              >
-                Agent
-              </button>
-              <button
-                class="px-2 py-0.5 transition-colors"
-                style={{
-                  background: agentMode() === "ask" ? "var(--accent-yellow)" : "transparent",
-                  color: agentMode() === "ask" ? "#000" : "var(--text-muted)",
-                  border: "none",
-                  cursor: "pointer",
-                  "font-size": "11px",
-                  "font-weight": "500",
-                }}
-                onClick={() => setAgentMode("ask")}
-                title="Ask mode — read-only analysis, no edits or commands"
-              >
-                Ask
-              </button>
-              <button
-                class="px-2 py-0.5 transition-colors"
-                style={{
-                  background: agentMode() === "plan" ? "var(--accent-blue)" : "transparent",
-                  color: agentMode() === "plan" ? "#fff" : "var(--text-muted)",
-                  border: "none",
-                  cursor: "pointer",
-                  "font-size": "11px",
-                  "font-weight": "500",
-                }}
-                onClick={() => setAgentMode("plan")}
-                title="Plan mode — read-only planning before implementation"
-              >
-                Plan
-              </button>
-            </div>
+            {(() => {
+              const MODES: {
+                id: "agent" | "ask" | "plan";
+                label: string;
+                color: string;
+                title: string;
+              }[] = [
+                { id: "agent", label: "Agent", color: "var(--accent-primary)", title: "Agent mode — can read, edit, and run approved commands" },
+                { id: "ask", label: "Ask", color: "var(--accent-yellow)", title: "Ask mode — read-only analysis, no edits or commands" },
+                { id: "plan", label: "Plan", color: "var(--accent-blue)", title: "Plan mode — read-only planning before implementation" },
+              ];
+              return (
+                <div
+                  class="flex items-center"
+                  style={{
+                    border: "1px solid var(--border-default)",
+                    background: "color-mix(in srgb, var(--bg-base) 70%, transparent)",
+                    height: "22px",
+                    "border-radius": "999px",
+                    padding: "2px",
+                    gap: "2px",
+                  }}
+                  role="tablist"
+                  aria-label="Agent mode"
+                >
+                  <For each={MODES}>
+                    {(m) => {
+                      const active = () => agentMode() === m.id;
+                      return (
+                        <button
+                          class="flex items-center transition-colors"
+                          style={{
+                            height: "100%",
+                            padding: "0 10px",
+                            background: active()
+                              ? `color-mix(in srgb, ${m.color} 22%, transparent)`
+                              : "transparent",
+                            color: active() ? m.color : "var(--text-muted)",
+                            border: "none",
+                            cursor: "pointer",
+                            "font-size": "10.5px",
+                            "font-weight": active() ? "700" : "500",
+                            "border-radius": "999px",
+                            "letter-spacing": "0.01em",
+                          }}
+                          onClick={() => setAgentMode(m.id)}
+                          title={m.title}
+                          aria-selected={active()}
+                          role="tab"
+                        >
+                          {m.label}
+                        </button>
+                      );
+                    }}
+                  </For>
+                </div>
+              );
+            })()}
             <Show when={agentMode() !== "agent"}>
-              <span style={{
-                color: agentMode() === "ask" ? "var(--accent-yellow)" : "var(--accent-blue)",
-                "font-size": "10.5px",
-                "font-weight": "500",
-              }}>
+              <span
+                style={{
+                  color:
+                    agentMode() === "ask"
+                      ? "var(--accent-yellow)"
+                      : "var(--accent-blue)",
+                  "font-size": "10px",
+                  "font-weight": "600",
+                  "text-transform": "uppercase",
+                  "letter-spacing": "0.06em",
+                  opacity: 0.85,
+                }}
+              >
                 Read-only
               </span>
             </Show>

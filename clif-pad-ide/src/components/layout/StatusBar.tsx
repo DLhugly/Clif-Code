@@ -1,17 +1,39 @@
 import { Component, Show, createSignal, onMount } from "solid-js";
 import { activeFile, projectRoot } from "../../stores/fileStore";
-
-const hasProject = () => !!projectRoot();
 import { isGitRepo, currentBranch, aheadBehind, fetchRemote } from "../../stores/gitStore";
-import { theme, THEMES, agentVisible, toggleAgentPanel, terminalVisible, toggleTerminal, editorVisible, toggleEditor } from "../../stores/uiStore";
+import {
+  agentVisible,
+  toggleAgentPanel,
+  terminalVisible,
+  toggleTerminal,
+  editorVisible,
+  toggleEditor,
+} from "../../stores/uiStore";
 import { checkForUpdate, installUpdate, type UpdateStatus } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
 
+// ---------------------------------------------------------------------------
+// Inline SVG icons — kept at the top so the render function stays readable.
+// ---------------------------------------------------------------------------
+
 const TerminalIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="4 17 10 11 4 5" />
     <line x1="12" y1="19" x2="20" y2="19" />
+  </svg>
+);
+
+const EditorIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+    <polyline points="13 2 13 9 20 9" />
+  </svg>
+);
+
+const AgentIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
 
@@ -21,36 +43,82 @@ const SparkleIcon = () => (
   </svg>
 );
 
-const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
+const GitIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="6" y1="3" x2="6" y2="15" />
+    <circle cx="18" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M18 9a9 9 0 0 1-9 9" />
+  </svg>
+);
+
+// ---------------------------------------------------------------------------
+// PillButton: reusable small pill for panel toggles. Mirrors the visual
+// language used in TopBar/ModeToggle so the three panel toggles (Terminal,
+// Editor, Agent) all look and feel consistent across the app.
+// ---------------------------------------------------------------------------
+
+const PillButton: Component<{
+  label: string;
+  labelOn?: string;
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  children: any;
+}> = (p) => {
+  const effectiveLabel = () => (p.active && p.labelOn ? p.labelOn : p.label);
+  return (
+    <button
+      class="flex items-center gap-1.5 rounded-full shrink-0 transition-colors"
+      style={{
+        background: p.active ? "color-mix(in srgb, var(--accent-primary) 18%, transparent)" : "var(--bg-hover)",
+        color: p.active ? "var(--accent-primary)" : "var(--text-muted)",
+        border: `1px solid ${p.active ? "color-mix(in srgb, var(--accent-primary) 32%, transparent)" : "var(--border-default)"}`,
+        padding: "2px 10px",
+        height: "20px",
+        cursor: "pointer",
+        "font-size": "11px",
+        "font-weight": p.active ? "600" : "500",
+        "letter-spacing": "0.01em",
+      }}
+      onMouseEnter={(e) => {
+        if (!p.active) (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = p.active
+          ? "color-mix(in srgb, var(--accent-primary) 18%, transparent)"
+          : "var(--bg-hover)";
+      }}
+      onClick={p.onClick}
+      title={p.title}
+    >
+      {p.children}
+      <span>{effectiveLabel()}</span>
+    </button>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// StatusBar
+// ---------------------------------------------------------------------------
+
+const StatusBar: Component<{ onShowAbout?: () => void }> = (_props) => {
   const [appVersion, setAppVersion] = createSignal("...");
   const [updateStatus, setUpdateStatus] = createSignal<UpdateStatus>({ state: "idle" });
   const [pendingUpdate, setPendingUpdate] = createSignal<Update | null>(null);
 
-  // Format project path: show project folder + 2 levels above
   const projectPathDisplay = () => {
     const root = projectRoot();
     if (!root) return "";
-    
     const parts = root.split("/").filter(Boolean);
-    // Show last 3 parts: 2 levels above + project folder name
-    const displayParts = parts.slice(-3);
-    return displayParts.join("/");
+    return parts.slice(-3).join("/");
   };
 
-  const filePath = () => {
-    const file = activeFile();
-    return file ? file.path : "";
-  };
-
-  const language = () => {
-    const file = activeFile();
-    return file ? file.language : "";
-  };
+  const filePath = () => activeFile()?.path ?? "";
+  const language = () => activeFile()?.language ?? "";
 
   onMount(() => {
     getVersion().then((v) => setAppVersion(v)).catch(() => {});
-
-    // Delay update check so it doesn't block startup
     setTimeout(async () => {
       try {
         const update = await checkForUpdate();
@@ -59,8 +127,7 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
           setUpdateStatus({ state: "available", version: update.version, update });
         }
       } catch {
-        // Updater endpoint is unreachable or returned a bad manifest —
-        // fail silently on startup; user can retry by clicking the version chip
+        // Updater endpoint unreachable — fail silently
       }
     }, 3000);
   });
@@ -68,14 +135,11 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
   const handleUpdateClick = async () => {
     const update = pendingUpdate();
     if (!update) return;
-
     setUpdateStatus({ state: "downloading", progress: 0 });
-
     try {
       await installUpdate(update, (progress) => {
         setUpdateStatus({ state: "downloading", progress });
       });
-      // relaunch happens inside installUpdate, so we won't reach here normally
     } catch (e) {
       setUpdateStatus({
         state: "error",
@@ -85,15 +149,22 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
   };
 
   const updateLabel = () => {
-    const status = updateStatus();
-    switch (status.state) {
-      case "checking":   return "Checking...";
-      case "up-to-date": return `✓ Up to date`;
-      case "available":  return `Update v${status.version}`;
-      case "downloading": return `Updating ${status.progress}%`;
-      case "installing": return "Installing...";
-      case "error":      return "Update failed";
-      default:           return `ClifPad v${appVersion()}`;
+    const s = updateStatus();
+    switch (s.state) {
+      case "checking":
+        return "Checking…";
+      case "up-to-date":
+        return "Up to date";
+      case "available":
+        return `Update v${s.version}`;
+      case "downloading":
+        return `Updating ${s.progress}%`;
+      case "installing":
+        return "Installing…";
+      case "error":
+        return "Update failed";
+      default:
+        return `v${appVersion()}`;
     }
   };
 
@@ -129,72 +200,67 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
         height: "var(--status-bar-height)",
         background: "var(--bg-surface)",
         "border-top": "1px solid var(--border-muted)",
-        "font-size": "12px",
+        "font-size": "11px",
         "font-family": "var(--font-sans)",
-        "padding-left": "8px",
-        "padding-right": "8px",
+        padding: "0 8px",
+        gap: "8px",
       }}
     >
-      {/* Left section — Terminal toggle + git + launch buttons */}
-      <div class="flex items-center gap-2 min-w-0">
-        {/* Terminal toggle */}
-        <button
-          class="flex items-center gap-1.5 rounded shrink-0 transition-all duration-150"
-          style={{
-            background: terminalVisible() ? "var(--bg-active)" : "var(--bg-hover)",
-            color: terminalVisible() ? "var(--text-primary)" : "var(--text-muted)",
-            border: "1px solid var(--border-default)",
-            padding: "3px 12px",
-            cursor: "pointer",
-            "font-size": "12px",
-            "font-family": "var(--font-sans)",
-            "font-weight": "500",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = terminalVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+      {/* Left: Terminal pill · Git chip · path info */}
+      <div class="flex items-center gap-2 min-w-0" style={{ "flex-shrink": "1" }}>
+        <PillButton
+          label="Terminal"
+          labelOn="Terminal"
+          active={terminalVisible()}
           onClick={() => toggleTerminal()}
-          title={terminalVisible() ? "Hide terminal" : "Show terminal"}
+          title={terminalVisible() ? "Hide terminal (⌘`)" : "Show terminal (⌘`)"}
         >
           <TerminalIcon />
-          <span>{terminalVisible() ? "Close Terminal" : "Launch Terminal"}</span>
-        </button>
+        </PillButton>
 
         <Show when={isGitRepo()}>
           <div
-            class="flex items-center gap-1.5 shrink-0"
-            style={{ color: "var(--text-secondary)", cursor: "pointer" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
-            title="Click to sync"
-            onClick={() => { fetchRemote().catch(() => {}); }}
+            class="flex items-center gap-1 shrink-0 statusbar-git"
+            style={{ color: "var(--text-muted)", cursor: "pointer" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+            }}
+            title="Click to fetch from remote"
+            onClick={() => {
+              fetchRemote().catch(() => {});
+            }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="6" y1="3" x2="6" y2="15" />
-              <circle cx="18" cy="6" r="3" />
-              <circle cx="6" cy="18" r="3" />
-              <path d="M18 9a9 9 0 0 1-9 9" />
-            </svg>
+            <GitIcon />
             <span class="truncate" style={{ "max-width": "120px" }}>
               {currentBranch() || "main"}
             </span>
             <Show when={aheadBehind().ahead > 0 || aheadBehind().behind > 0}>
-              <span class="flex items-center gap-1" style={{ "font-size": "10px", "font-family": "var(--font-mono, monospace)" }}>
+              <span
+                class="flex items-center gap-0.5"
+                style={{ "font-size": "10px", "font-family": "var(--font-mono, monospace)" }}
+              >
                 <Show when={aheadBehind().ahead > 0}>
-                  <span style={{ color: "var(--accent-green)" }}>{"\u2191"}{aheadBehind().ahead}</span>
+                  <span style={{ color: "var(--accent-green)" }}>↑{aheadBehind().ahead}</span>
                 </Show>
                 <Show when={aheadBehind().behind > 0}>
-                  <span style={{ color: "var(--accent-blue)" }}>{"\u2193"}{aheadBehind().behind}</span>
+                  <span style={{ color: "var(--accent-blue)" }}>↓{aheadBehind().behind}</span>
                 </Show>
               </span>
             </Show>
           </div>
         </Show>
 
-        {/* Project path display */}
         <Show when={projectPathDisplay()}>
-          <div 
-            class="truncate" 
-            style={{ color: "var(--text-muted)", "max-width": "180px", "font-size": "11px" }} 
+          <div
+            class="truncate statusbar-path"
+            style={{
+              color: "var(--text-muted)",
+              "max-width": "180px",
+              opacity: 0.75,
+            }}
             title={projectRoot() || ""}
           >
             {projectPathDisplay()}
@@ -202,132 +268,122 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
         </Show>
 
         <Show when={filePath()}>
-          <div class="truncate" style={{ color: "var(--text-muted)", "max-width": "200px" }} title={filePath()}>
+          <div
+            class="truncate statusbar-file"
+            style={{
+              color: "var(--text-muted)",
+              "max-width": "220px",
+            }}
+            title={filePath()}
+          >
             {filePath()}
           </div>
         </Show>
       </div>
 
-      {/* Center section — Editor toggle + file info */}
-      <div class="flex items-center gap-3">
-        <button
-          class="flex items-center gap-1.5 rounded shrink-0 transition-all duration-150"
-          style={{
-            background: editorVisible() ? "var(--bg-active)" : "var(--bg-hover)",
-            color: editorVisible() ? "var(--text-primary)" : "var(--text-muted)",
-            border: "1px solid var(--border-default)",
-            padding: "3px 12px",
-            cursor: "pointer",
-            "font-size": "12px",
-            "font-family": "var(--font-sans)",
-            "font-weight": "500",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = editorVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+      {/* Center: Editor pill · tiny file meta */}
+      <div class="flex items-center gap-2 shrink-0">
+        <PillButton
+          label="Editor"
+          active={editorVisible()}
           onClick={() => toggleEditor()}
           title={editorVisible() ? "Hide editor" : "Show editor"}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
-            <polyline points="13 2 13 9 20 9" />
-          </svg>
-          <span>Open Editor</span>
-        </button>
-
-        <Show when={language()}>
-          <span style={{ color: "var(--text-muted)", "font-size": "11px" }}>{language()}</span>
+          <EditorIcon />
+        </PillButton>
+        <Show when={language() || activeFile()}>
+          <span
+            class="statusbar-filemeta"
+            style={{
+              color: "var(--text-muted)",
+              "font-size": "10px",
+              "font-family": "var(--font-mono, monospace)",
+              opacity: 0.7,
+            }}
+          >
+            <Show when={language()}>{language()}</Show>
+            <Show when={language() && activeFile()}>{" · "}</Show>
+            <Show when={activeFile()}>UTF-8</Show>
+          </span>
         </Show>
-
-        <Show when={activeFile()}>
-          <span style={{ color: "var(--text-muted)", "font-size": "11px" }}>UTF-8</span>
-        </Show>
-
       </div>
 
-      {/* Right section — Agent toggle + version */}
-      <div class="flex items-center gap-3 shrink-0">
-        {/* Agent toggle */}
-        <button
-          class="flex items-center gap-1.5 rounded shrink-0 transition-all duration-150"
-          style={{
-            background: agentVisible() ? "var(--bg-active)" : "var(--bg-hover)",
-            color: agentVisible() ? "var(--text-primary)" : "var(--text-muted)",
-            border: "1px solid var(--border-default)",
-            padding: "3px 12px",
-            cursor: "pointer",
-            "font-size": "12px",
-            "font-family": "var(--font-sans)",
-            "font-weight": "500",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-active)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = agentVisible() ? "var(--bg-active)" : "var(--bg-hover)"; }}
+      {/* Right: Agent pill · version/update chip */}
+      <div class="flex items-center gap-2 shrink-0">
+        <PillButton
+          label="Agent"
+          labelOn="Agent"
+          active={agentVisible()}
           onClick={() => toggleAgentPanel()}
-          title={agentVisible() ? "Close agent" : "Open agent"}
+          title={agentVisible() ? "Hide agent panel" : "Show agent panel"}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span>{agentVisible() ? "Close Agent" : "Launch Agent"}</span>
-        </button>
+          <AgentIcon />
+        </PillButton>
 
-        {/* Clif label with update indicator */}
         <Show when={!isClickable()}>
           <div
-            class="flex items-center gap-1.5"
+            class="flex items-center gap-1 statusbar-version"
             style={{
-              color: updateStatus().state === "downloading" || updateStatus().state === "installing"
-                ? "var(--accent-yellow, #eab308)"
-                : updateStatus().state === "up-to-date"
-                ? "var(--accent-green)"
-                : updateStatus().state === "checking"
-                ? "var(--text-muted)"
-                : "var(--accent-primary)",
-              cursor: updateStatus().state === "idle" || updateStatus().state === "up-to-date" ? "pointer" : "default",
-              position: "relative",
+              color:
+                updateStatus().state === "downloading" || updateStatus().state === "installing"
+                  ? "var(--accent-yellow)"
+                  : updateStatus().state === "up-to-date"
+                  ? "var(--accent-green)"
+                  : updateStatus().state === "checking"
+                  ? "var(--text-muted)"
+                  : "var(--text-muted)",
+              cursor:
+                updateStatus().state === "idle" || updateStatus().state === "up-to-date"
+                  ? "pointer"
+                  : "default",
+              "font-size": "10px",
+              "font-family": "var(--font-mono, monospace)",
+              opacity: 0.85,
             }}
-            title={updateStatus().state === "idle"
-              ? `ClifPad v${appVersion()} — click to check for updates`
-              : updateStatus().state === "up-to-date"
-              ? "Already on latest version"
-              : undefined}
+            title={
+              updateStatus().state === "idle"
+                ? `ClifPad v${appVersion()} — click to check for updates`
+                : updateStatus().state === "up-to-date"
+                ? "Already on latest version"
+                : undefined
+            }
             onClick={() => {
               if (updateStatus().state === "idle") forceCheckUpdate();
             }}
             onMouseEnter={(e) => {
-              if (updateStatus().state === "idle") (e.currentTarget as HTMLElement).style.opacity = "0.7";
+              if (updateStatus().state === "idle") (e.currentTarget as HTMLElement).style.opacity = "0.6";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.opacity = "1";
+              (e.currentTarget as HTMLElement).style.opacity = "0.85";
             }}
           >
             <SparkleIcon />
-            <span class="text-xs">{updateLabel()}</span>
+            <span>{updateLabel()}</span>
           </div>
         </Show>
+
         <Show when={isClickable()}>
           <button
-            class="flex items-center gap-1.5"
+            class="flex items-center gap-1 rounded-full"
             style={{
-              color: updateStatus().state === "error"
-                ? "var(--accent-red)"
-                : "var(--accent-primary)",
-              background: updateStatus().state === "error"
-                ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
-                : "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
-              border: updateStatus().state === "error"
-                ? "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)"
-                : "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-              "border-radius": "4px",
-              padding: "2px 8px",
+              color:
+                updateStatus().state === "error" ? "var(--accent-red)" : "var(--accent-primary)",
+              background:
+                updateStatus().state === "error"
+                  ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
+                  : "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+              border: `1px solid ${
+                updateStatus().state === "error"
+                  ? "color-mix(in srgb, var(--accent-red) 30%, transparent)"
+                  : "color-mix(in srgb, var(--accent-primary) 30%, transparent)"
+              }`,
+              padding: "1px 8px",
               cursor: "pointer",
-              "font-size": "11px",
-              "font-family": "var(--font-sans)",
+              "font-size": "10.5px",
               "font-weight": "600",
-              "line-height": "1.4",
-              transition: "opacity 0.15s",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.85"}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.85")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
             onClick={handleUpdateClick}
             title={
               updateStatus().state === "available"
@@ -340,6 +396,24 @@ const StatusBar: Component<{ onShowAbout?: () => void }> = (props) => {
           </button>
         </Show>
       </div>
+
+      {/* Progressive collapse: hide meta under narrow widths to keep the
+          three pills comfortable. */}
+      <style>{`
+        @media (max-width: 1100px) {
+          .statusbar-filemeta { display: none !important; }
+        }
+        @media (max-width: 960px) {
+          .statusbar-file { display: none !important; }
+        }
+        @media (max-width: 820px) {
+          .statusbar-path { display: none !important; }
+        }
+        @media (max-width: 700px) {
+          .statusbar-git { display: none !important; }
+          .statusbar-version { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 };

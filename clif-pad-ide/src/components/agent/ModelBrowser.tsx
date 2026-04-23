@@ -3,7 +3,7 @@ import { Component, For, Show, createSignal } from "solid-js";
 import type { Accessor } from "solid-js";
 import { settings } from "../../stores/settingsStore";
 import { fontSize } from "../../stores/uiStore";
-import { POPULAR_MODELS, formatPrice, modelProviderLabel, type OpenRouterModel } from "./constants";
+import { POPULAR_MODELS, PROVIDERS, formatPrice, modelProviderLabel, type OpenRouterModel } from "./constants";
 
 interface ModelBrowserProps {
   modelSearch: Accessor<string>;
@@ -20,6 +20,7 @@ interface ModelBrowserProps {
   filteredModels: () => OpenRouterModel[];
   handleModelChange: (model: string) => void;
   setModelDropdownOpen: (v: boolean) => void;
+  handleProviderChange: (provider: string) => void;
 }
 
 const ModelBrowser: Component<ModelBrowserProps> = (props) => {
@@ -35,11 +36,82 @@ const ModelBrowser: Component<ModelBrowserProps> = (props) => {
       }}
     >
       {/* Browser header */}
-      <div style={{ padding: "10px 12px", "border-bottom": "1px solid var(--border-default)", display: "flex", "align-items": "center", gap: "8px" }}>
+      <div
+        style={{
+          padding: "10px 12px",
+          "border-bottom": "1px solid var(--border-default)",
+          display: "flex",
+          "align-items": "center",
+          gap: "8px",
+        }}
+      >
         <button
-          onClick={() => { props.setModelDropdownOpen(false); props.setModelSearch(""); }}
-          style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", "font-size": "18px", "line-height": "1", padding: "0 4px", "flex-shrink": "0" }}
-        >←</button>
+          onClick={() => {
+            props.setModelDropdownOpen(false);
+            props.setModelSearch("");
+          }}
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--text-muted)",
+            "font-size": "18px",
+            "line-height": "1",
+            padding: "0 4px",
+            "flex-shrink": "0",
+          }}
+          title="Close model browser"
+        >
+          ←
+        </button>
+
+        {/* Provider pill — same segmented-control style used elsewhere. Lives
+            in the browser now so the main agent header doesn't have to. */}
+        <div
+          class="flex items-center shrink-0"
+          style={{
+            border: "1px solid var(--border-default)",
+            background: "color-mix(in srgb, var(--bg-base) 70%, transparent)",
+            height: "24px",
+            "border-radius": "999px",
+            padding: "2px",
+            gap: "2px",
+          }}
+          role="tablist"
+          aria-label="Provider"
+        >
+          <For each={PROVIDERS}>
+            {(p) => {
+              const active = () => settings().aiProvider === p.value;
+              return (
+                <button
+                  class="flex items-center transition-colors"
+                  style={{
+                    height: "100%",
+                    padding: "0 10px",
+                    background: active()
+                      ? "color-mix(in srgb, var(--accent-primary) 22%, transparent)"
+                      : "transparent",
+                    color: active() ? "var(--accent-primary)" : "var(--text-muted)",
+                    border: "none",
+                    cursor: "pointer",
+                    "font-size": "11px",
+                    "font-weight": active() ? "700" : "500",
+                    "border-radius": "999px",
+                    "letter-spacing": "0.01em",
+                  }}
+                  onClick={() => props.handleProviderChange(p.value)}
+                  title={p.hint}
+                  aria-selected={active()}
+                  role="tab"
+                >
+                  {p.label}
+                </button>
+              );
+            }}
+          </For>
+        </div>
+
         <input
           type="text"
           placeholder={props.fetchingModels() ? "Loading models from OpenRouter..." : "Search models..."}
@@ -47,9 +119,15 @@ const ModelBrowser: Component<ModelBrowserProps> = (props) => {
           onInput={(e) => props.setModelSearch(e.currentTarget.value)}
           autofocus
           style={{
-            flex: "1", background: "var(--bg-base)", color: "var(--text-primary)",
-            border: "1px solid var(--border-muted)", "border-radius": "6px",
-            padding: "5px 8px", "font-size": "12px", outline: "none", "font-family": "inherit",
+            flex: "1",
+            background: "var(--bg-base)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-muted)",
+            "border-radius": "6px",
+            padding: "5px 8px",
+            "font-size": "12px",
+            outline: "none",
+            "font-family": "inherit",
           }}
         />
       </div>

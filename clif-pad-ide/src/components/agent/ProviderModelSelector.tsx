@@ -1,5 +1,5 @@
-import { Component, For, Show } from "solid-js";
-import { settings, updateSettings } from "../../stores/settingsStore";
+import { Component, Show } from "solid-js";
+import { settings } from "../../stores/settingsStore";
 import { PROVIDERS, POPULAR_MODELS, type OpenRouterModel } from "./constants";
 import { KeyIcon } from "./icons";
 
@@ -14,85 +14,111 @@ interface ProviderModelSelectorProps {
   handleProviderChange: (provider: string) => void;
 }
 
+/**
+ * Compact model chip + API-key indicator. Designed to sit inline inside the
+ * unified agent header (no border, no padding wrapper). Clicking the chip
+ * opens the full ModelBrowser, which also hosts the provider toggle — so
+ * we don't duplicate controls at the top of the panel.
+ */
 const ProviderModelSelector: Component<ProviderModelSelectorProps> = (props) => {
-  return (
-    <div
-      class="flex items-center gap-1.5 shrink-0 px-2 py-1.5"
-      style={{ "border-bottom": "1px solid var(--border-default)" }}
-    >
-      {/* Provider toggle */}
-      <div class="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border-muted)" }}>
-        <For each={PROVIDERS}>
-          {(p) => (
-            <button
-              class="px-2 py-1 transition-colors"
-              style={{
-                background: settings().aiProvider === p.value ? "var(--accent-primary)" : "var(--bg-base)",
-                color: settings().aiProvider === p.value ? "#fff" : "var(--text-muted)",
-                border: "none",
-                cursor: "pointer",
-                "font-size": "11px",
-                "font-weight": "500",
-              }}
-              onClick={() => props.handleProviderChange(p.value)}
-              title={p.hint}
-            >
-              {p.label}
-            </button>
-          )}
-        </For>
-      </div>
+  const currentModelName = () => {
+    const current = settings().aiModel;
+    const live = props.openRouterModels().find((m) => m.id === current);
+    const name =
+      live?.name ||
+      (POPULAR_MODELS[settings().aiProvider] || []).find((m) => m.value === current)?.label ||
+      current;
+    return name.replace(/^[^:]+:\s*/, "");
+  };
+  const providerMeta = () =>
+    PROVIDERS.find((p) => p.value === settings().aiProvider) ?? PROVIDERS[0];
 
-      {/* Model selector — opens full-panel browser */}
+  return (
+    <div class="flex items-center shrink-0" style={{ gap: "4px", "min-width": "0" }}>
+      {/* Model chip */}
       <button
-        class="flex items-center gap-1.5 flex-1 min-w-0 rounded-md px-2 py-1 transition-colors group"
+        class="flex items-center rounded-full transition-colors"
         style={{
           background: props.modelDropdownOpen() ? "var(--bg-active)" : "var(--bg-hover)",
           color: "var(--text-primary)",
           border: "1px solid var(--border-default)",
-          "font-size": "11px",
           cursor: "pointer",
-          "font-family": "var(--font-mono, monospace)",
-          "text-align": "left",
+          height: "22px",
+          padding: "0 3px 0 8px",
+          gap: "6px",
+          "font-size": "11px",
+          "max-width": "200px",
+          "min-width": "0",
+        }}
+        onMouseEnter={(e) => {
+          if (!props.modelDropdownOpen())
+            (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
+        }}
+        onMouseLeave={(e) => {
+          if (!props.modelDropdownOpen())
+            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
         }}
         onClick={() => {
           const next = !props.modelDropdownOpen();
           props.setModelDropdownOpen(next);
           if (next && settings().aiProvider === "openrouter") props.fetchOpenRouterModels();
         }}
-        title="Browse and select a model"
+        title={`${providerMeta().label} · ${currentModelName()} — click to change`}
       >
-        {/* Grid icon to signal "opens browser" */}
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{ "flex-shrink": "0", color: "var(--text-muted)" }}>
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-        </svg>
-        <span class="flex-1 truncate" style={{ "min-width": "0" }}>
-          {(() => {
-            const current = settings().aiModel;
-            const live = props.openRouterModels().find(m => m.id === current);
-            const name = live?.name || (POPULAR_MODELS[settings().aiProvider] || []).find(m => m.value === current)?.label || current;
-            // Strip provider prefix like "Anthropic: " or "OpenAI: "
-            return name.replace(/^[^:]+:\s*/, "");
-          })()}
+        <span
+          class="truncate"
+          style={{
+            "min-width": "0",
+            "font-family": "var(--font-mono, monospace)",
+            flex: "1",
+          }}
+        >
+          {currentModelName()}
         </span>
-        <span style={{ "font-size": "9px", color: "var(--text-muted)", "flex-shrink": "0", "font-family": "var(--font-sans)" }}>Browse</span>
+        <span
+          class="shrink-0 rounded-full"
+          style={{
+            background: "color-mix(in srgb, var(--accent-primary) 18%, transparent)",
+            color: "var(--accent-primary)",
+            padding: "0 6px",
+            height: "16px",
+            display: "flex",
+            "align-items": "center",
+            "font-size": "9px",
+            "text-transform": "uppercase",
+            "letter-spacing": "0.06em",
+            "font-weight": "700",
+          }}
+        >
+          {providerMeta().label}
+        </span>
       </button>
 
-      {/* API key indicator / button */}
+      {/* API key indicator — only loud when missing */}
       <Show when={settings().aiProvider !== "ollama"}>
         <button
-          class="flex items-center justify-center shrink-0 rounded-md p-1 transition-colors"
+          class="flex items-center justify-center shrink-0 rounded-full transition-colors"
           style={{
-            background: props.showSettings() ? "var(--bg-hover)" : "transparent",
-            color: props.hasApiKey() ? "var(--accent-green)" : "var(--accent-yellow)",
-            border: "none",
+            width: "22px",
+            height: "22px",
+            background: props.hasApiKey()
+              ? "transparent"
+              : "color-mix(in srgb, var(--accent-yellow) 20%, transparent)",
+            color: props.hasApiKey() ? "var(--text-muted)" : "var(--accent-yellow)",
+            border: `1px solid ${
+              props.hasApiKey()
+                ? "var(--border-default)"
+                : "color-mix(in srgb, var(--accent-yellow) 45%, transparent)"
+            }`,
             cursor: "pointer",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+            (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
           }}
           onMouseLeave={(e) => {
-            if (!props.showSettings()) (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.background = props.hasApiKey()
+              ? "transparent"
+              : "color-mix(in srgb, var(--accent-yellow) 20%, transparent)";
           }}
           onClick={() => props.setShowSettings(!props.showSettings())}
           title={props.hasApiKey() ? "API key configured — click to change" : "Set API key"}

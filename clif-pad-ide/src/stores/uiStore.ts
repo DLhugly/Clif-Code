@@ -35,7 +35,12 @@ export const THEMES: Record<Theme, ThemeMeta> = {
 };
 
 // Panel visibility — single source of truth
-const [visiblePanels, setVisiblePanels] = createSignal<Set<Panel>>(new Set(["files", "editor"]));
+// Default panel set on app launch. Opens the full workstation layout: file
+// tree, editor, agent chat, and terminal all visible. Reviews is a mode-
+// switch, not a panel, so it stays out of this set.
+const [visiblePanels, setVisiblePanels] = createSignal<Set<Panel>>(
+  new Set(["files", "editor", "agent", "terminal"]),
+);
 
 // Panel sizes
 const [terminalHeight, setTerminalHeight] = createSignal(30);
