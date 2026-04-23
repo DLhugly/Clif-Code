@@ -212,6 +212,39 @@ function decisionsForPr(prNumber: number): Decision[] {
   return decisions.filter((d) => d.pr_number === prNumber);
 }
 
+/**
+ * Per-PR progress state derived from the decision log.
+ *   - "inbox":   no user-driven decisions (only auto `classify` counts as no-op)
+ *   - "handled": any of mark_reviewed / mark_ready_to_merge / mark_kicked_back
+ *                / mark_polished / clear exists
+ *
+ * The `Clear` decision wipes state AND returns the PR to the inbox (so the
+ * lead can restart the review).
+ */
+export type PrProgress = "inbox" | "handled";
+
+export function progressForPr(prNumber: number): PrProgress {
+  const ds = decisionsForPr(prNumber);
+  let latest: PrProgress = "inbox";
+  for (const d of ds) {
+    switch (d.kind) {
+      case "mark_reviewed":
+      case "mark_ready_to_merge":
+      case "mark_kicked_back":
+      case "mark_polished":
+        latest = "handled";
+        break;
+      case "clear":
+        latest = "inbox";
+        break;
+      case "classify":
+      default:
+        break;
+    }
+  }
+  return latest;
+}
+
 function pendingDeltaCount(): number {
   let n = 0;
   for (const key of Object.keys(previewPlans)) {

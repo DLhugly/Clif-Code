@@ -3,11 +3,8 @@ import type { PrSummary } from "../../lib/tauri";
 import {
   getCiSummary,
   formatAge,
-  reviewResults,
-  runningReviews,
   selectedPrNumber,
   setSelectedPrNumber,
-  runReview,
   prDetails,
   loadingDetail,
   fetchPrDetail,
@@ -57,19 +54,10 @@ const CheckGlyph: Component<{ state: "passing" | "failing" | "pending" | "none" 
 const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => void }> = (props) => {
   const ci = () => getCiSummary(props.pr);
   const isSelected = () => selectedPrNumber() === props.pr.number;
-  const review = createMemo(() => reviewResults[props.pr.number] ?? null);
-  const isRunning = () => runningReviews().has(props.pr.number);
   const detail = createMemo(() => prDetails[props.pr.number] ?? null);
   const detailLoading = () => loadingDetail().has(props.pr.number);
   const commitsList = createMemo(() => detail()?.commits ?? props.pr.commits ?? []);
   const checksList = createMemo(() => detail()?.statusCheckRollup ?? props.pr.statusCheckRollup ?? []);
-  const findingCounts = createMemo(() => {
-    const r = review();
-    if (!r) return null;
-    const by: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0, nit: 0 };
-    for (const f of r.findings) by[f.severity] = (by[f.severity] || 0) + 1;
-    return { total: r.findings.length, by };
-  });
   const policyViolations = createMemo(() => {
     const list = policyResults[props.pr.number] ?? [];
     return list.filter((r) => !r.passed && r.required).length;
@@ -151,7 +139,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
       }}
     >
       <button
-        class="w-full flex items-start gap-2 text-left px-3 py-2 transition-colors"
+        class="w-full flex items-start gap-2.5 text-left px-3 py-2.5 transition-colors"
         style={{
           background: "transparent",
           border: "none",
@@ -170,7 +158,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
       >
         <div
           class="flex items-center shrink-0"
-          style={{ width: "22px", "padding-top": "3px" }}
+          style={{ width: "18px", "padding-top": "3px" }}
           onClick={(e) => {
             e.stopPropagation();
             toggleSelection(props.pr.number);
@@ -184,63 +172,107 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
             onChange={() => toggleSelection(props.pr.number)}
           />
         </div>
-        <div class="flex flex-col items-center gap-1 shrink-0" style={{ width: "44px", "padding-top": "2px" }}>
-          <div class="flex items-center gap-1">
-            <TierChip
-              classification={classification()}
-              loading={isClassifying()}
-              size="sm"
-              showScore={false}
+        <div
+          class="flex flex-col items-center shrink-0"
+          style={{ width: "36px", "padding-top": "2px", gap: "3px" }}
+        >
+          <TierChip
+            classification={classification()}
+            loading={isClassifying()}
+            size="sm"
+            showScore={false}
+          />
+          <Show when={syncIndicator()}>
+            <span
+              title={syncIndicator()!.title}
+              style={{
+                width: "6px",
+                height: "6px",
+                "border-radius": "50%",
+                background: syncIndicator()!.color,
+              }}
             />
-            <Show when={syncIndicator()}>
-              <span
-                title={syncIndicator()!.title}
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  "border-radius": "50%",
-                  background: syncIndicator()!.color,
-                  "flex-shrink": "0",
-                }}
-              />
-            </Show>
-          </div>
-          <span
-            style={{
-              "font-family": "var(--font-mono, monospace)",
-              "font-size": "calc(var(--ui-font-size) - 3.5px)",
-              color: "var(--text-muted)",
-            }}
-          >
-            #{props.pr.number}
-          </span>
-          <Show when={props.pr.isDraft}>
-            <span style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 5px)" }}>draft</span>
           </Show>
         </div>
-        <div class="flex flex-col flex-1 min-w-0 gap-1">
-          <div class="truncate" style={{ "font-size": "calc(var(--ui-font-size) - 1.5px)", "font-weight": "500" }}>
-            {props.pr.title}
+        <div class="flex flex-col flex-1 min-w-0" style={{ gap: "3px" }}>
+          {/* Row 1: title + draft + #number */}
+          <div class="flex items-center gap-2 min-w-0">
+            <span
+              class="truncate flex-1"
+              style={{
+                "font-size": "calc(var(--ui-font-size) - 0.5px)",
+                "font-weight": "600",
+                "line-height": "1.25",
+                color: "var(--text-primary)",
+              }}
+            >
+              {props.pr.title}
+            </span>
+            <Show when={props.pr.isDraft}>
+              <span
+                class="shrink-0 px-1.5 rounded"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border-default)",
+                  "font-size": "calc(var(--ui-font-size) - 4.5px)",
+                  "font-weight": "500",
+                  "text-transform": "uppercase",
+                  "letter-spacing": "0.04em",
+                  "line-height": "1.4",
+                }}
+              >
+                draft
+              </span>
+            </Show>
+            <span
+              class="shrink-0"
+              style={{
+                "font-family": "var(--font-mono, monospace)",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
+                color: "var(--text-muted)",
+                "line-height": "1.25",
+              }}
+            >
+              #{props.pr.number}
+            </span>
           </div>
-          <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3.5px)", color: "var(--text-muted)" }}>
+          {/* Row 2: meta + status pills all in one flow-wrapping line */}
+          <div
+            class="flex items-center gap-1.5 flex-wrap"
+            style={{
+              "font-size": "calc(var(--ui-font-size) - 3px)",
+              color: "var(--text-muted)",
+              "line-height": "1.3",
+            }}
+          >
             <span>@{props.pr.author?.login ?? "unknown"}</span>
-            <span>·</span>
+            <span style={{ opacity: 0.5 }}>·</span>
             <span>{formatAge(props.pr)}</span>
             <Show when={props.pr.changedFiles !== null}>
-              <span>·</span>
-              <span>{props.pr.changedFiles} files</span>
+              <span style={{ opacity: 0.5 }}>·</span>
+              <span>{props.pr.changedFiles}f</span>
             </Show>
             <Show when={(props.pr.additions ?? 0) > 0 || (props.pr.deletions ?? 0) > 0}>
-              <span>·</span>
+              <span style={{ opacity: 0.5 }}>·</span>
               <span style={{ color: "var(--accent-green)" }}>+{props.pr.additions ?? 0}</span>
-              <span style={{ color: "var(--accent-red)" }}>-{props.pr.deletions ?? 0}</span>
+              <span style={{ color: "var(--accent-red)" }}>−{props.pr.deletions ?? 0}</span>
             </Show>
-            <Show when={commitsList().length > 0}>
-              <span>·</span>
-              <span>{commitsList().length} commit{commitsList().length === 1 ? "" : "s"}</span>
+
+            {/* Divider before heuristic status pills. LLM findings are
+                intentionally not rendered here — this list is heuristic-
+                only. Findings show up inside the PR detail view. */}
+            <Show
+              when={
+                policyViolations() > 0 ||
+                ci().total > 0 ||
+                !!reviewLabel() ||
+                props.pr.mergeable === "CONFLICTING"
+              }
+            >
+              <span style={{ opacity: 0.3, margin: "0 2px" }}>•</span>
             </Show>
-          </div>
-          <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
+
             <Show when={policyViolations() > 0}>
               <span
                 class="flex items-center gap-1 px-1.5 rounded"
@@ -251,64 +283,30 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 }}
                 title={`${policyViolations()} required policy violation${policyViolations() === 1 ? "" : "s"}`}
               >
-                <span style={{ width: "6px", height: "6px", "border-radius": "50%", background: "var(--accent-red)" }} />
-                {policyViolations()} policy fail
+                <span style={{ width: "5px", height: "5px", "border-radius": "50%", background: "var(--accent-red)" }} />
+                {policyViolations()} policy
               </span>
             </Show>
-            {/* Review status pill */}
-            <Show when={isRunning()}>
-              <span class="flex items-center gap-1" style={{ color: "var(--accent-yellow)" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="animate-spin">
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-                reviewing
-              </span>
-            </Show>
-            <Show when={!isRunning() && findingCounts()}>
+            <Show when={ci().total > 0}>
               <span
-                class="px-1.5 rounded"
-                style={{
-                  background: (findingCounts()!.by.critical > 0 || findingCounts()!.by.high > 0)
-                    ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
-                    : findingCounts()!.total > 0
-                    ? "color-mix(in srgb, var(--accent-primary) 15%, transparent)"
-                    : "color-mix(in srgb, var(--accent-green) 15%, transparent)",
-                  color: (findingCounts()!.by.critical > 0 || findingCounts()!.by.high > 0)
-                    ? "var(--accent-red)"
-                    : findingCounts()!.total > 0
-                    ? "var(--accent-primary)"
-                    : "var(--accent-green)",
-                  "font-weight": "500",
-                }}
-                title={`critical ${findingCounts()!.by.critical}, high ${findingCounts()!.by.high}, medium ${findingCounts()!.by.medium}, low ${findingCounts()!.by.low}, nit ${findingCounts()!.by.nit}`}
+                class="flex items-center gap-1"
+                title={`${ci().passing}/${ci().total} passing${ci().failing > 0 ? `, ${ci().failing} failing` : ""}${ci().pending > 0 ? `, ${ci().pending} pending` : ""}`}
               >
-                <Show when={findingCounts()!.total === 0}>clean</Show>
-                <Show when={findingCounts()!.total > 0}>
-                  {findingCounts()!.total} finding{findingCounts()!.total === 1 ? "" : "s"}
-                  <Show when={findingCounts()!.by.critical > 0}>
-                    <span style={{ "margin-left": "4px" }}>· {findingCounts()!.by.critical} crit</span>
-                  </Show>
-                </Show>
+                <CheckGlyph state={ciState()} />
+                <span
+                  style={{
+                    color:
+                      ciState() === "failing"
+                        ? "var(--accent-red)"
+                        : ciState() === "pending"
+                        ? "var(--accent-yellow)"
+                        : "var(--text-muted)",
+                  }}
+                >
+                  {ci().passing}/{ci().total}
+                </span>
               </span>
             </Show>
-            <span class="flex items-center gap-1">
-              <CheckGlyph state={ciState()} />
-              <span style={{ color: "var(--text-muted)" }}>
-                <Show when={ci().total > 0} fallback="no CI">
-                  {ci().passing}/{ci().total}
-                  <Show when={ci().failing > 0}>
-                    <span style={{ color: "var(--accent-red)", "margin-left": "4px" }}>
-                      {ci().failing} failing
-                    </span>
-                  </Show>
-                  <Show when={ci().pending > 0}>
-                    <span style={{ color: "var(--accent-yellow)", "margin-left": "4px" }}>
-                      {ci().pending} pending
-                    </span>
-                  </Show>
-                </Show>
-              </span>
-            </span>
             <Show when={reviewLabel()}>
               <span
                 class="px-1.5 rounded"
@@ -336,8 +334,8 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
           </div>
         </div>
         <svg
-          width="12"
-          height="12"
+          width="11"
+          height="11"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -348,7 +346,8 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
             transform: props.expanded ? "rotate(90deg)" : "rotate(0deg)",
             transition: "transform 0.15s",
             color: "var(--text-muted)",
-            "margin-top": "4px",
+            opacity: 0.55,
+            "margin-top": "5px",
             "flex-shrink": "0",
           }}
         >
@@ -406,33 +405,10 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 e.stopPropagation();
                 setSelectedPrNumber(props.pr.number);
                 setViewMode("review");
-                runReview(props.pr.number, { force: !!review() });
               }}
-              disabled={isRunning()}
-              title={review() ? "Re-run review" : "Run review"}
+              title="Open this PR in the detail view (use Review with LLM there if you want findings)"
             >
-              {isRunning() ? "Reviewing..." : review() ? "Re-run" : "Review"}
-            </button>
-            <button
-              class="px-2 py-1 rounded-md transition-colors"
-              style={{
-                background: "var(--bg-surface)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-default)",
-                cursor: review() ? "pointer" : "not-allowed",
-                "font-size": "calc(var(--ui-font-size) - 3px)",
-                opacity: review() ? 1 : 0.6,
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!review()) return;
-                setSelectedPrNumber(props.pr.number);
-                setViewMode("review");
-              }}
-              disabled={!review()}
-              title={review() ? "Open Polish drawer for this PR" : "Run review first"}
-            >
-              Polish
+              Open detail
             </button>
             <button
               class="px-2 py-1 rounded-md transition-colors"

@@ -23,15 +23,23 @@ import {
   filteredSortedPrs,
   ensureReviewListeners,
   loadCachedReviews,
-  queueReviewsForPrs,
-  runAllShown,
-  autoReviewEnabled,
-  setAutoReviewEnabled,
   reviewResults,
   runningReviews,
+  progressFilter,
+  setProgressFilter,
+  progressCounts,
+  tierFilter,
+  setTierFilter,
   type PrStateFilter,
   type PrSort,
+  type ProgressFilter,
 } from "../../stores/reviewsStore";
+import {
+  classifications,
+  classifyQueueStats,
+  classifying,
+} from "../../stores/classificationStore";
+import { TIER_META, type Tier } from "../../types/classification";
 import { ReviewRow, useRowExpansion } from "./ReviewRow";
 import { openExternal } from "../../lib/tauri";
 import BulkActionBar from "./BulkActionBar";
@@ -90,12 +98,9 @@ const ReviewsPanel: Component = () => {
     if (root) refreshPrs(root);
   });
 
-  // Auto-queue reviews for visible PRs without cached results
-  createEffect(() => {
-    if (!autoReviewEnabled()) return;
-    const numbers = rows().map((p) => p.number);
-    queueReviewsForPrs(numbers);
-  });
+  // Auto-queue removed: LLM reviews only run when the user explicitly clicks
+  // "Review with LLM" in the PR detail view. Keeping this comment so future
+  // edits don't silently reintroduce an auto-trigger.
 
   const rows = createMemo(() => filteredSortedPrs());
   const counts = createMemo(() => ({
@@ -156,38 +161,40 @@ const ReviewsPanel: Component = () => {
               {counts().shown}/{counts().total}
             </span>
           </Show>
+          {(() => {
+            const stats = createMemo(() => classifyQueueStats());
+            const classifyingNow = () => classifying().size;
+            const remaining = () => classifyingNow() + stats().queued;
+            const total = () => stats().total;
+            const done = () => Math.max(0, total() - remaining());
+            return (
+              <Show when={remaining() > 0}>
+                <span
+                  class="flex items-center gap-1 px-1.5 rounded"
+                  style={{
+                    background: "color-mix(in srgb, var(--accent-green) 14%, transparent)",
+                    color: "var(--accent-green)",
+                    "font-size": "calc(var(--ui-font-size) - 3.5px)",
+                  }}
+                  title={
+                    "Heuristic scan (local, free — no LLM): regex + filename signals + security scanner.\n" +
+                    `Running: ${classifyingNow()} in flight, ${stats().queued} queued, ${done()} of ${total()} done.\n` +
+                    "Produces the T1–T5 tier badge on each PR. Unlike the LLM review, this always runs on refresh."
+                  }
+                >
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  heuristic scan {done()}/{total()}
+                </span>
+              </Show>
+            );
+          })()}
         </div>
         <div class="flex items-center gap-1.5">
-          <button
-            class="px-1.5 py-0.5 rounded transition-colors"
-            style={{
-              background: autoReviewEnabled() ? "color-mix(in srgb, var(--accent-primary) 15%, transparent)" : "transparent",
-              color: autoReviewEnabled() ? "var(--accent-primary)" : "var(--text-muted)",
-              border: `1px solid ${autoReviewEnabled() ? "color-mix(in srgb, var(--accent-primary) 30%, transparent)" : "var(--border-default)"}`,
-              cursor: "pointer",
-              "font-size": "calc(var(--ui-font-size) - 3.5px)",
-              "font-weight": "500",
-            }}
-            onClick={() => setAutoReviewEnabled(!autoReviewEnabled())}
-            title={autoReviewEnabled() ? "Auto-review is on" : "Auto-review is off"}
-          >
-            auto
-          </button>
-          <button
-            class="px-1.5 py-0.5 rounded transition-colors"
-            style={{
-              background: "var(--bg-base)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-default)",
-              cursor: "pointer",
-              "font-size": "calc(var(--ui-font-size) - 3.5px)",
-              "font-weight": "500",
-            }}
-            onClick={() => runAllShown(rows().map((p) => p.number))}
-            title="Queue review for every PR currently shown"
-          >
-            review all
-          </button>
+          {/* LLM triggers are intentionally not here. This view is heuristic-
+              only. Open a PR to run an LLM review with the "Review with LLM"
+              button. */}
           <button
             class="flex items-center justify-center shrink-0 rounded p-1 transition-colors"
             style={{
@@ -216,6 +223,129 @@ const ReviewsPanel: Component = () => {
             </Show>
           </button>
         </div>
+      </div>
+
+      {/* Legend: two separate analyses run against your PRs. Making the
+          distinction visible on every refresh so nobody burns tokens by
+          accident thinking tier classification uses the LLM. */}
+      <div
+        class="shrink-0 flex items-center gap-3 flex-wrap px-3 py-1"
+        style={{
+          background: "var(--bg-base)",
+          "border-bottom": "1px solid var(--border-muted)",
+          color: "var(--text-muted)",
+          "font-size": "calc(var(--ui-font-size) - 4px)",
+        }}
+      >
+        <span
+          class="flex items-center gap-1.5"
+          title={
+            "Heuristic scan: local Rust code that parses the diff and classifies each PR into T1–T5. Uses regex + filename patterns + our security scanner. Free, always on, no API key required."
+          }
+        >
+          <span
+            style={{
+              width: "6px",
+              height: "6px",
+              "border-radius": "50%",
+              background: "var(--accent-green)",
+            }}
+          />
+          <span>
+            <b style={{ color: "var(--text-secondary)" }}>Tier badge</b> = local heuristic (free)
+          </span>
+        </span>
+        <span style={{ opacity: 0.4 }}>·</span>
+        <span
+          class="flex items-center gap-1.5"
+          title={
+            "LLM review is only triggered when you open a PR and click 'Review with LLM'. Findings live on the PR detail page, not here. Never auto-runs."
+          }
+        >
+          <span
+            style={{
+              width: "6px",
+              height: "6px",
+              "border-radius": "50%",
+              background: "var(--accent-yellow)",
+            }}
+          />
+          <span>
+            <b style={{ color: "var(--text-secondary)" }}>LLM review</b> = open a PR, click
+            "Review with LLM"
+          </span>
+        </span>
+      </div>
+
+      {/* Inbox / Handled / All: the review-flow filter. Default is "inbox"
+          (PRs with no user decisions) so you see only what still needs you. */}
+      <div
+        class="shrink-0 flex items-center gap-1 px-3 py-2"
+        style={{ "border-bottom": "1px solid var(--border-muted)" }}
+      >
+        {(() => {
+          const counts = createMemo(() => progressCounts());
+          const Tab: Component<{ id: ProgressFilter; label: string; count: number; tint?: string }> = (tp) => {
+            const active = () => progressFilter() === tp.id;
+            return (
+              <button
+                class="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition-colors"
+                style={{
+                  background: active()
+                    ? tp.tint
+                      ? `color-mix(in srgb, ${tp.tint} 18%, transparent)`
+                      : "var(--accent-primary)"
+                    : "transparent",
+                  color: active()
+                    ? tp.tint
+                      ? tp.tint
+                      : "#fff"
+                    : "var(--text-muted)",
+                  border: `1px solid ${
+                    active()
+                      ? tp.tint
+                        ? `color-mix(in srgb, ${tp.tint} 40%, transparent)`
+                        : "var(--accent-primary)"
+                      : "var(--border-default)"
+                  }`,
+                  cursor: "pointer",
+                  "font-size": "calc(var(--ui-font-size) - 2.5px)",
+                  "font-weight": active() ? "600" : "500",
+                }}
+                onClick={() => setProgressFilter(tp.id)}
+                title={
+                  tp.id === "inbox"
+                    ? "PRs that still need your review (no decisions yet)"
+                    : tp.id === "handled"
+                    ? "PRs you've already marked ready, kicked back, or signed off on"
+                    : "Every PR, regardless of state"
+                }
+              >
+                <span>{tp.label}</span>
+                <span
+                  class="rounded-full px-1.5"
+                  style={{
+                    background: active() ? "rgba(255,255,255,0.18)" : "var(--bg-base)",
+                    color: active() && !tp.tint ? "#fff" : "var(--text-muted)",
+                    "font-size": "calc(var(--ui-font-size) - 4px)",
+                    "font-weight": "700",
+                    "min-width": "18px",
+                    "text-align": "center",
+                  }}
+                >
+                  {tp.count}
+                </span>
+              </button>
+            );
+          };
+          return (
+            <>
+              <Tab id="inbox" label="Inbox" count={counts().inbox} tint="var(--accent-primary)" />
+              <Tab id="handled" label="Handled" count={counts().handled} tint="var(--accent-green)" />
+              <Tab id="all" label="All" count={counts().all} />
+            </>
+          );
+        })()}
       </div>
 
       {/* Search + filters */}
@@ -311,6 +441,87 @@ const ReviewsPanel: Component = () => {
             <span>only failing CI</span>
           </label>
         </div>
+
+        {/* Tier filter pills — click a tier to show only that bucket. Click
+            again to remove. With all off (default), every tier is shown. */}
+        <div class="flex items-center gap-1 flex-wrap">
+          <span
+            style={{
+              color: "var(--text-muted)",
+              "font-size": "calc(var(--ui-font-size) - 3.5px)",
+              "text-transform": "uppercase",
+              "letter-spacing": "0.05em",
+              "margin-right": "2px",
+            }}
+          >
+            Tier
+          </span>
+          {(() => {
+            const counts = createMemo(() => {
+              const c: Record<Tier, number> = { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0 };
+              for (const key of Object.keys(classifications)) {
+                const cls = classifications[Number(key)];
+                if (cls) c[cls.tier]++;
+              }
+              return c;
+            });
+            const tierOrder: Tier[] = ["T5", "T4", "T3", "T2", "T1"];
+            return (
+              <For each={tierOrder}>
+                {(t) => {
+                  const meta = TIER_META[t];
+                  const active = () => tierFilter().has(t);
+                  return (
+                    <button
+                      class="rounded-full px-1.5 py-0.5 transition-colors"
+                      style={{
+                        background: active()
+                          ? meta.bg
+                          : "transparent",
+                        color: active() ? meta.color : "var(--text-muted)",
+                        border: `1px solid ${
+                          active() ? `${meta.color}55` : "var(--border-default)"
+                        }`,
+                        cursor: "pointer",
+                        "font-size": "calc(var(--ui-font-size) - 3.5px)",
+                        "font-weight": active() ? "700" : "500",
+                        "font-family": "monospace",
+                      }}
+                      onClick={() => {
+                        setTierFilter((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(t)) next.delete(t);
+                          else next.add(t);
+                          return next;
+                        });
+                      }}
+                      title={`Show only ${meta.short} (${meta.label}) PRs — ${counts()[t]} currently classified`}
+                    >
+                      {meta.short}{" "}
+                      <span style={{ opacity: 0.7, "font-weight": "500" }}>{counts()[t]}</span>
+                    </button>
+                  );
+                }}
+              </For>
+            );
+          })()}
+          <Show when={tierFilter().size > 0}>
+            <button
+              class="rounded-full px-1.5 py-0.5"
+              style={{
+                background: "transparent",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border-default)",
+                cursor: "pointer",
+                "font-size": "calc(var(--ui-font-size) - 3.5px)",
+              }}
+              onClick={() => setTierFilter(new Set<Tier>())}
+              title="Clear tier filter"
+            >
+              clear
+            </button>
+          </Show>
+        </div>
       </div>
 
       {/* Body */}
@@ -374,14 +585,37 @@ const ReviewsPanel: Component = () => {
               <line x1="6" y1="9" x2="6" y2="21" />
             </svg>
             <div style={{ "font-size": "calc(var(--ui-font-size) - 2px)", color: "var(--text-primary)" }}>
-              {prs.length === 0 ? "No open PRs in this repo" : "No PRs match your filters"}
+              {prs.length === 0
+                ? "No open PRs in this repo"
+                : progressFilter() === "inbox" && progressCounts().inbox === 0
+                ? "Inbox zero — everything decided"
+                : "No PRs match your filters"}
             </div>
             <Show when={prs.length === 0}>
               <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
                 When teammates open PRs, they'll appear here with live risk scores.
               </div>
             </Show>
-            <Show when={prs.length > 0}>
+            <Show when={prs.length > 0 && progressFilter() === "inbox" && progressCounts().inbox === 0}>
+              <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", "max-width": "34ch" }}>
+                You've made a decision on every PR. Switch to <b>Handled</b> or <b>All</b> to review
+                your past calls, or wait for new PRs to land.
+              </div>
+              <button
+                class="px-2 py-1 rounded mt-1"
+                style={{
+                  background: "var(--bg-base)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-default)",
+                  cursor: "pointer",
+                  "font-size": "calc(var(--ui-font-size) - 3px)",
+                }}
+                onClick={() => setProgressFilter("handled")}
+              >
+                Show Handled
+              </button>
+            </Show>
+            <Show when={prs.length > 0 && !(progressFilter() === "inbox" && progressCounts().inbox === 0)}>
               <button
                 class="px-2 py-1 rounded mt-1"
                 style={{
@@ -397,6 +631,7 @@ const ReviewsPanel: Component = () => {
                   setHideDrafts(false);
                   setOnlyFailingCi(false);
                   setStateFilter("open");
+                  setProgressFilter("inbox");
                 }}
               >
                 Clear filters

@@ -31,6 +31,9 @@ import {
   classifyAllVisible,
   tierRank,
 } from "./classificationStore";
+import { progressForPr, type PrProgress } from "./syncStore";
+
+export type ProgressFilter = "inbox" | "handled" | "all";
 
 export type PrStateFilter = "open" | "closed" | "merged" | "all";
 export type PrSort =
@@ -50,6 +53,12 @@ const [search, setSearch] = createSignal("");
 const [stateFilter, setStateFilter] = createSignal<PrStateFilter>("open");
 const [authorFilter, setAuthorFilter] = createSignal<string>("");
 const [hideDrafts, setHideDrafts] = createSignal(false);
+const [progressFilter, setProgressFilter] = createSignal<ProgressFilter>("inbox");
+// Tier filter: empty Set means "show all". When non-empty, only PRs whose
+// classified tier is in the set pass. Unclassified PRs (tier chip not yet
+// populated) are shown when the set is empty AND hidden when a specific tier
+// is requested (they'll show up as their real tier once classified).
+const [tierFilter, setTierFilter] = createSignal<Set<Tier>>(new Set<Tier>());
 const [onlyFailingCi, setOnlyFailingCi] = createSignal(false);
 const [sort, setSort] = createSignal<PrSort>("tier-desc");
 
@@ -57,7 +66,11 @@ const [sort, setSort] = createSignal<PrSort>("tier-desc");
 const [reviewResults, setReviewResults] = createStore<Record<number, ReviewResult>>({});
 const [runningReviews, setRunningReviews] = createSignal<Set<number>>(new Set());
 const [selectedPrNumber, setSelectedPrNumber] = createSignal<number | null>(null);
-const [autoReviewEnabled, setAutoReviewEnabled] = createSignal(true);
+// Default OFF: review calls hit an external LLM and cost tokens. The user
+// opts in explicitly via the toggle in ReviewsPanel or by clicking Review on
+// individual PRs / using "Review all shown". Classification (tier chips) is
+// unrelated — it's deterministic and always auto-runs.
+const [autoReviewEnabled, setAutoReviewEnabled] = createSignal(false);
 const [reviewError, setReviewError] = createSignal<Record<number, string>>({});
 
 // Event listener registration (deduped)
@@ -360,6 +373,24 @@ async function runAllShown(prNumbers: number[]): Promise<void> {
   for (const n of prNumbers) enqueueReview(n);
 }
 
+/**
+ * Drain the auto-review queue and stop every in-flight review. Safe to call
+ * at any time; future enqueues still work. Use this when the user toggles
+ * auto-review off mid-session or wants to abort a runaway batch.
+ */
+async function cancelAllReviews(): Promise<void> {
+  reviewQueue.length = 0;
+  const running = Array.from(runningReviews());
+  for (const n of running) {
+    try {
+      await invoke("pr_review_stop", { prNumber: n });
+    } catch {
+      // best effort
+    }
+    markRunning(n, false);
+  }
+}
+
 async function cancelReview(prNumber: number): Promise<void> {
   try {
     await invoke("pr_review_stop", { prNumber });
@@ -500,6 +531,22 @@ export function tierCounts(): Record<Tier, number> {
     if (c) counts[c.tier]++;
   }
   return counts;
+}
+
+/**
+ * Bucket counts for the Inbox / Handled / All filter. Drives the tab badges
+ * in ReviewsPanel and the "N left to review" banner in the empty state.
+ * `all` mirrors `prs.length` for display convenience.
+ */
+function progressCounts(): { inbox: number; handled: number; all: number } {
+  let inbox = 0;
+  let handled = 0;
+  for (const pr of prs) {
+    const s = progressForPr(pr.number);
+    if (s === "handled") handled++;
+    else inbox++;
+  }
+  return { inbox, handled, all: prs.length };
 }
 
 // Selection state for batch actions
@@ -732,6 +779,7 @@ function filteredSortedPrs(): PrSummary[] {
   const author = authorFilter().trim().toLowerCase();
   const drafts = hideDrafts();
   const failing = onlyFailingCi();
+  const prog = progressFilter();
 
   let filtered = prs.filter((pr) => {
     if (drafts && pr.isDraft) return false;
@@ -746,6 +794,15 @@ function filteredSortedPrs(): PrSummary[] {
     if (q) {
       const hay = `${pr.number} ${pr.title} ${pr.author?.login ?? ""} ${pr.headRefName ?? ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
+    }
+    if (prog !== "all") {
+      const state = progressForPr(pr.number);
+      if (prog !== state) return false;
+    }
+    const tf = tierFilter();
+    if (tf.size > 0) {
+      const cls = classifications[pr.number];
+      if (!cls || !tf.has(cls.tier)) return false;
     }
     return true;
   });
@@ -817,6 +874,11 @@ export {
   setAuthorFilter,
   hideDrafts,
   setHideDrafts,
+  progressFilter,
+  setProgressFilter,
+  progressCounts,
+  tierFilter,
+  setTierFilter,
   onlyFailingCi,
   setOnlyFailingCi,
   sort,
@@ -836,6 +898,7 @@ export {
   ensureReviewListeners,
   runReview,
   cancelReview,
+  cancelAllReviews,
   loadCachedReviews,
   fetchPrDiff,
   postReview,

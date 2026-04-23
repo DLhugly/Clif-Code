@@ -10,9 +10,9 @@ interface Props {
 }
 
 const TierChip: Component<Props> = (props) => {
-  const sizePx = () => (props.size === "md" ? 12 : 10);
   const meta = () => (props.classification ? TIER_META[props.classification.tier] : null);
   const score = () => props.classification?.score ?? 0;
+  const isMd = () => props.size === "md";
 
   return (
     <Show
@@ -24,16 +24,17 @@ const TierChip: Component<Props> = (props) => {
             display: "inline-flex",
             "align-items": "center",
             "justify-content": "center",
-            "min-width": props.size === "md" ? "36px" : "28px",
-            height: props.size === "md" ? "20px" : "16px",
-            padding: "0 6px",
+            "min-width": isMd() ? "34px" : "28px",
+            height: isMd() ? "20px" : "18px",
+            padding: "0 4px",
             "border-radius": "4px",
             "font-family": "monospace",
-            "font-size": `calc(var(--ui-font-size) - ${props.size === "md" ? 2 : 4}px)`,
+            "font-size": `calc(var(--ui-font-size) - ${isMd() ? 2 : 3.5}px)`,
             "font-weight": "600",
-            color: "var(--text-secondary, #888)",
-            background: "var(--border-subtle, rgba(255,255,255,0.06))",
-            opacity: props.loading ? 0.8 : 0.5,
+            color: "var(--text-muted)",
+            background: "var(--bg-base, rgba(255,255,255,0.04))",
+            border: "1px dashed var(--border-default, rgba(255,255,255,0.14))",
+            opacity: props.loading ? 1 : 0.7,
           }}
         >
           {props.loading ? "…" : "T?"}
@@ -45,22 +46,24 @@ const TierChip: Component<Props> = (props) => {
           props.title ??
           `${meta()!.short} · ${meta()!.label} · score ${score()}${
             props.classification!.hard_override ? ` · HARD: ${props.classification!.hard_override}` : ""
-          }`
+          } · local heuristic scan (no LLM)`
         }
         style={{
           display: "inline-flex",
           "align-items": "center",
+          "justify-content": "center",
           gap: "4px",
-          "min-width": props.size === "md" ? "36px" : "28px",
-          height: props.size === "md" ? "20px" : "16px",
+          "min-width": isMd() ? "34px" : "28px",
+          height: isMd() ? "20px" : "18px",
           padding: "0 6px",
           "border-radius": "4px",
           "font-family": "monospace",
-          "font-size": `calc(var(--ui-font-size) - ${props.size === "md" ? 2 : 4}px)`,
+          "font-size": `calc(var(--ui-font-size) - ${isMd() ? 2 : 3.5}px)`,
           "font-weight": "700",
           color: meta()!.color,
           background: meta()!.bg,
-          border: `1px solid ${meta()!.color}33`,
+          border: `1px solid color-mix(in srgb, ${meta()!.color} 55%, transparent)`,
+          "letter-spacing": "0.02em",
         }}
       >
         <span>{meta()!.short}</span>
@@ -69,7 +72,7 @@ const TierChip: Component<Props> = (props) => {
             style={{
               "font-weight": "500",
               opacity: 0.75,
-              "font-size": `calc(var(--ui-font-size) - ${sizePx()}px)`,
+              "font-size": `calc(var(--ui-font-size) - ${isMd() ? 3 : 4.5}px)`,
             }}
           >
             {score()}

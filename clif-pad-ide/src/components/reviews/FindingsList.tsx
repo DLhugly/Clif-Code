@@ -51,8 +51,29 @@ const FindingsList: Component<{ prNumber: number; review: ReviewResult | null }>
   return (
     <div class="flex flex-col h-full">
       <Show when={!props.review}>
-        <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
-          No review yet for this PR. Click <strong>Review</strong> in the header to run one.
+        <div
+          class="px-4 py-4 flex flex-col gap-2"
+          style={{
+            color: "var(--text-muted)",
+            "font-size": "calc(var(--ui-font-size) - 2px)",
+            "line-height": "1.5",
+          }}
+        >
+          <div style={{ color: "var(--text-primary)", "font-weight": "500" }}>
+            No LLM findings yet
+          </div>
+          <div style={{ "max-width": "60ch" }}>
+            Findings are produced by sending this PR's diff to your configured LLM
+            (OpenRouter). It's <b>opt-in</b> and costs tokens, so Clif never runs it
+            automatically. Click <b style={{ color: "var(--accent-yellow)" }}>
+              Review with LLM
+            </b>{" "}
+            in the header above to run one.
+          </div>
+          <div style={{ "max-width": "60ch", opacity: 0.8 }}>
+            Heuristic signals (tier, score, security scanner) are already shown on the
+            PR row and in the "Why T?" panel — no LLM required.
+          </div>
         </div>
       </Show>
 

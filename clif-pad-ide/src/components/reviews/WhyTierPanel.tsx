@@ -1,5 +1,5 @@
-import { Component, For, Show } from "solid-js";
-import { TIER_META, type PrClassification } from "../../types/classification";
+import { Component, For, Show, createSignal } from "solid-js";
+import { TIER_META, type PrClassification, type Tier } from "../../types/classification";
 
 interface Props {
   classification: PrClassification;
@@ -16,9 +16,21 @@ const severityColor = (s: string): string => {
   }
 };
 
+// Score thresholds mirror classifier/mod.rs `Tier::from_score`. Kept in sync
+// by hand — change both if you change one. A visible legend makes the gate
+// obvious so the user never has to wonder why a PR landed on a given tier.
+const TIER_THRESHOLDS: { tier: Tier; range: string; description: string }[] = [
+  { tier: "T1", range: "0–2", description: "trivial" },
+  { tier: "T2", range: "3–9", description: "small" },
+  { tier: "T3", range: "10–24", description: "standard" },
+  { tier: "T4", range: "25–59", description: "significant" },
+  { tier: "T5", range: "60+ or hard-override", description: "halt" },
+];
+
 const WhyTierPanel: Component<Props> = (props) => {
   const meta = () => TIER_META[props.classification.tier];
   const signals = () => [...props.classification.signals].sort((a, b) => b.points - a.points);
+  const [showLegend, setShowLegend] = createSignal(false);
 
   return (
     <div
@@ -54,7 +66,7 @@ const WhyTierPanel: Component<Props> = (props) => {
               color: "var(--text-secondary, #888)",
             }}
           >
-            {meta().label} · score {props.classification.score}
+            {meta().label} · score {props.classification.score} · heuristic (no LLM)
             <Show when={props.classification.hard_override}>
               {" · "}
               <span style={{ color: "#fca5a5", "font-weight": "600" }}>
@@ -74,6 +86,98 @@ const WhyTierPanel: Component<Props> = (props) => {
       >
         {meta().description}
       </div>
+
+      <div
+        style={{
+          "font-size": "calc(var(--ui-font-size) - 3.5px)",
+          color: "var(--text-muted)",
+          "margin-bottom": "8px",
+          "line-height": "1.5",
+        }}
+      >
+        Each signal below adds points. Points sum to a <b>score</b>, and the score maps to a
+        tier. Any critical signal (secrets, destructive SQL, breaking change, critical security
+        hit) is a <b>hard-override</b> that forces T5 regardless of score.{" "}
+        <button
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--accent-primary)",
+            cursor: "pointer",
+            "font-size": "inherit",
+            padding: 0,
+            "text-decoration": "underline",
+          }}
+          onClick={() => setShowLegend((v) => !v)}
+        >
+          {showLegend() ? "hide score thresholds" : "show score thresholds"}
+        </button>
+      </div>
+
+      <Show when={showLegend()}>
+        <div
+          style={{
+            "margin-bottom": "8px",
+            "border-radius": "4px",
+            border: "1px solid var(--border-muted)",
+            background: "rgba(255,255,255,0.02)",
+            overflow: "hidden",
+          }}
+        >
+          <For each={TIER_THRESHOLDS}>
+            {(t) => {
+              const m = TIER_META[t.tier];
+              const isHere = t.tier === props.classification.tier;
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "8px",
+                    padding: "4px 8px",
+                    background: isHere ? m.bg : "transparent",
+                    "border-left": `3px solid ${isHere ? m.color : "transparent"}`,
+                    "font-size": "calc(var(--ui-font-size) - 3.5px)",
+                  }}
+                >
+                  <span
+                    style={{
+                      "font-family": "monospace",
+                      color: m.color,
+                      "font-weight": "700",
+                      "min-width": "24px",
+                    }}
+                  >
+                    {t.tier}
+                  </span>
+                  <span
+                    style={{
+                      "font-family": "monospace",
+                      color: "var(--text-secondary, #aaa)",
+                      "min-width": "110px",
+                    }}
+                  >
+                    score {t.range}
+                  </span>
+                  <span style={{ color: "var(--text-muted)" }}>{t.description}</span>
+                  <Show when={isHere}>
+                    <span
+                      style={{
+                        "margin-left": "auto",
+                        color: m.color,
+                        "font-weight": "600",
+                        "font-size": "calc(var(--ui-font-size) - 4px)",
+                      }}
+                    >
+                      this PR
+                    </span>
+                  </Show>
+                </div>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
 
       <Show when={signals().length > 0} fallback={
         <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)", opacity: 0.7 }}>

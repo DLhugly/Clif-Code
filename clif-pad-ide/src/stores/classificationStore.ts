@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { projectRoot } from "./fileStore";
-import { prClassify, prClassifyBatch } from "../lib/tauri";
+import { prClassify } from "../lib/tauri";
 import type { PrClassification, Tier } from "../types/classification";
 import { recordDecision } from "./syncStore";
 
@@ -43,27 +43,77 @@ async function fetchClassification(
   }
 }
 
-async function classifyAllVisible(prNumbers: number[]): Promise<void> {
+// ---------------------------------------------------------------------------
+// Concurrency-limited classify queue.
+//
+// Prior implementation used `pr_classify_batch` which spawned N concurrent
+// tokio tasks — fine for 5-10 PRs, but a 50-PR repo like openclaw would fire
+// 50 parallel `gh pr diff` + `gh pr view` calls and hit GitHub's secondary
+// rate limits, failing the whole batch. The queue below runs at most
+// CLASSIFY_CONCURRENCY requests in flight at a time. Each result lands in
+// the store the moment it returns, so the UI updates incrementally and one
+// slow PR never blocks the rest.
+// ---------------------------------------------------------------------------
+const CLASSIFY_CONCURRENCY = 3;
+const classifyQueue: number[] = [];
+let classifyInFlight = 0;
+const [totalQueuedEver, setTotalQueuedEver] = createSignal(0);
+
+export function classifyQueueStats(): { inFlight: number; queued: number; total: number } {
+  return {
+    inFlight: classifyInFlight,
+    queued: classifyQueue.length,
+    total: totalQueuedEver(),
+  };
+}
+
+function pumpClassifyQueue() {
+  while (classifyInFlight < CLASSIFY_CONCURRENCY && classifyQueue.length > 0) {
+    const n = classifyQueue.shift()!;
+    if (classifications[n] || classifying().has(n)) continue;
+    classifyInFlight++;
+    // Intentionally not awaited — we want the queue to keep moving.
+    void runOneClassification(n).finally(() => {
+      classifyInFlight = Math.max(0, classifyInFlight - 1);
+      pumpClassifyQueue();
+      // Reset `total` once everything is done so the progress bar clears.
+      if (classifyInFlight === 0 && classifyQueue.length === 0) {
+        setTotalQueuedEver(0);
+      }
+    });
+  }
+}
+
+async function runOneClassification(prNumber: number): Promise<void> {
   const workspaceDir = projectRoot();
   if (!workspaceDir) return;
-  const missing = prNumbers.filter((n) => !classifications[n] && !classifying().has(n));
-  if (missing.length === 0) return;
-  for (const n of missing) markClassifying(n, true);
+  if (classifications[prNumber] || classifying().has(prNumber)) return;
+  markClassifying(prNumber, true);
   try {
-    const results = await prClassifyBatch(workspaceDir, missing);
+    const result = await prClassify(workspaceDir, prNumber);
     setClassifications(
       produce((state) => {
-        for (const r of results) state[r.pr_number] = r;
+        state[prNumber] = result;
       }),
     );
-    for (const r of results) {
-      void recordClassifyDecision(r.pr_number, r.tier);
-    }
+    void recordClassifyDecision(prNumber, result.tier);
   } catch {
-    // ignore
+    // Swallow individual failures so one bad PR doesn't poison the batch.
+    // Next manual refresh will retry.
   } finally {
-    for (const n of missing) markClassifying(n, false);
+    markClassifying(prNumber, false);
   }
+}
+
+async function classifyAllVisible(prNumbers: number[]): Promise<void> {
+  for (const n of prNumbers) {
+    if (classifications[n]) continue;
+    if (classifying().has(n)) continue;
+    if (classifyQueue.includes(n)) continue;
+    classifyQueue.push(n);
+    setTotalQueuedEver((v) => v + 1);
+  }
+  pumpClassifyQueue();
 }
 
 /**

@@ -1,4 +1,4 @@
-import { Component, Show, createMemo, createSignal } from "solid-js";
+import { Component, For, Show, createMemo, createSignal } from "solid-js";
 import {
   selectedPrNumber,
   reviewResults,
@@ -10,6 +10,14 @@ import {
   clearPrDecisions,
 } from "../../stores/reviewsStore";
 import { prs } from "../../stores/reviewsStore";
+import {
+  Section,
+  HeuristicSection,
+  CommitsSection,
+  ChecksSection,
+  SECTIONS,
+  type SectionId,
+} from "./PrDetailSections";
 import FindingsList from "./FindingsList";
 import PrDiffView from "./PrDiffView";
 import SignOffOverlay from "./SignOffOverlay";
@@ -25,21 +33,29 @@ import {
 } from "../../stores/syncStore";
 import { labelColor } from "../../types/sync";
 
-type Tab = "findings" | "policy" | "diff" | "commits" | "checks" | "rules";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "findings", label: "Findings" },
-  { id: "policy", label: "Policy" },
-  { id: "diff", label: "Diff" },
-  { id: "commits", label: "Commits" },
-  { id: "checks", label: "Checks" },
-  { id: "rules", label: "Rules applied" },
-];
 
 const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> = (props) => {
-  const [tab, setTab] = createSignal<Tab>("findings");
   const [signOffOpen, setSignOffOpen] = createSignal(false);
   const [polishOpen, setPolishOpen] = createSignal(false);
+  const [collapsed, setCollapsed] = createSignal<Record<SectionId, boolean>>({
+    heuristic: false,
+    findings: false,
+    policy: false,
+    diff: false,
+    commits: false,
+    checks: false,
+    rules: false,
+  });
+  function toggleSection(id: SectionId) {
+    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+  function scrollToSection(id: SectionId) {
+    const el = document.getElementById(`pr-section-${id}`);
+    if (el) {
+      setCollapsed((prev) => ({ ...prev, [id]: false }));
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
 
   const selected = createMemo(() => {
     const n = selectedPrNumber();
@@ -162,14 +178,82 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
       <Show
         when={selected()}
         fallback={
-          <div class="flex flex-col items-center justify-center h-full gap-3" style={{ color: "var(--text-muted)" }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style={{ opacity: 0.5 }}>
+          <div
+            class="flex flex-col items-center justify-center h-full gap-4 px-6 text-center"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style={{ opacity: 0.5 }}
+            >
               <circle cx="18" cy="18" r="3" />
               <circle cx="6" cy="6" r="3" />
               <path d="M13 6h3a2 2 0 0 1 2 2v7" />
               <line x1="6" y1="9" x2="6" y2="21" />
             </svg>
-            <div style={{ "font-size": "calc(var(--ui-font-size) - 1px)" }}>Select a PR from the left to see findings</div>
+            <div
+              style={{
+                "font-size": "calc(var(--ui-font-size))",
+                "font-weight": "600",
+                color: "var(--text-primary)",
+              }}
+            >
+              Pick a PR from your Inbox
+            </div>
+            <div
+              style={{
+                "font-size": "calc(var(--ui-font-size) - 2px)",
+                "max-width": "48ch",
+                "line-height": "1.6",
+              }}
+            >
+              The <b>Inbox</b> on the left holds every PR that still needs you. Once you decide
+              something (Mark ready, Kick back, or Sign off), the PR moves to <b>Handled</b> and
+              drops out of the inbox.
+            </div>
+            <ol
+              style={{
+                "font-size": "calc(var(--ui-font-size) - 2px)",
+                "text-align": "left",
+                "line-height": "1.7",
+                "list-style": "decimal",
+                "padding-left": "22px",
+                "max-width": "48ch",
+              }}
+            >
+              <li>Click a PR — scan findings, policy, diff, commits, checks.</li>
+              <li>Use <b>Mark ready</b> / <b>Kick back</b> to tag locally.</li>
+              <li>Hit <b>Sync PR</b> (top-right of the triage bar) to push labels to GitHub.</li>
+              <li>PR leaves your inbox. Repeat.</li>
+            </ol>
+            <div
+              style={{
+                "margin-top": "8px",
+                padding: "8px 12px",
+                "border-radius": "6px",
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-muted)",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
+                "line-height": "1.55",
+                "max-width": "48ch",
+                "text-align": "left",
+              }}
+            >
+              <b style={{ color: "var(--accent-green)" }}>Tier badge</b> = local heuristic scan,
+              free, always on. Runs regex + filename patterns + our security scanner to bucket
+              each PR T1–T5.
+              <br />
+              <b style={{ color: "var(--accent-yellow)" }}>Findings</b> = OpenRouter LLM review.
+              Opt-in. Only runs when you click <i>Review</i>, use <i>review all</i>, or flip{" "}
+              <i>auto LLM</i> on.
+            </div>
           </div>
         }
       >
@@ -215,21 +299,35 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
               when={isRunning()}
               fallback={
                 <button
-                  class="px-2 py-1 rounded transition-colors"
+                  class="flex items-center gap-1 px-2 py-1 rounded transition-colors"
                   style={{
-                    background: "var(--bg-base)",
-                    color: "var(--text-primary)",
-                    border: "1px solid var(--border-default)",
+                    background: review()
+                      ? "var(--bg-base)"
+                      : "color-mix(in srgb, var(--accent-yellow) 18%, transparent)",
+                    color: review() ? "var(--accent-yellow)" : "var(--accent-yellow)",
+                    border: `1px solid ${
+                      review()
+                        ? "color-mix(in srgb, var(--accent-yellow) 30%, transparent)"
+                        : "color-mix(in srgb, var(--accent-yellow) 50%, transparent)"
+                    }`,
                     cursor: "pointer",
                     "font-size": "calc(var(--ui-font-size) - 3px)",
+                    "font-weight": "600",
                   }}
                   onClick={() => {
                     const n = selectedPrNumber();
                     if (n != null) runReview(n, { force: true });
                   }}
-                  title={review() ? "Re-run review" : "Run review"}
+                  title={
+                    review()
+                      ? "Re-run the LLM review (sends the diff to OpenRouter — costs tokens)"
+                      : "Run the LLM review for this PR (sends the diff to OpenRouter — costs tokens)"
+                  }
                 >
-                  {review() ? "Re-run" : "Review"}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6L12 2z" />
+                  </svg>
+                  {review() ? "Re-run LLM review" : "Review with LLM"}
                 </button>
               }
             >
@@ -505,68 +603,135 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
           </div>
         </div>
 
+        {/* Sticky jump-nav: click to scroll to a section. Same labels as the
+            old tabs, but they're anchor links — every section is always on
+            the page, you just scroll. */}
         <div
-          class="flex items-center shrink-0 px-3"
+          class="flex items-center shrink-0 px-3 gap-1 overflow-x-auto"
           style={{
             height: "32px",
             "border-bottom": "1px solid var(--border-default)",
             background: "var(--bg-surface)",
-            gap: "2px",
           }}
         >
-          {TABS.map((t) => (
-            <button
-              class="px-2 transition-colors"
-              style={{
-                height: "100%",
-                background: tab() === t.id ? "var(--bg-base)" : "transparent",
-                color: tab() === t.id ? "var(--text-primary)" : "var(--text-muted)",
-                border: "none",
-                "border-bottom": tab() === t.id ? "2px solid var(--accent-primary)" : "2px solid transparent",
-                cursor: "pointer",
-                "font-size": "calc(var(--ui-font-size) - 2.5px)",
-                "font-weight": "500",
-              }}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+          <For each={SECTIONS}>
+            {(s) => (
+              <button
+                class="px-2 rounded transition-colors shrink-0"
+                style={{
+                  background: "transparent",
+                  color: "var(--text-muted)",
+                  border: "none",
+                  cursor: "pointer",
+                  "font-size": "calc(var(--ui-font-size) - 2.5px)",
+                  "font-weight": "500",
+                  height: "22px",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                }}
+                onClick={() => scrollToSection(s.id)}
+                title={`Jump to ${s.label}`}
+              >
+                {s.label}
+              </button>
+            )}
+          </For>
         </div>
 
         <div class="flex-1 min-h-0 overflow-auto">
           <Show when={isRunning() && !review()}>
-            <div class="flex items-center gap-2 p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
+            <div
+              class="flex items-center gap-2 px-4 pt-4"
+              style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}
+            >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              <span>Running review...</span>
+              <span>Running review…</span>
             </div>
           </Show>
-          <Show when={tab() === "findings"}>
+
+          {/* Heuristic score — first, because it's the fastest signal. */}
+          <HeuristicSection
+            prNumber={selected()!.number}
+            collapsed={collapsed().heuristic}
+            onToggle={() => toggleSection("heuristic")}
+          />
+
+          {/* LLM findings (only populated after "Review with LLM") */}
+          <Section
+            id="findings"
+            title="LLM findings"
+            count={findingsCount() || undefined}
+            collapsed={collapsed().findings}
+            onToggle={() => toggleSection("findings")}
+          >
             <FindingsList prNumber={selected()!.number} review={review()} />
-          </Show>
-          <Show when={tab() === "policy"}>
+          </Section>
+
+          {/* Policy */}
+          <Section
+            id="policy"
+            title="Policy"
+            collapsed={collapsed().policy}
+            onToggle={() => toggleSection("policy")}
+          >
             <PolicyTab prNumber={selected()!.number} />
-          </Show>
-          <Show when={tab() === "diff"}>
+          </Section>
+
+          {/* Diff */}
+          <Section
+            id="diff"
+            title="Diff"
+            collapsed={collapsed().diff}
+            onToggle={() => toggleSection("diff")}
+          >
             <PrDiffView prNumber={selected()!.number} />
-          </Show>
-          <Show when={tab() === "commits"}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
-              Commit list — see the expanded PR row in the left column for the full commit history.
+          </Section>
+
+          {/* Commits */}
+          <CommitsSection
+            prNumber={selected()!.number}
+            collapsed={collapsed().commits}
+            onToggle={() => toggleSection("commits")}
+          />
+
+          {/* Checks */}
+          <ChecksSection
+            prNumber={selected()!.number}
+            collapsed={collapsed().checks}
+            onToggle={() => toggleSection("checks")}
+          />
+
+          {/* Rules applied */}
+          <Section
+            id="rules"
+            title="Rules applied"
+            collapsed={collapsed().rules}
+            onToggle={() => toggleSection("rules")}
+          >
+            <div
+              class="px-4 pb-4"
+              style={{
+                color: "var(--text-secondary)",
+                "font-size": "calc(var(--ui-font-size) - 2px)",
+                "line-height": "1.5",
+              }}
+            >
+              Rules loaded in priority order when running reviews on this repo:
+              <ul style={{ "margin-top": "6px", "padding-left": "18px", "list-style": "disc" }}>
+                <li><code>.clifreview.yaml</code></li>
+                <li><code>AGENTS.md</code></li>
+                <li><code>CLAUDE.md</code></li>
+                <li><code>.cursorrules</code></li>
+                <li><code>.github/copilot-instructions.md</code></li>
+              </ul>
             </div>
-          </Show>
-          <Show when={tab() === "checks"}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
-              Checks — see the expanded PR row in the left column for the complete CI rollup.
-            </div>
-          </Show>
-          <Show when={tab() === "rules"}>
-            <div class="p-4" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)" }}>
-              Rules loaded in priority order: .clifreview.yaml, AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md.
-            </div>
-          </Show>
+          </Section>
         </div>
 
         <Show when={signOffOpen()}>
