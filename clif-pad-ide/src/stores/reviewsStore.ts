@@ -21,9 +21,25 @@ import type {
 import type { PolicyResult, PendingComment } from "../types/policy";
 import type { RelatedPr } from "../types/similarity";
 import type { ConsolidationPlan, ConsolidationResult } from "../types/consolidation";
+import type { Tier } from "../types/classification";
+import {
+  classifications,
+  classifying,
+  autoClassifyEnabled,
+  setAutoClassifyEnabled,
+  fetchClassification,
+  classifyAllVisible,
+  tierRank,
+} from "./classificationStore";
 
 export type PrStateFilter = "open" | "closed" | "merged" | "all";
-export type PrSort = "updated-desc" | "created-desc" | "age-desc" | "commits-desc" | "ci-failing-first";
+export type PrSort =
+  | "updated-desc"
+  | "created-desc"
+  | "age-desc"
+  | "commits-desc"
+  | "ci-failing-first"
+  | "tier-desc";
 
 const [prs, setPrs] = createStore<PrSummary[]>([]);
 const [loading, setLoading] = createSignal(false);
@@ -35,7 +51,7 @@ const [stateFilter, setStateFilter] = createSignal<PrStateFilter>("open");
 const [authorFilter, setAuthorFilter] = createSignal<string>("");
 const [hideDrafts, setHideDrafts] = createSignal(false);
 const [onlyFailingCi, setOnlyFailingCi] = createSignal(false);
-const [sort, setSort] = createSignal<PrSort>("updated-desc");
+const [sort, setSort] = createSignal<PrSort>("tier-desc");
 
 // Review engine state
 const [reviewResults, setReviewResults] = createStore<Record<number, ReviewResult>>({});
@@ -436,6 +452,15 @@ async function checkGhAvailability(): Promise<GhAvailability> {
 const [prDetails, setPrDetails] = createStore<Record<number, PrDetail>>({});
 const [loadingDetail, setLoadingDetail] = createSignal<Set<number>>(new Set());
 
+export function tierCounts(): Record<Tier, number> {
+  const counts: Record<Tier, number> = { T1: 0, T2: 0, T3: 0, T4: 0, T5: 0 };
+  for (const pr of prs) {
+    const c = classifications[pr.number];
+    if (c) counts[c.tier]++;
+  }
+  return counts;
+}
+
 // Selection state for batch actions
 const [selectedPrs, setSelectedPrs] = createSignal<Set<number>>(new Set());
 const [lastSelectedAnchor, setLastSelectedAnchor] = createSignal<number | null>(null);
@@ -482,6 +507,14 @@ function selectAllVisible(visible: number[]) {
     for (const n of visible) next.add(n);
     return next;
   });
+}
+
+function selectByTier(tier: Tier) {
+  const matches = prs
+    .filter((p) => classifications[p.number]?.tier === tier)
+    .map((p) => p.number);
+  setSelectedPrs(new Set<number>(matches));
+  setLastSelectedAnchor(null);
 }
 
 // Bulk action progress
@@ -596,6 +629,9 @@ async function refreshPrs(workspaceDir: string, limit = 50) {
     const list = await ghListPrs(workspaceDir, stateFilter(), limit);
     setPrs(list);
     setLastFetchedAt(Date.now());
+    if (autoClassifyEnabled() && list.length > 0) {
+      void classifyAllVisible(list.map((p) => p.number));
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     setError(msg);
@@ -699,6 +735,19 @@ function filteredSortedPrs(): PrSummary[] {
         const bu = Date.parse(b.updatedAt ?? "") || 0;
         return bu - au;
       }
+      case "tier-desc": {
+        const ac = classifications[a.number];
+        const bc = classifications[b.number];
+        const at = ac ? tierRank(ac.tier) : 0;
+        const bt = bc ? tierRank(bc.tier) : 0;
+        if (at !== bt) return bt - at;
+        const asc = ac?.score ?? 0;
+        const bsc = bc?.score ?? 0;
+        if (asc !== bsc) return bsc - asc;
+        const au = Date.parse(a.updatedAt ?? "") || 0;
+        const bu = Date.parse(b.updatedAt ?? "") || 0;
+        return bu - au;
+      }
       case "updated-desc":
       default: {
         const au = Date.parse(a.updatedAt ?? "") || 0;
@@ -765,6 +814,7 @@ export {
   selectRangeTo,
   clearSelection,
   selectAllVisible,
+  selectByTier,
   bulkRunning,
   bulkPostReview,
   bulkCloseAsDuplicate,
@@ -781,4 +831,10 @@ export {
   fetchRelatedPrs,
   planConsolidation,
   applyConsolidation,
+  classifications,
+  classifying,
+  autoClassifyEnabled,
+  setAutoClassifyEnabled,
+  fetchClassification,
+  classifyAllVisible,
 };

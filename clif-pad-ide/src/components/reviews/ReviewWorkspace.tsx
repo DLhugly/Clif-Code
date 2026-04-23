@@ -27,7 +27,7 @@ import { consolidationOpen, closeConsolidation, openConsolidationFromSelection }
 import { pendingComments, loadPendingComments } from "../../stores/reviewsStore";
 import { projectRoot } from "../../stores/fileStore";
 
-const AgentChatPanel = lazy(() => import("../agent/AgentChatPanel"));
+const ReviewAgentChat = lazy(() => import("./ReviewAgentChat"));
 
 const ReviewWorkspace: Component = () => {
   const [isDraggingLeft, setIsDraggingLeft] = createSignal(false);
@@ -189,7 +189,7 @@ const ReviewWorkspace: Component = () => {
               </div>
             }
           >
-            <AgentChatPanel />
+            <ReviewAgentChat />
           </Suspense>
         </div>
       </Show>

@@ -45,6 +45,7 @@ const STATE_OPTIONS: { value: PrStateFilter; label: string }[] = [
 ];
 
 const SORT_OPTIONS: { value: PrSort; label: string }[] = [
+  { value: "tier-desc", label: "Tier (high risk first)" },
   { value: "updated-desc", label: "Recently updated" },
   { value: "created-desc", label: "Recently opened" },
   { value: "age-desc", label: "Oldest first" },

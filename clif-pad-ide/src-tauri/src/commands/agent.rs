@@ -371,6 +371,51 @@ fn build_runtime_context(workspace_dir: &str, context: Option<&str>) -> String {
                     runtime.push_str(&format!("\nAttached files for context: {}\n", file_list.join(", ")));
                 }
             }
+            if let Some(pr) = parsed.get("reviewPr") {
+                runtime.push_str("\n## PR Under Review\n\n");
+                if let Some(n) = pr.get("number").and_then(|v| v.as_i64()) {
+                    runtime.push_str(&format!("PR number: #{}\n", n));
+                }
+                if let Some(title) = pr.get("title").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("Title: {}\n", title));
+                }
+                if let Some(author) = pr.get("author").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("Author: @{}\n", author));
+                }
+                if let Some(url) = pr.get("url").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("URL: {}\n", url));
+                }
+                if let Some(head) = pr.get("head_ref").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("Head branch: {}\n", head));
+                }
+                if let Some(base) = pr.get("base_ref").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("Base branch: {}\n", base));
+                }
+                if let Some(tier) = pr.get("tier").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("Classification tier: {}\n", tier));
+                }
+                if let Some(score) = pr.get("score").and_then(|v| v.as_i64()) {
+                    runtime.push_str(&format!("Classification score: {}\n", score));
+                }
+                if let Some(ho) = pr.get("hard_override").and_then(|v| v.as_str()) {
+                    runtime.push_str(&format!("Hard override: {}\n", ho));
+                }
+                if let Some(fc) = pr.get("findings_count").and_then(|v| v.as_i64()) {
+                    runtime.push_str(&format!("Review findings so far: {}\n", fc));
+                }
+                if let Some(sig) = pr.get("signals_summary").and_then(|v| v.as_str()) {
+                    if !sig.is_empty() {
+                        runtime.push_str(&format!("Signals summary: {}\n", sig));
+                    }
+                }
+                if let Some(files) = pr.get("touched_files").and_then(|v| v.as_array()) {
+                    let list: Vec<&str> = files.iter().filter_map(|v| v.as_str()).take(40).collect();
+                    if !list.is_empty() {
+                        runtime.push_str(&format!("Touched files: {}\n", list.join(", ")));
+                    }
+                }
+                runtime.push_str("\nGuidance: When the user asks about 'this PR' or 'this branch', assume they mean the PR above. Use `gh pr diff <number>`, `gh pr view <number>`, or `git log <base>..<head>` via run_command when they need actual diffs. Prefer reading files in the repo checkout for context; do not assume the working tree is already on the PR branch unless the current git branch matches the head branch above.\n");
+            }
         }
     }
 

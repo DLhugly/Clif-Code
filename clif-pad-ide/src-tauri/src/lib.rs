@@ -190,6 +190,8 @@ pub fn run() {
             commands::review::pr_similarity,
             commands::review::pr_consolidate_plan,
             commands::review::pr_consolidate_apply,
+            commands::review::pr_classify,
+            commands::review::pr_classify_batch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

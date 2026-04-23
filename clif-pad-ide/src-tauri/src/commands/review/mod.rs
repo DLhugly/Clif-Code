@@ -1,5 +1,6 @@
 mod audit;
 mod auto_comment;
+mod classifier;
 mod consolidate;
 mod driver;
 mod engine;
@@ -581,4 +582,40 @@ pub async fn pr_consolidate_apply(
     }
 
     Ok(result)
+}
+
+// ============================================================================
+// Classification
+// ============================================================================
+
+#[tauri::command]
+pub async fn pr_classify(
+    workspace_dir: String,
+    pr_number: i64,
+) -> Result<classifier::PrClassification, String> {
+    classifier::classify_pr(&workspace_dir, pr_number).await
+}
+
+#[tauri::command]
+pub async fn pr_classify_batch(
+    workspace_dir: String,
+    pr_numbers: Vec<i64>,
+) -> Result<Vec<classifier::PrClassification>, String> {
+    let mut out = Vec::with_capacity(pr_numbers.len());
+    let mut joins: Vec<tokio::task::JoinHandle<Result<classifier::PrClassification, String>>> =
+        Vec::new();
+    for n in pr_numbers {
+        let ws = workspace_dir.clone();
+        joins.push(tokio::spawn(async move {
+            classifier::classify_pr(&ws, n).await
+        }));
+    }
+    for j in joins {
+        match j.await {
+            Ok(Ok(c)) => out.push(c),
+            Ok(Err(_)) => continue,
+            Err(_) => continue,
+        }
+    }
+    Ok(out)
 }

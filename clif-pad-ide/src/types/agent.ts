@@ -33,6 +33,20 @@ export interface AgentContext {
   activeFile?: string;
   gitBranch?: string;
   agentMode?: "agent" | "ask" | "plan";
+  reviewPr?: {
+    number: number;
+    title: string;
+    author?: string | null;
+    url?: string | null;
+    head_ref?: string | null;
+    base_ref?: string | null;
+    tier?: string | null;
+    score?: number | null;
+    hard_override?: string | null;
+    touched_files?: string[];
+    findings_count?: number;
+    signals_summary?: string;
+  };
 }
 
 export interface EditPreview {

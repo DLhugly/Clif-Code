@@ -669,6 +669,43 @@ function startNewSession() {
 }
 
 /**
+ * Switch to (or create) a PR-scoped chat tab. Each PR gets its own persistent
+ * conversation identified by tab id `pr-<number>`. Safe to call even while
+ * another conversation is active.
+ */
+function ensurePrChat(prNumber: number, label: string) {
+  if (agentStreaming()) return;
+  const tabId = `pr-${prNumber}`;
+  if (activeAgentTab() === tabId) return;
+  if (agentMessages.length > 0) saveCurrentTab();
+  const existing = agentTabs.find((t) => t.id === tabId);
+  if (existing) {
+    setActiveAgentTab(tabId);
+    setAgentMessages(existing.messages);
+    setAgentTokens(existing.tokens);
+    setAgentError(null);
+    setAgentSessionId(null);
+  } else {
+    setActiveAgentTab(tabId);
+    setAgentMessages([]);
+    setAgentTokens({ prompt: 0, completion: 0, context: 0 });
+    setAgentError(null);
+    setAgentSessionId(null);
+    setAgentTabs(
+      produce((tabs) => {
+        tabs.push({
+          id: tabId,
+          label,
+          messages: [],
+          tokens: { prompt: 0, completion: 0, context: 0 },
+        });
+      }),
+    );
+  }
+  scheduleSave();
+}
+
+/**
  * Called when switching to a new project. Cancels any pending save timer
  * so stale state from the previous project cannot overwrite the new one,
  * then resets all agent state to a clean baseline.
@@ -705,6 +742,7 @@ export {
   forcePushAgent,
   clearAgentMessages,
   startNewSession,
+  ensurePrChat,
   switchAgentTab,
   removeAgentTab,
   restoreAgentHistory,

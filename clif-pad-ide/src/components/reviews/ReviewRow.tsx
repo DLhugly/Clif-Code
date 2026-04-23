@@ -23,6 +23,13 @@ import SimilarityDrawer from "./SimilarityDrawer";
 import { openExternal } from "../../lib/tauri";
 import { setViewMode } from "../../stores/uiStore";
 import { createEffect } from "solid-js";
+import TierChip from "./TierChip";
+import WhyTierPanel from "./WhyTierPanel";
+import {
+  classifications,
+  classifying,
+  fetchClassification,
+} from "../../stores/classificationStore";
 
 const CheckGlyph: Component<{ state: "passing" | "failing" | "pending" | "none" }> = (props) => {
   const color = () =>
@@ -68,11 +75,16 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
   });
   const [similarityOpen, setSimilarityOpen] = createSignal(false);
   const relatedCount = createMemo(() => (relatedPrs[props.pr.number] ?? []).length);
+  const classification = createMemo(() => classifications[props.pr.number] ?? null);
+  const isClassifying = () => classifying().has(props.pr.number);
 
   // Lazy-load detail (commits + checks) the first time the row is expanded
   createEffect(() => {
     if (props.expanded && !detail() && !detailLoading()) {
       fetchPrDetail(props.pr.number);
+    }
+    if (props.expanded && !classification() && !isClassifying()) {
+      fetchClassification(props.pr.number);
     }
   });
   const ciState = (): "passing" | "failing" | "pending" | "none" => {
@@ -148,7 +160,13 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
             onChange={() => toggleSelection(props.pr.number)}
           />
         </div>
-        <div class="flex flex-col items-center gap-1 shrink-0" style={{ width: "32px", "padding-top": "2px" }}>
+        <div class="flex flex-col items-center gap-1 shrink-0" style={{ width: "44px", "padding-top": "2px" }}>
+          <TierChip
+            classification={classification()}
+            loading={isClassifying()}
+            size="sm"
+            showScore={false}
+          />
           <span
             style={{
               "font-family": "var(--font-mono, monospace)",
@@ -308,6 +326,20 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
             "border-top": "1px solid var(--border-muted)",
           }}
         >
+          <Show when={classification()}>
+            <WhyTierPanel classification={classification()!} />
+          </Show>
+          <Show when={!classification() && isClassifying()}>
+            <div
+              class="py-2"
+              style={{
+                "font-size": "calc(var(--ui-font-size) - 3px)",
+                color: "var(--text-muted)",
+              }}
+            >
+              Classifying PR…
+            </div>
+          </Show>
           <div class="flex items-center gap-2 py-2 flex-wrap">
             <button
               class="px-2 py-1 rounded-md transition-colors"

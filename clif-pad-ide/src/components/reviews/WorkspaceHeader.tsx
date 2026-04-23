@@ -1,4 +1,4 @@
-import { Component, Show, createMemo } from "solid-js";
+import { Component, For, Show, createMemo } from "solid-js";
 import {
   selectedPrs,
   runningReviews,
@@ -6,7 +6,10 @@ import {
   policyResults,
   prs,
   clearSelection,
+  tierCounts,
+  selectByTier,
 } from "../../stores/reviewsStore";
+import { TIER_META, type Tier } from "../../types/classification";
 
 const Chip: Component<{
   label: string;
@@ -72,6 +75,8 @@ const WorkspaceHeader: Component<{
     return n;
   });
   const selected = () => selectedPrs().size;
+  const tiers = createMemo(() => tierCounts());
+  const tierOrder: Tier[] = ["T5", "T4", "T3", "T2", "T1"];
 
   return (
     <div
@@ -83,6 +88,36 @@ const WorkspaceHeader: Component<{
       }}
     >
       <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1">
+          <For each={tierOrder}>
+            {(t) => {
+              const count = () => tiers()[t];
+              const meta = TIER_META[t];
+              return (
+                <button
+                  class="flex items-center gap-1 rounded px-1.5 py-0.5"
+                  title={`Select all ${meta.short} (${meta.label}) — ${count()} PR${count() === 1 ? "" : "s"}`}
+                  onClick={() => count() > 0 && selectByTier(t)}
+                  disabled={count() === 0}
+                  style={{
+                    background: count() > 0 ? meta.bg : "transparent",
+                    color: count() > 0 ? meta.color : "var(--text-muted)",
+                    border: `1px solid ${count() > 0 ? `${meta.color}44` : "var(--border-default)"}`,
+                    cursor: count() > 0 ? "pointer" : "default",
+                    opacity: count() === 0 ? 0.45 : 1,
+                    "font-family": "monospace",
+                    "font-size": "calc(var(--ui-font-size) - 3px)",
+                    "font-weight": "600",
+                  }}
+                >
+                  <span>{meta.short}</span>
+                  <span style={{ "font-weight": "500", opacity: 0.85 }}>{count()}</span>
+                </button>
+              );
+            }}
+          </For>
+        </div>
+        <div style={{ width: "1px", height: "18px", background: "var(--border-default)" }} />
         <Chip
           label="PRs"
           value={prs.length}

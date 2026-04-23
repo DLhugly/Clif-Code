@@ -76,7 +76,7 @@ fn should_skip_file(path: &str) -> bool {
     false
 }
 
-fn scan_content(file_path: &str, content: &str) -> Vec<SecurityIssue> {
+pub fn scan_content(file_path: &str, content: &str) -> Vec<SecurityIssue> {
     let mut issues = Vec::new();
 
     for (i, line) in content.lines().enumerate() {

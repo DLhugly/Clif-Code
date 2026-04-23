@@ -477,3 +477,17 @@ export interface PrDetail {
 export async function ghPrDetail(workspaceDir: string, prNumber: number): Promise<PrDetail> {
   return invoke("gh_pr_detail", { workspaceDir, prNumber });
 }
+
+export async function prClassify(
+  workspaceDir: string,
+  prNumber: number,
+): Promise<import("../types/classification").PrClassification> {
+  return invoke("pr_classify", { workspaceDir, prNumber });
+}
+
+export async function prClassifyBatch(
+  workspaceDir: string,
+  prNumbers: number[],
+): Promise<import("../types/classification").PrClassification[]> {
+  return invoke("pr_classify_batch", { workspaceDir, prNumbers });
+}
