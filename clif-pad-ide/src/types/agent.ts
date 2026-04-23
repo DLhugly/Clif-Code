@@ -8,6 +8,18 @@ export interface AgentMessage {
   toolCallId?: string;
   toolCalls?: ToolCall[];
   status?: "streaming" | "done" | "error" | "pending";
+  /**
+   * Structured variant of a `system` message. When set, ChatMessage renders
+   * a bespoke card instead of the default pill. Keep these orthogonal to
+   * status so we don't collide with `error` styling.
+   */
+  systemKind?: "compaction";
+  /**
+   * Payload blob for structured system messages. For `systemKind:
+   * "compaction"` it contains { reason, tokens_before, tokens_after,
+   * threshold }. Kept untyped here to avoid leaking Rust-side details.
+   */
+  systemData?: Record<string, unknown>;
 }
 
 export interface ToolCall {

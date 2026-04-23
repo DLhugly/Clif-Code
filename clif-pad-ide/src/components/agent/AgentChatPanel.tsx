@@ -1,6 +1,8 @@
 import { Component, For, Show, createSignal, createEffect, createMemo, onMount, onCleanup, lazy, Suspense, type Accessor } from "solid-js";
 import {
   agentMessages,
+  setAgentMessages,
+  agentSessionId,
   agentStreaming,
   agentTokens,
   agentStatus,
@@ -16,6 +18,8 @@ import {
   restoreAgentHistory,
   queuedMessages,
 } from "../../stores/agentStore";
+import { invoke } from "@tauri-apps/api/core";
+import { produce } from "solid-js/store";
 
 import { activeFile, projectRoot, fileTree } from "../../stores/fileStore";
 import type { FileEntry } from "../../types/files";
@@ -325,15 +329,111 @@ const AgentChatPanel: Component = () => {
     return Math.max(0, total - visible);
   });
 
-  const sessionTodos = createMemo<SessionTodo[]>(() => {
-    for (let i = agentMessages.length - 1; i >= 0; i--) {
-      const msg = agentMessages[i];
-      if (msg.role !== "tool_result") continue;
-      const todos = extractTodosFromToolResult(msg.content);
-      if (todos) return todos;
+  // Pick the most recent tool_result that produced a todo list AND remember
+  // which message produced it. The msg id lets us auto-clear per-item and
+  // panel-wide dismissals when the agent writes a fresh list later.
+  const sessionTodoSource = createMemo<{ todos: SessionTodo[]; msgId: string | null }>(
+    () => {
+      for (let i = agentMessages.length - 1; i >= 0; i--) {
+        const msg = agentMessages[i];
+        if (msg.role !== "tool_result") continue;
+        const todos = extractTodosFromToolResult(msg.content);
+        if (todos) return { todos, msgId: msg.id };
+      }
+      return { todos: [], msgId: null };
+    },
+  );
+
+  const [taskSourceMsgId, setTaskSourceMsgId] = createSignal<string | null>(null);
+  const [dismissedTodoIds, setDismissedTodoIds] = createSignal<Set<string>>(new Set());
+  const [taskListDismissed, setTaskListDismissed] = createSignal(false);
+
+  // When the agent writes a new todo list, reset local dismissals so fresh
+  // tasks show up rather than being silently filtered.
+  createEffect(() => {
+    const src = sessionTodoSource().msgId;
+    if (src && src !== taskSourceMsgId()) {
+      setTaskSourceMsgId(src);
+      setDismissedTodoIds(new Set<string>());
+      setTaskListDismissed(false);
+      setTaskListExpanded(true);
     }
-    return [];
   });
+
+  const sessionTodos = createMemo<SessionTodo[]>(() => {
+    const dismissed = dismissedTodoIds();
+    return sessionTodoSource().todos.filter((t) => !dismissed.has(t.id));
+  });
+
+  function dismissTodo(id: string) {
+    setDismissedTodoIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }
+
+  function dismissTaskList() {
+    setTaskListDismissed(true);
+  }
+
+  function undismissAll() {
+    setDismissedTodoIds(new Set<string>());
+    setTaskListDismissed(false);
+  }
+
+  /**
+   * DISCARD — nuke the task list from the agent's context, not just the UI.
+   *
+   * Mutates the most recent tool_result message to report an empty todo list
+   * so subsequent LLM turns see nothing (the provider re-sends the entire
+   * conversation each turn; rewriting history is how we actually change what
+   * the model remembers). Also clears the server-side SESSION_TODOS map so
+   * `todo_read` returns empty too, and inserts a system message explaining
+   * what happened.
+   *
+   * This is irreversible from the UI (no "restore"); that's the whole point
+   * vs. plain Dismiss.
+   */
+  async function discardTaskList() {
+    const src = sessionTodoSource();
+    if (!src.msgId) return;
+
+    // 1) Rewrite the tool_result so the agent's own history loop no longer
+    //    contains the todo data.
+    setAgentMessages(
+      produce((msgs) => {
+        const idx = msgs.findIndex((m) => m.id === src.msgId);
+        if (idx >= 0) {
+          msgs[idx].content = JSON.stringify({
+            ok: true,
+            result: { todos: [] },
+            note: "User discarded the task list.",
+          });
+        }
+        msgs.push({
+          id: `sys-discard-${Date.now()}`,
+          role: "system",
+          content:
+            "Task list discarded by user. The agent will see an empty list going forward.",
+          timestamp: Date.now(),
+          status: "done",
+        });
+      }),
+    );
+
+    // 2) Clear server-side todos so `todo_read` returns nothing.
+    try {
+      await invoke("agent_clear_todos", { sessionId: agentSessionId() });
+    } catch {
+      // Non-fatal; the mutation above is what really matters for the model.
+    }
+
+    // 3) Reset local UI state.
+    setDismissedTodoIds(new Set<string>());
+    setTaskListDismissed(false);
+    setTaskSourceMsgId(null);
+  }
 
   const todoCounts = createMemo(() => {
     const todos = sessionTodos();
@@ -344,6 +444,10 @@ const AgentChatPanel: Component = () => {
       cancelled: todos.filter((t) => t.status === "cancelled").length,
       total: todos.length,
     };
+  });
+
+  const hasDismissedItems = createMemo(() => {
+    return sessionTodoSource().todos.some((t) => dismissedTodoIds().has(t.id));
   });
 
   // Load older messages in batches
@@ -806,8 +910,11 @@ const AgentChatPanel: Component = () => {
         />
       </Show>
 
-      {/* Agent Task List */}
-      <Show when={sessionTodos().length > 0}>
+      {/* Agent Task List — hides entirely when `taskListDismissed` is true.
+          Shows a small "restore" chip when user has hidden items and wants
+          them back. Dismissals reset on the next `todo_write` from the
+          agent (new source message id). */}
+      <Show when={sessionTodos().length > 0 && !taskListDismissed()}>
         <div
           class="shrink-0 mx-3 mt-2 rounded-lg overflow-hidden"
           style={{
@@ -815,45 +922,156 @@ const AgentChatPanel: Component = () => {
             background: "var(--bg-base)",
           }}
         >
-          <button
+          <div
             class="w-full flex items-center gap-2 px-2.5 py-1.5"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--text-primary)",
-              cursor: "pointer",
-              "font-size": "12px",
-            }}
-            onClick={() => setTaskListExpanded(!taskListExpanded())}
-            title="Toggle task list"
+            style={{ color: "var(--text-primary)", "font-size": "12px" }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{ transform: taskListExpanded() ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", "flex-shrink": "0", color: "var(--text-muted)" }}>
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-            <span class="font-medium" style={{ "flex-shrink": "0" }}>
-              Tasks
-            </span>
-            <span class="flex-1 flex items-center gap-1.5 flex-wrap" style={{ "font-size": "10.5px" }}>
-              <Show when={todoCounts().in_progress > 0}>
-                <span class="px-1.5 rounded" style={{ background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)", color: "var(--accent-blue)", "font-weight": "500" }}>
-                  {todoCounts().in_progress} active
-                </span>
-              </Show>
-              <Show when={todoCounts().pending > 0}>
-                <span class="px-1.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}>
-                  {todoCounts().pending} pending
-                </span>
-              </Show>
-              <Show when={todoCounts().completed > 0}>
-                <span class="px-1.5 rounded" style={{ background: "color-mix(in srgb, var(--accent-green) 12%, transparent)", color: "var(--accent-green)" }}>
-                  {todoCounts().completed} done
-                </span>
-              </Show>
-            </span>
-            <span style={{ color: "var(--text-muted)", "font-size": "10.5px", "flex-shrink": "0" }}>
-              {todoCounts().total}
-            </span>
-          </button>
+            <button
+              class="flex items-center gap-2 flex-1 min-w-0"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "inherit",
+                cursor: "pointer",
+                padding: 0,
+                "text-align": "left",
+              }}
+              onClick={() => setTaskListExpanded(!taskListExpanded())}
+              title="Toggle task list"
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style={{
+                  transform: taskListExpanded() ? "rotate(90deg)" : "rotate(0deg)",
+                  transition: "transform 0.15s",
+                  "flex-shrink": "0",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              <span class="font-medium" style={{ "flex-shrink": "0" }}>
+                Tasks
+              </span>
+              <span
+                class="flex-1 flex items-center gap-1.5 flex-wrap"
+                style={{ "font-size": "10.5px" }}
+              >
+                <Show when={todoCounts().in_progress > 0}>
+                  <span
+                    class="px-1.5 rounded"
+                    style={{
+                      background: "color-mix(in srgb, var(--accent-blue) 15%, transparent)",
+                      color: "var(--accent-blue)",
+                      "font-weight": "500",
+                    }}
+                  >
+                    {todoCounts().in_progress} active
+                  </span>
+                </Show>
+                <Show when={todoCounts().pending > 0}>
+                  <span
+                    class="px-1.5 rounded"
+                    style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}
+                  >
+                    {todoCounts().pending} pending
+                  </span>
+                </Show>
+                <Show when={todoCounts().completed > 0}>
+                  <span
+                    class="px-1.5 rounded"
+                    style={{
+                      background: "color-mix(in srgb, var(--accent-green) 12%, transparent)",
+                      color: "var(--accent-green)",
+                    }}
+                  >
+                    {todoCounts().completed} done
+                  </span>
+                </Show>
+              </span>
+              <span
+                style={{
+                  color: "var(--text-muted)",
+                  "font-size": "10.5px",
+                  "flex-shrink": "0",
+                }}
+              >
+                {todoCounts().total}
+              </span>
+            </button>
+            {/* Dismiss — hides from UI only. Agent still sees the tasks in
+                its context; next `todo_write` restores the view. */}
+            <button
+              class="flex items-center justify-center shrink-0 rounded"
+              style={{
+                height: "20px",
+                padding: "0 8px",
+                background: "transparent",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border-default)",
+                cursor: "pointer",
+                "font-size": "10.5px",
+                "font-weight": "500",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+              }}
+              onClick={dismissTaskList}
+              title="Dismiss: hide from view. Agent still sees these tasks; next todo_write restores the panel."
+            >
+              Dismiss
+            </button>
+            {/* Discard — wipes from agent's context too. Rewrites the
+                tool_result and clears server SESSION_TODOS so the next turn
+                the agent sees an empty list. */}
+            <button
+              class="flex items-center justify-center shrink-0 rounded"
+              style={{
+                height: "20px",
+                padding: "0 8px",
+                background: "color-mix(in srgb, var(--accent-red) 12%, transparent)",
+                color: "var(--accent-red)",
+                border: "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)",
+                cursor: "pointer",
+                "font-size": "10.5px",
+                "font-weight": "500",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  "color-mix(in srgb, var(--accent-red) 22%, transparent)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  "color-mix(in srgb, var(--accent-red) 12%, transparent)";
+              }}
+              onClick={() => {
+                if (
+                  confirm(
+                    "Discard the task list from the agent's context?\n\n" +
+                      "This rewrites the tool result so the agent stops seeing these tasks in future turns. " +
+                      "Your visible chat history above is unchanged — only what the model reads on the next request.",
+                  )
+                ) {
+                  void discardTaskList();
+                }
+              }}
+              title="Discard: remove from agent's context. Agent will see an empty todo list on the next turn."
+            >
+              Discard
+            </button>
+          </div>
           <Show when={taskListExpanded()}>
             <div
               class="px-2.5 pb-2"
@@ -867,27 +1085,129 @@ const AgentChatPanel: Component = () => {
             >
               <For each={sessionTodos()}>
                 {(todo) => (
-                  <div class="flex items-start gap-2 py-1" style={{ opacity: todo.status === "cancelled" ? "0.55" : "1" }}>
-                    <span style={{
-                      color: todo.status === "completed" ? "var(--accent-green)" : todo.status === "in_progress" ? "var(--accent-blue)" : todo.status === "cancelled" ? "var(--accent-red)" : "var(--text-muted)",
-                      "margin-top": "1px",
-                      "font-size": "11px",
-                      "flex-shrink": "0",
-                      width: "12px",
-                    }}>
-                      {todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "▶" : todo.status === "cancelled" ? "✕" : "○"}
+                  <div
+                    class="flex items-start gap-2 py-1 group"
+                    style={{
+                      opacity: todo.status === "cancelled" ? "0.55" : "1",
+                      "border-radius": "4px",
+                      padding: "2px 4px",
+                    }}
+                    onMouseEnter={(e) => {
+                      const btn = (e.currentTarget as HTMLElement).querySelector(
+                        ".todo-remove-btn",
+                      ) as HTMLElement | null;
+                      if (btn) btn.style.opacity = "1";
+                    }}
+                    onMouseLeave={(e) => {
+                      const btn = (e.currentTarget as HTMLElement).querySelector(
+                        ".todo-remove-btn",
+                      ) as HTMLElement | null;
+                      if (btn) btn.style.opacity = "0";
+                    }}
+                  >
+                    <span
+                      style={{
+                        color:
+                          todo.status === "completed"
+                            ? "var(--accent-green)"
+                            : todo.status === "in_progress"
+                            ? "var(--accent-blue)"
+                            : todo.status === "cancelled"
+                            ? "var(--accent-red)"
+                            : "var(--text-muted)",
+                        "margin-top": "1px",
+                        "font-size": "11px",
+                        "flex-shrink": "0",
+                        width: "12px",
+                      }}
+                    >
+                      {todo.status === "completed"
+                        ? "✓"
+                        : todo.status === "in_progress"
+                        ? "▶"
+                        : todo.status === "cancelled"
+                        ? "✕"
+                        : "○"}
                     </span>
-                    <span style={{
-                      "text-decoration": todo.status === "completed" ? "line-through" : "none",
-                      opacity: todo.status === "completed" ? "0.7" : "1",
-                    }}>
+                    <span
+                      class="flex-1 min-w-0"
+                      style={{
+                        "text-decoration":
+                          todo.status === "completed" ? "line-through" : "none",
+                        opacity: todo.status === "completed" ? "0.7" : "1",
+                      }}
+                    >
                       {todo.content}
                     </span>
+                    <button
+                      class="todo-remove-btn flex items-center justify-center shrink-0 rounded"
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        background: "transparent",
+                        color: "var(--text-muted)",
+                        border: "none",
+                        cursor: "pointer",
+                        "font-size": "12px",
+                        "line-height": "1",
+                        opacity: "0",
+                        transition: "opacity 0.1s, background 0.1s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                        (e.currentTarget as HTMLElement).style.color = "var(--accent-red)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "transparent";
+                        (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                      }}
+                      onClick={() => dismissTodo(todo.id)}
+                      title="Remove from view (doesn't tell the agent)"
+                    >
+                      ×
+                    </button>
                   </div>
                 )}
               </For>
             </div>
           </Show>
+        </div>
+      </Show>
+
+      {/* Restore chip — shows only when the user has hidden items or the
+          whole list but the agent's todos are still non-empty. Lets them
+          reverse the dismissal without needing the agent to rewrite. */}
+      <Show
+        when={
+          (taskListDismissed() && sessionTodoSource().todos.length > 0) ||
+          hasDismissedItems()
+        }
+      >
+        <div class="shrink-0 flex justify-center mt-1 mb-1">
+          <button
+            class="flex items-center gap-1 rounded-full px-2.5 py-0.5"
+            style={{
+              background: "var(--bg-hover)",
+              color: "var(--text-muted)",
+              border: "1px solid var(--border-default)",
+              cursor: "pointer",
+              "font-size": "10.5px",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-active)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+            }}
+            onClick={undismissAll}
+            title="Show hidden tasks again"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <polyline points="3 4 3 10 9 10" />
+            </svg>
+            <span>Restore hidden tasks</span>
+          </button>
         </div>
       </Show>
 

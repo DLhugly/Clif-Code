@@ -436,6 +436,38 @@ async function initAgentListeners() {
       setAgentStatus(event.payload);
     })
   );
+
+  // Context-compaction events emit a structured system message so ChatMessage
+  // can render a proper explanation card instead of raw markdown text inside
+  // the assistant bubble.
+  unlisteners.push(
+    await appWindow.listen<{
+      reason: "auto" | "overflow";
+      tokens_before: number;
+      tokens_after: number;
+      threshold: number;
+    }>("agent_context_compacted", (event) => {
+      const payload = event.payload;
+      setAgentMessages(
+        produce((msgs) => {
+          msgs.push({
+            id: `sys-compact-${Date.now()}`,
+            role: "system",
+            content: "",
+            systemKind: "compaction",
+            systemData: {
+              reason: payload.reason,
+              tokens_before: payload.tokens_before,
+              tokens_after: payload.tokens_after,
+              threshold: payload.threshold,
+            },
+            timestamp: Date.now(),
+            status: "done",
+          });
+        })
+      );
+    })
+  );
 }
 
 async function sendAgentMessage(content: string, context?: AgentContext, modelOverride?: string, images?: string[]) {
@@ -729,6 +761,7 @@ function clearAgentState() {
 
 export {
   agentMessages,
+  setAgentMessages,
   agentStreaming,
   agentSessionId,
   agentError,

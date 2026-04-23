@@ -58,6 +58,28 @@ pub fn kill_all_agent_sessions() {
     }
 }
 
+/// Wipe the agent's server-side session todo list. Called when the user
+/// hits "Discard" on the task panel in the frontend. After this, any future
+/// `todo_read` tool call from the agent will return an empty list, and the
+/// frontend should also rewrite the most recent `todo_write` tool_result in
+/// the conversation so the agent stops seeing the stale list in history.
+#[tauri::command]
+pub fn agent_clear_todos(session_id: Option<String>) -> Result<(), String> {
+    let Ok(mut todos_map) = SESSION_TODOS.lock() else {
+        return Err("SESSION_TODOS lock poisoned".into());
+    };
+    match session_id {
+        Some(sid) => {
+            todos_map.remove(&sid);
+        }
+        None => {
+            // No session id supplied — clear everything to be safe.
+            todos_map.clear();
+        }
+    }
+    Ok(())
+}
+
 fn track_file_read(session_id: Option<&str>, path: &Path) {
     let Some(sid) = session_id else { return };
     if let Ok(mut reads) = SESSION_READ_FILES.lock() {
@@ -1592,8 +1614,21 @@ async fn run_agent_loop(
         // maps to roughly 110-130K real tokens — well within 200K model limits.
         let estimated_tokens = estimate_conversation_tokens(&conversation);
         if estimated_tokens > 80_000 {
+            let before = estimated_tokens;
             compact_conversation(&mut conversation, 40_000);
-            let _ = app.emit_to(label, "agent_stream", "\n*[context compacted]*\n");
+            let after = estimate_conversation_tokens(&conversation);
+            // Emit a structured event the frontend can render as its own UI
+            // card instead of appending raw text into the assistant bubble.
+            let _ = app.emit_to(
+                label,
+                "agent_context_compacted",
+                json!({
+                    "reason": "auto",
+                    "tokens_before": before,
+                    "tokens_after": after,
+                    "threshold": 80_000,
+                }),
+            );
         }
         // Check cancellation
         if cancel_rx.try_recv().is_ok() {
@@ -1652,8 +1687,19 @@ async fn run_agent_loop(
 
             // Context overflow — compact and retry once
             if status.as_u16() == 400 && (body.contains("context_length") || body.contains("too many tokens") || body.contains("maximum context")) {
-                let _ = app.emit_to(label, "agent_stream", "\n*[context too large — compacting...]*\n");
+                let before = estimate_conversation_tokens(&conversation);
                 compact_conversation(&mut conversation, 20_000);
+                let after = estimate_conversation_tokens(&conversation);
+                let _ = app.emit_to(
+                    label,
+                    "agent_context_compacted",
+                    json!({
+                        "reason": "overflow",
+                        "tokens_before": before,
+                        "tokens_after": after,
+                        "threshold": 0,
+                    }),
+                );
 
                 let mut retry_body = json!({
                     "model": model,

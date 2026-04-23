@@ -486,6 +486,153 @@ const ChatMessage: Component<{
   }
 
   if (isSystem()) {
+    // Structured compaction card — replaces the old raw "*[context compacted]*"
+    // markdown that used to get appended to the assistant bubble.
+    if (props.message.systemKind === "compaction") {
+      const data = (props.message.systemData ?? {}) as Record<string, unknown>;
+      const before = typeof data.tokens_before === "number" ? data.tokens_before : 0;
+      const after = typeof data.tokens_after === "number" ? data.tokens_after : 0;
+      const reason = (data.reason as string) ?? "auto";
+      const saved = Math.max(0, before - after);
+      const pct = before > 0 ? Math.round((saved / before) * 100) : 0;
+      const fmt = (n: number) =>
+        n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
+      return (
+        <div class="flex justify-center py-3 px-4">
+          <div
+            class="rounded-lg"
+            style={{
+              background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent)",
+              padding: "10px 12px",
+              "max-width": "440px",
+              width: "100%",
+              "font-size": `${fontSize() - 2}px`,
+            }}
+          >
+            <div
+              class="flex items-center gap-2"
+              style={{ "margin-bottom": "6px" }}
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style={{ color: "var(--accent-primary)", "flex-shrink": "0" }}
+              >
+                <polyline points="4 14 10 14 10 20" />
+                <polyline points="20 10 14 10 14 4" />
+                <line x1="14" y1="10" x2="21" y2="3" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+              <span
+                style={{
+                  color: "var(--accent-primary)",
+                  "font-weight": "700",
+                  "text-transform": "uppercase",
+                  "letter-spacing": "0.06em",
+                  "font-size": `${fontSize() - 3}px`,
+                }}
+              >
+                Context compacted
+              </span>
+              <span
+                class="ml-auto shrink-0"
+                style={{
+                  color: "var(--text-muted)",
+                  "font-size": `${fontSize() - 3}px`,
+                  "font-family": "var(--font-mono, monospace)",
+                }}
+              >
+                {fmt(before)} → {fmt(after)}{" "}
+                {saved > 0 ? (
+                  <span style={{ color: "var(--accent-green)" }}>
+                    (−{pct}%)
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            <div
+              style={{
+                color: "var(--text-secondary)",
+                "line-height": "1.5",
+                "font-size": `${fontSize() - 2.5}px`,
+              }}
+            >
+              {reason === "overflow" ? (
+                <>
+                  The model rejected the last request as too large. Clif
+                  summarized earlier turns and retried — nothing was lost from
+                  the conversation UI, only from what the model sees going
+                  forward.
+                </>
+              ) : (
+                <>
+                  This chat grew past Clif's auto-compact threshold
+                  {typeof data.threshold === "number" && data.threshold > 0 ? (
+                    <>
+                      {" "}
+                      (~{fmt(data.threshold as number)} tokens)
+                    </>
+                  ) : null}
+                  . Older tool results and turns were summarized to keep the
+                  model responsive and to stay inside the provider's context
+                  window. Your messages above still show the full history.
+                </>
+              )}
+            </div>
+            <details style={{ "margin-top": "6px" }}>
+              <summary
+                style={{
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  "font-size": `${fontSize() - 3}px`,
+                  "user-select": "none",
+                }}
+              >
+                How does compaction work?
+              </summary>
+              <div
+                style={{
+                  "margin-top": "4px",
+                  color: "var(--text-muted)",
+                  "line-height": "1.5",
+                  "font-size": `${fontSize() - 3}px`,
+                }}
+              >
+                Clif uses a Claude-Code-style tiered compaction:
+                <ol
+                  style={{
+                    "padding-left": "18px",
+                    "margin-top": "2px",
+                    "list-style": "decimal",
+                  }}
+                >
+                  <li>Keep the system prompt and the last eight messages verbatim.</li>
+                  <li>
+                    Stub out old tool results beyond that window so the model
+                    still sees the shape of the conversation but not the bulky
+                    outputs.
+                  </li>
+                  <li>
+                    Write a one-paragraph summary of the compacted turns and
+                    insert it in place so the thread still reads continuously.
+                  </li>
+                </ol>
+                Your visible chat above is unchanged — this only affects what
+                the model sees on the next request.
+              </div>
+            </details>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         class="flex justify-center py-2 px-4"
@@ -494,12 +641,14 @@ const ChatMessage: Component<{
         <span
           class="px-3 py-1 rounded-full"
           style={{
-            background: props.message.status === "error"
-              ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
-              : "var(--bg-hover)",
-            color: props.message.status === "error"
-              ? "var(--accent-red)"
-              : "var(--text-muted)",
+            background:
+              props.message.status === "error"
+                ? "color-mix(in srgb, var(--accent-red) 15%, transparent)"
+                : "var(--bg-hover)",
+            color:
+              props.message.status === "error"
+                ? "var(--accent-red)"
+                : "var(--text-muted)",
           }}
         >
           {props.message.content}
