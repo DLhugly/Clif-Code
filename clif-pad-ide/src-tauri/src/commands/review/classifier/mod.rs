@@ -12,6 +12,7 @@ use crate::commands::security::SecurityIssue;
 mod parser;
 mod patterns;
 mod scoring;
+mod scoring_dynamic;
 
 pub use scoring::Signal;
 

@@ -71,22 +71,27 @@ const [showCommandPalette, setShowCommandPalette] = createSignal(false);
 const [devDrawerOpen, setDevDrawerOpen] = createSignal(false);
 const [devDrawerHeight, setDevDrawerHeight] = createSignal(50);
 
-// Top-level view mode — Code (normal IDE) or Review (PR review workspace)
+// Top-level view mode — Code (normal IDE) or Review (PR review workspace).
+// The app always boots into Code mode regardless of the previous session.
+// Review mode is an intentional context switch the user opts into via the
+// top-bar toggle (or by clicking a PR row), not a sticky preference.
 export type ViewMode = "code" | "review";
 const VIEW_MODE_STORAGE_KEY = "clif.viewMode";
-const initialViewMode: ViewMode =
-  typeof localStorage !== "undefined" && localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "review"
-    ? "review"
-    : "code";
-const [viewMode, setViewModeSignal] = createSignal<ViewMode>(initialViewMode);
+// Clean up any stale persisted value from earlier builds that auto-remembered
+// review mode. Safe no-op if the key is missing.
+try {
+  if (typeof localStorage !== "undefined") {
+    localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
+  }
+} catch {
+  // localStorage unavailable
+}
+const [viewMode, setViewModeSignal] = createSignal<ViewMode>("code");
 
 function setViewMode(mode: ViewMode) {
   setViewModeSignal(mode);
-  try {
-    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
-  } catch {
-    // localStorage unavailable; persistence is optional
-  }
+  // Persistence deliberately omitted: we don't want the IDE to jump into
+  // Review mode on next launch just because the last session ended there.
 }
 
 function toggleViewMode() {

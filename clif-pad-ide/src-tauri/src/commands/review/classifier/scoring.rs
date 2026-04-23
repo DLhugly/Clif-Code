@@ -1,7 +1,6 @@
 //! Scoring rules for the PR classifier.
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 use super::parser::FileDiff;
 use super::patterns::*;
@@ -36,6 +35,10 @@ pub fn score_diff(files: &[FileDiff], commit_messages: &[String]) -> ScoringOutp
     score_structure(files, &mut score, &mut signals);
     score_size(files, &mut score, &mut signals);
     score_test_coverage(files, &mut score, &mut signals);
+    score_logic_density(files, &mut score, &mut signals);
+    score_logging_removal(files, &mut score, &mut signals);
+    score_dependency_bumps(files, &mut score, &mut signals);
+    score_suppressions(files, &mut signals);
     score_commit_messages(commit_messages, &mut score, &mut signals, &mut hard_override);
 
     ScoringOutput {
@@ -201,7 +204,7 @@ fn run_security_scan(
     security_issues: &mut Vec<SecurityIssue>,
 ) {
     for f in files {
-        if f.is_removed || is_lock_or_generated(&f.path) {
+        if f.is_removed || f.is_generated_or_binary || f.is_binary_diff || f.is_rename {
             continue;
         }
         let issues = scan_content(&f.path, &f.added_lines.join("\n"));
@@ -342,80 +345,13 @@ fn score_structure(files: &[FileDiff], score: &mut u32, signals: &mut Vec<Signal
     }
 }
 
-// ----- Size signals -----------------------------------------------------------
-
-fn score_size(files: &[FileDiff], score: &mut u32, signals: &mut Vec<Signal>) {
-    let total_added: usize = files.iter().map(|f| f.added_lines.len()).sum();
-    let total_removed: usize = files.iter().map(|f| f.removed_lines.len()).sum();
-    let total_changed = (total_added + total_removed) as u32;
-
-    if total_changed > 1500 {
-        *score = score.saturating_add(20);
-        signals.push(Signal {
-            id: "size_very_large",
-            label: format!("Very large diff ({} lines)", total_changed),
-            points: 20,
-            severity: "warning",
-            detail: None,
-            locator: None,
-        });
-    } else if total_changed > 500 {
-        *score = score.saturating_add(10);
-        signals.push(Signal {
-            id: "size_large",
-            label: format!("Large diff ({} lines)", total_changed),
-            points: 10,
-            severity: "info",
-            detail: None,
-            locator: None,
-        });
-    }
-
-    let file_count = files.len() as u32;
-    if file_count > 50 {
-        *score = score.saturating_add(20);
-        signals.push(Signal {
-            id: "files_very_many",
-            label: format!("Very many files touched ({})", file_count),
-            points: 20,
-            severity: "warning",
-            detail: None,
-            locator: None,
-        });
-    } else if file_count > 20 {
-        *score = score.saturating_add(10);
-        signals.push(Signal {
-            id: "files_many",
-            label: format!("Many files touched ({})", file_count),
-            points: 10,
-            severity: "info",
-            detail: None,
-            locator: None,
-        });
-    }
-
-    let dir_count = {
-        use std::collections::HashSet;
-        let mut set = HashSet::new();
-        for f in files {
-            if let Some(parent) = Path::new(&f.path).parent() {
-                set.insert(parent.to_string_lossy().to_string());
-            }
-        }
-        set.len() as u32
-    };
-    if dir_count > 5 {
-        *score = score.saturating_add(5);
-        signals.push(Signal {
-            id: "cross_cutting",
-            label: format!("Cross-cutting ({} directories)", dir_count),
-            points: 5,
-            severity: "info",
-            detail: None,
-            locator: None,
-        });
-    }
-}
+// Size / logic-density / logging / dep-bump / suppression signals live in
+// `scoring_dynamic.rs` to keep this file under the LOC cap. See there for
+// the research notes and weights.
+use super::scoring_dynamic::{
+    score_dependency_bumps, score_logging_removal, score_logic_density, score_size,
+    score_suppressions,
+};
 
 // ----- Test coverage ---------------------------------------------------------
 
