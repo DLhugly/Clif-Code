@@ -1,3 +1,14 @@
+# [1.66.0](https://github.com/DLhugly/Clif-Code/compare/v1.65.0...v1.66.0) (2026-04-23)
+
+
+### Features
+
+* enhance PR classification and scoring logic ([10ebb85](https://github.com/DLhugly/Clif-Code/commit/10ebb85d3e2190dfafbca32e2b7ecf2150857d8a))
+* enhance PR review features with classification and tiering ([9dbca4f](https://github.com/DLhugly/Clif-Code/commit/9dbca4f76d6eb1a7381a1bfb3f4a9ab533422a31))
+* enhance PR review interface with collapsible sections and improved messaging ([1e5bf79](https://github.com/DLhugly/Clif-Code/commit/1e5bf79734ec5167940a27251a24377f415d8f7e))
+* enhance PR triage and sync features ([2fd8269](https://github.com/DLhugly/Clif-Code/commit/2fd82692d6992b91ce7e334f51f57b5bbe7d01b7))
+* gatekeeper review suite and clone-repo flow ([19d673b](https://github.com/DLhugly/Clif-Code/commit/19d673b3bfa3b51a1291d3e0e3e2bdd7e39677dc))
+
 # [1.65.0](https://github.com/DLhugly/Clif-Code/compare/v1.64.0...v1.65.0) (2026-04-22)
 
 
