@@ -1,3 +1,10 @@
+# [1.69.0](https://github.com/DLhugly/Clif-Code/compare/v1.68.0...v1.69.0) (2026-04-23)
+
+
+### Features
+
+* implement codebase indexing and symbol lookup ([81e748e](https://github.com/DLhugly/Clif-Code/commit/81e748e9a6b46ae414b33d6b400774ffc762c5e2))
+
 # [1.68.0](https://github.com/DLhugly/Clif-Code/compare/v1.67.0...v1.68.0) (2026-04-23)
 
 
