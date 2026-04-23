@@ -11,11 +11,14 @@ import FindingsList from "./FindingsList";
 import PrDiffView from "./PrDiffView";
 import SignOffOverlay from "./SignOffOverlay";
 import PolishDrawer from "./PolishDrawer";
+import PolicyTab from "./PolicyTab";
+import { policyResults } from "../../stores/reviewsStore";
 
-type Tab = "findings" | "diff" | "commits" | "checks" | "rules";
+type Tab = "findings" | "policy" | "diff" | "commits" | "checks" | "rules";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "findings", label: "Findings" },
+  { id: "policy", label: "Policy" },
   { id: "diff", label: "Diff" },
   { id: "commits", label: "Commits" },
   { id: "checks", label: "Checks" },
@@ -225,6 +228,9 @@ const PrCenterStage: Component<{ chatOpen: boolean; onToggleChat: () => void }> 
           </Show>
           <Show when={tab() === "findings"}>
             <FindingsList prNumber={selected()!.number} review={review()} />
+          </Show>
+          <Show when={tab() === "policy"}>
+            <PolicyTab prNumber={selected()!.number} />
           </Show>
           <Show when={tab() === "diff"}>
             <PrDiffView prNumber={selected()!.number} />

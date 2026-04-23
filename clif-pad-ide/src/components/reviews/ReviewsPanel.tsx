@@ -34,6 +34,8 @@ import {
 } from "../../stores/reviewsStore";
 import { ReviewRow, useRowExpansion } from "./ReviewRow";
 import { openExternal } from "../../lib/tauri";
+import BulkActionBar from "./BulkActionBar";
+import { openConsolidationFromSelection } from "./consolidationHub";
 
 const STATE_OPTIONS: { value: PrStateFilter; label: string }[] = [
   { value: "open", label: "Open" },
@@ -98,7 +100,8 @@ const ReviewsPanel: Component = () => {
   const counts = createMemo(() => ({
     total: prs.length,
     shown: rows().length,
-    failing: prs.filter((p) => (p.statusCheckRollup ?? []).some((c) => (c.conclusion ?? "").toLowerCase() === "failure")).length,
+    // Note: per-PR CI details are loaded lazily on row expand, so the failing
+    // count here is 0 until expansions populate the detail cache.
     drafts: prs.filter((p) => p.isDraft).length,
   }));
 
@@ -362,8 +365,42 @@ const ReviewsPanel: Component = () => {
           </div>
         </Show>
         <Show when={projectRoot() && !loading() && !error() && rows().length === 0 && gh()?.installed && gh()?.authenticated}>
-          <div class="flex items-center justify-center h-full" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 2px)", padding: "24px" }}>
-            No PRs match.
+          <div class="flex flex-col items-center justify-center h-full gap-2 text-center" style={{ color: "var(--text-muted)", padding: "32px 20px" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style={{ opacity: 0.4 }}>
+              <circle cx="18" cy="18" r="3" />
+              <circle cx="6" cy="6" r="3" />
+              <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+              <line x1="6" y1="9" x2="6" y2="21" />
+            </svg>
+            <div style={{ "font-size": "calc(var(--ui-font-size) - 2px)", color: "var(--text-primary)" }}>
+              {prs.length === 0 ? "No open PRs in this repo" : "No PRs match your filters"}
+            </div>
+            <Show when={prs.length === 0}>
+              <div style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
+                When teammates open PRs, they'll appear here with live risk scores.
+              </div>
+            </Show>
+            <Show when={prs.length > 0}>
+              <button
+                class="px-2 py-1 rounded mt-1"
+                style={{
+                  background: "var(--bg-base)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-default)",
+                  cursor: "pointer",
+                  "font-size": "calc(var(--ui-font-size) - 3px)",
+                }}
+                onClick={() => {
+                  setSearch("");
+                  setAuthorFilter("");
+                  setHideDrafts(false);
+                  setOnlyFailingCi(false);
+                  setStateFilter("open");
+                }}
+              >
+                Clear filters
+              </button>
+            </Show>
           </div>
         </Show>
         <Show when={error()}>
@@ -395,6 +432,9 @@ const ReviewsPanel: Component = () => {
         </For>
       </div>
 
+      {/* Bulk actions bar (appears when selection is non-empty) */}
+      <BulkActionBar onConsolidate={() => openConsolidationFromSelection()} />
+
       {/* Footer */}
       <div
         class="shrink-0 flex items-center justify-between px-3 py-1.5"
@@ -418,9 +458,6 @@ const ReviewsPanel: Component = () => {
           </Show>
           <Show when={Object.keys(reviewResults).length > 0}>
             <span>{Object.keys(reviewResults).length} reviewed</span>
-          </Show>
-          <Show when={counts().failing > 0}>
-            <span style={{ color: "var(--accent-red)" }}>{counts().failing} failing CI</span>
           </Show>
           <Show when={counts().drafts > 0}>
             <span>{counts().drafts} drafts</span>

@@ -74,7 +74,7 @@ const RefreshIcon = () => (
   </svg>
 );
 
-const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: string) => void }> = (props) => {
+const RightSidebar: Component<{ onOpenFolder?: () => void; onCloneRepo?: () => void; onOpenRecent?: (path: string) => void }> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SidebarTab>("files");
   const [commitMsg, setCommitMsg] = createSignal("");
   const [pendingCommit, setPendingCommit] = createSignal(false);
@@ -432,6 +432,7 @@ const RightSidebar: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path:
           <Suspense>
             <FileTree
               onOpenFolder={props.onOpenFolder}
+              onCloneRepo={props.onCloneRepo}
               onOpenRecent={props.onOpenRecent}
               creatingType={creatingType()}
               onCreateDone={() => setCreatingType(null)}

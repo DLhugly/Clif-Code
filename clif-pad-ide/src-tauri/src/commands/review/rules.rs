@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 
+use super::policy::Policy;
 use super::schema::Category;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -37,6 +39,25 @@ pub struct ReviewsBlock {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AutoCommentTemplate {
+    pub body: String,
+    #[serde(default)]
+    pub auto_post: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AutoCommentsBlock {
+    #[serde(default)]
+    pub templates: HashMap<String, AutoCommentTemplate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SimilarityConfig {
+    #[serde(default)]
+    pub threshold: Option<f32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReviewConfig {
     #[serde(default)]
     pub language: Option<String>,
@@ -54,6 +75,12 @@ pub struct ReviewConfig {
     pub max_findings_per_pr: Option<u32>,
     #[serde(default)]
     pub polish: PolishConfig,
+    #[serde(default)]
+    pub policies: Vec<Policy>,
+    #[serde(default)]
+    pub auto_comments: AutoCommentsBlock,
+    #[serde(default)]
+    pub similarity: SimilarityConfig,
 
     // Synthesized fields (not part of yaml) — populated from markdown files
     #[serde(skip)]
@@ -63,6 +90,10 @@ pub struct ReviewConfig {
 }
 
 impl ReviewConfig {
+    pub fn similarity_threshold(&self) -> f32 {
+        self.similarity.threshold.unwrap_or(0.4)
+    }
+
     pub fn max_findings(&self) -> u32 {
         self.max_findings_per_pr.unwrap_or(30)
     }

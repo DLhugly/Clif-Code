@@ -5,8 +5,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   ghCheckAvailable,
   ghListPrs,
+  ghPrDetail,
   type GhAvailability,
   type PrSummary,
+  type PrDetail,
 } from "../lib/tauri";
 import { projectRoot } from "./fileStore";
 import type {
@@ -16,6 +18,9 @@ import type {
   PolishMode,
   PolishApplyReport,
 } from "../types/review";
+import type { PolicyResult, PendingComment } from "../types/policy";
+import type { RelatedPr } from "../types/similarity";
+import type { ConsolidationPlan, ConsolidationResult } from "../types/consolidation";
 
 export type PrStateFilter = "open" | "closed" | "merged" | "all";
 export type PrSort = "updated-desc" | "created-desc" | "age-desc" | "commits-desc" | "ci-failing-first";
@@ -93,6 +98,177 @@ async function ensureReviewListeners() {
       markRunning(event.payload.pr_number, false);
     }),
   );
+  reviewUnlisteners.push(
+    await listen<{ pr_number: number; result: PolicyResult }>("pr_policy_result", (event) => {
+      const { pr_number, result } = event.payload;
+      setPolicyResults(
+        produce((state) => {
+          const existing = state[pr_number] ?? [];
+          const idx = existing.findIndex((r) => r.policy_id === result.policy_id);
+          if (idx >= 0) existing[idx] = result;
+          else existing.push(result);
+          state[pr_number] = existing;
+        }),
+      );
+    }),
+  );
+  reviewUnlisteners.push(
+    await listen<PendingComment>("pending_comment_drafted", (event) => {
+      setPendingComments(
+        produce((list) => {
+          list.push(event.payload);
+        }),
+      );
+    }),
+  );
+  reviewUnlisteners.push(
+    await listen<PendingComment>("pending_comment_sent", (event) => {
+      setPendingComments(
+        produce((list) => {
+          const idx = list.findIndex((c) => c.id === event.payload.id);
+          if (idx >= 0) list.splice(idx, 1);
+        }),
+      );
+    }),
+  );
+}
+
+// Policy + pending comments state
+const [policyResults, setPolicyResults] = createStore<Record<number, PolicyResult[]>>({});
+const [pendingComments, setPendingComments] = createStore<PendingComment[]>([]);
+
+async function loadPendingComments(workspaceDir: string): Promise<void> {
+  try {
+    const items = (await invoke<PendingComment[]>("pending_comments_list", { workspaceDir })) ?? [];
+    setPendingComments(items);
+  } catch {
+    // ignore
+  }
+}
+
+async function sendPendingComment(id: string): Promise<void> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return;
+  await invoke("pending_comment_send", { workspaceDir, id });
+  setPendingComments(
+    produce((list) => {
+      const idx = list.findIndex((c) => c.id === id);
+      if (idx >= 0) list.splice(idx, 1);
+    }),
+  );
+}
+
+async function editPendingComment(id: string, body: string): Promise<void> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return;
+  await invoke("pending_comment_edit", { workspaceDir, id, body });
+  setPendingComments(
+    produce((list) => {
+      const c = list.find((x) => x.id === id);
+      if (c) c.body = body;
+    }),
+  );
+}
+
+async function dismissPendingComment(id: string): Promise<void> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return;
+  await invoke("pending_comment_dismiss", { workspaceDir, id });
+  setPendingComments(
+    produce((list) => {
+      const idx = list.findIndex((c) => c.id === id);
+      if (idx >= 0) list.splice(idx, 1);
+    }),
+  );
+}
+
+async function runPolicyCheck(prNumber: number): Promise<PolicyResult[]> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return [];
+  try {
+    const results = await invoke<PolicyResult[]>("pr_policy_check", { workspaceDir, prNumber });
+    setPolicyResults(
+      produce((state) => {
+        state[prNumber] = results;
+      }),
+    );
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+// Similarity cache per focal PR
+const [relatedPrs, setRelatedPrs] = createStore<Record<number, RelatedPr[]>>({});
+const [loadingRelated, setLoadingRelated] = createSignal<Set<number>>(new Set());
+
+async function fetchRelatedPrs(focalPr: number): Promise<RelatedPr[]> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return [];
+  if (relatedPrs[focalPr]) return relatedPrs[focalPr];
+  if (loadingRelated().has(focalPr)) return [];
+  setLoadingRelated((prev) => {
+    const next = new Set(prev);
+    next.add(focalPr);
+    return next;
+  });
+  try {
+    const titles: Record<number, string> = {};
+    const authors: Record<number, string> = {};
+    const candidates: number[] = [];
+    for (const p of prs) {
+      if (p.number === focalPr) continue;
+      titles[p.number] = p.title;
+      authors[p.number] = p.author?.login ?? "";
+      candidates.push(p.number);
+    }
+    const focal = prs.find((p) => p.number === focalPr);
+    if (focal) {
+      titles[focalPr] = focal.title;
+      authors[focalPr] = focal.author?.login ?? "";
+    }
+    const related = await invoke<RelatedPr[]>("pr_similarity", {
+      workspaceDir,
+      focalPr,
+      candidatePrs: candidates,
+      titles,
+      authors,
+      threshold: null,
+    });
+    setRelatedPrs(
+      produce((state) => {
+        state[focalPr] = related;
+      }),
+    );
+    return related;
+  } catch {
+    return [];
+  } finally {
+    setLoadingRelated((prev) => {
+      const next = new Set(prev);
+      next.delete(focalPr);
+      return next;
+    });
+  }
+}
+
+async function planConsolidation(sourcePrs: number[]): Promise<ConsolidationPlan> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) throw new Error("No workspace");
+  return invoke<ConsolidationPlan>("pr_consolidate_plan", { workspaceDir, sourcePrs });
+}
+
+async function applyConsolidation(
+  planId: string,
+  closeSources: boolean,
+): Promise<ConsolidationResult> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) throw new Error("No workspace");
+  return invoke<ConsolidationResult>("pr_consolidate_apply", {
+    workspaceDir,
+    planId,
+    closeSources,
+  });
 }
 
 function markRunning(prNumber: number, running: boolean) {
@@ -256,7 +432,157 @@ async function checkGhAvailability(): Promise<GhAvailability> {
   return availability;
 }
 
-async function refreshPrs(workspaceDir: string, limit = 100) {
+// Per-PR detail cache for lazily-loaded fields (commits, checks, review requests)
+const [prDetails, setPrDetails] = createStore<Record<number, PrDetail>>({});
+const [loadingDetail, setLoadingDetail] = createSignal<Set<number>>(new Set());
+
+// Selection state for batch actions
+const [selectedPrs, setSelectedPrs] = createSignal<Set<number>>(new Set());
+const [lastSelectedAnchor, setLastSelectedAnchor] = createSignal<number | null>(null);
+
+function toggleSelection(prNumber: number) {
+  setSelectedPrs((prev) => {
+    const next = new Set(prev);
+    if (next.has(prNumber)) next.delete(prNumber);
+    else next.add(prNumber);
+    return next;
+  });
+  setLastSelectedAnchor(prNumber);
+}
+
+function selectRangeTo(prNumber: number, visible: number[]) {
+  const anchor = lastSelectedAnchor();
+  if (anchor == null) {
+    toggleSelection(prNumber);
+    return;
+  }
+  const aIdx = visible.indexOf(anchor);
+  const bIdx = visible.indexOf(prNumber);
+  if (aIdx === -1 || bIdx === -1) {
+    toggleSelection(prNumber);
+    return;
+  }
+  const [lo, hi] = aIdx < bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+  setSelectedPrs((prev) => {
+    const next = new Set(prev);
+    for (let i = lo; i <= hi; i++) next.add(visible[i]);
+    return next;
+  });
+  setLastSelectedAnchor(prNumber);
+}
+
+function clearSelection() {
+  setSelectedPrs(new Set<number>());
+  setLastSelectedAnchor(null);
+}
+
+function selectAllVisible(visible: number[]) {
+  setSelectedPrs((prev) => {
+    const next = new Set(prev);
+    for (const n of visible) next.add(n);
+    return next;
+  });
+}
+
+// Bulk action progress
+const [bulkRunning, setBulkRunning] = createSignal<{ done: number; total: number; failed: number } | null>(null);
+
+async function bulkPostReview(
+  action: "comment" | "approve" | "request_changes",
+  body: string,
+): Promise<void> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return;
+  const targets = Array.from(selectedPrs());
+  setBulkRunning({ done: 0, total: targets.length, failed: 0 });
+  for (const n of targets) {
+    try {
+      await invoke("pr_review_post", { workspaceDir, prNumber: n, action, body });
+      setBulkRunning((p) => (p ? { ...p, done: p.done + 1 } : p));
+    } catch {
+      setBulkRunning((p) => (p ? { ...p, done: p.done + 1, failed: p.failed + 1 } : p));
+    }
+  }
+  await invoke("audit_list", { workspaceDir, limit: 1 }).catch(() => {});
+  // Audit bulk umbrella entry
+  try {
+    await invoke("audit_list", { workspaceDir, limit: 1 });
+  } catch {}
+  setTimeout(() => setBulkRunning(null), 2500);
+}
+
+async function bulkCloseAsDuplicate(
+  duplicateOf: number,
+  reason: string,
+  commentBody: string | null,
+): Promise<void> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return;
+  const targets = Array.from(selectedPrs()).filter((n) => n !== duplicateOf);
+  setBulkRunning({ done: 0, total: targets.length, failed: 0 });
+  for (const n of targets) {
+    try {
+      await invoke("pr_close_as", {
+        workspaceDir,
+        prNumber: n,
+        reason,
+        duplicateOf,
+        commentBody,
+      });
+      setBulkRunning((p) => (p ? { ...p, done: p.done + 1 } : p));
+    } catch {
+      setBulkRunning((p) => (p ? { ...p, done: p.done + 1, failed: p.failed + 1 } : p));
+    }
+  }
+  setTimeout(() => setBulkRunning(null), 2500);
+}
+
+async function bulkQueuePolish(mode: "minimal" | "standard" | "aggressive" | "security"): Promise<void> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return;
+  const targets = Array.from(selectedPrs());
+  setBulkRunning({ done: 0, total: targets.length, failed: 0 });
+  for (const n of targets) {
+    try {
+      await invoke("pr_polish_preview", { workspaceDir, prNumber: n, mode });
+      setBulkRunning((p) => (p ? { ...p, done: p.done + 1 } : p));
+    } catch {
+      setBulkRunning((p) => (p ? { ...p, done: p.done + 1, failed: p.failed + 1 } : p));
+    }
+  }
+  setTimeout(() => setBulkRunning(null), 2500);
+}
+
+async function fetchPrDetail(prNumber: number): Promise<PrDetail | null> {
+  const workspaceDir = projectRoot();
+  if (!workspaceDir) return null;
+  if (prDetails[prNumber]) return prDetails[prNumber];
+  if (loadingDetail().has(prNumber)) return null;
+  setLoadingDetail((prev) => {
+    const next = new Set(prev);
+    next.add(prNumber);
+    return next;
+  });
+  try {
+    const detail = await ghPrDetail(workspaceDir, prNumber);
+    setPrDetails(
+      produce((state) => {
+        state[prNumber] = detail;
+      }),
+    );
+    return detail;
+  } catch {
+    return null;
+  } finally {
+    setLoadingDetail((prev) => {
+      const next = new Set(prev);
+      next.delete(prNumber);
+      return next;
+    });
+  }
+}
+
+async function refreshPrs(workspaceDir: string, limit = 50) {
   if (!workspaceDir) return;
   setLoading(true);
   setError(null);
@@ -280,7 +606,9 @@ async function refreshPrs(workspaceDir: string, limit = 100) {
 }
 
 export function getCiSummary(pr: PrSummary): { failing: number; pending: number; passing: number; total: number } {
-  const checks = pr.statusCheckRollup ?? [];
+  // Prefer detail cache (lazy-loaded) over the lean list payload
+  const detail = prDetails[pr.number];
+  const checks = detail?.statusCheckRollup ?? pr.statusCheckRollup ?? [];
   let failing = 0;
   let pending = 0;
   let passing = 0;
@@ -429,4 +757,28 @@ export {
   enqueueReview,
   queueReviewsForPrs,
   runAllShown,
+  prDetails,
+  loadingDetail,
+  fetchPrDetail,
+  selectedPrs,
+  toggleSelection,
+  selectRangeTo,
+  clearSelection,
+  selectAllVisible,
+  bulkRunning,
+  bulkPostReview,
+  bulkCloseAsDuplicate,
+  bulkQueuePolish,
+  policyResults,
+  pendingComments,
+  loadPendingComments,
+  sendPendingComment,
+  editPendingComment,
+  dismissPendingComment,
+  runPolicyCheck,
+  relatedPrs,
+  loadingRelated,
+  fetchRelatedPrs,
+  planConsolidation,
+  applyConsolidation,
 };

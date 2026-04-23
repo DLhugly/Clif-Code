@@ -139,6 +139,7 @@ pub fn run() {
             commands::git::git_diff_numstat,
             commands::git::git_show,
             commands::git::git_init,
+            commands::git::git_clone,
             commands::git::git_log,
             commands::git::git_remote_url,
             commands::search::search_files,
@@ -168,6 +169,7 @@ pub fn run() {
             commands::lsp::lsp_check_servers,
             commands::gh::gh_check_available,
             commands::gh::gh_list_prs,
+            commands::gh::gh_pr_detail,
             commands::review::pr_fetch_diff,
             commands::review::pr_review_run,
             commands::review::pr_review_stop,
@@ -177,6 +179,17 @@ pub fn run() {
             commands::review::pr_review_apply_finding,
             commands::review::pr_polish_preview,
             commands::review::pr_polish_apply,
+            commands::review::audit_list,
+            commands::review::audit_export,
+            commands::review::pr_close_as,
+            commands::review::pr_policy_check,
+            commands::review::pending_comments_list,
+            commands::review::pending_comment_send,
+            commands::review::pending_comment_edit,
+            commands::review::pending_comment_dismiss,
+            commands::review::pr_similarity,
+            commands::review::pr_consolidate_plan,
+            commands::review::pr_consolidate_apply,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

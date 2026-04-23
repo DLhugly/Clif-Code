@@ -1,4 +1,4 @@
-import { Component, Show, createSignal, lazy, Suspense } from "solid-js";
+import { Component, Show, createSignal, lazy, Suspense, onCleanup, onMount } from "solid-js";
 import { ResizeHandle } from "../ui";
 import {
   reviewLeftWidth,
@@ -7,8 +7,25 @@ import {
   setReviewRightWidth,
   clampPanelWidth,
 } from "../../stores/uiStore";
+import {
+  clearSelection,
+  selectedPrs,
+  selectedPrNumber,
+  filteredSortedPrs,
+  setSelectedPrNumber,
+  toggleSelection,
+  sendPendingComment,
+} from "../../stores/reviewsStore";
 import ReviewsPanel from "./ReviewsPanel";
 import PrCenterStage from "./PrCenterStage";
+import AuditLog from "./AuditLog";
+import ShortcutsOverlay from "./ShortcutsOverlay";
+import PendingComments from "./PendingComments";
+import ConsolidationView from "./ConsolidationView";
+import WorkspaceHeader from "./WorkspaceHeader";
+import { consolidationOpen, closeConsolidation, openConsolidationFromSelection } from "./consolidationHub";
+import { pendingComments, loadPendingComments } from "../../stores/reviewsStore";
+import { projectRoot } from "../../stores/fileStore";
 
 const AgentChatPanel = lazy(() => import("../agent/AgentChatPanel"));
 
@@ -16,6 +33,64 @@ const ReviewWorkspace: Component = () => {
   const [isDraggingLeft, setIsDraggingLeft] = createSignal(false);
   const [isDraggingRight, setIsDraggingRight] = createSignal(false);
   const [chatOpen, setChatOpen] = createSignal(true);
+  const [auditOpen, setAuditOpen] = createSignal(false);
+  const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
+  const [pendingOpen, setPendingOpen] = createSignal(false);
+
+  function onKey(e: KeyboardEvent) {
+    // Ignore when focus is in an input/textarea
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+
+    if (e.key === "Escape") {
+      if (shortcutsOpen()) { setShortcutsOpen(false); return; }
+      if (auditOpen()) { setAuditOpen(false); return; }
+      if (selectedPrs().size > 0) { clearSelection(); return; }
+    }
+    if (e.key === "?") {
+      setShortcutsOpen(true);
+      return;
+    }
+    if (e.key === "j" || e.key === "k") {
+      const visible = filteredSortedPrs().map((p) => p.number);
+      if (visible.length === 0) return;
+      const current = selectedPrNumber();
+      const idx = current == null ? -1 : visible.indexOf(current);
+      const next = e.key === "j"
+        ? Math.min(visible.length - 1, idx + 1)
+        : Math.max(0, idx - 1);
+      setSelectedPrNumber(visible[next] ?? visible[0]);
+      return;
+    }
+    if (e.key === "x") {
+      const n = selectedPrNumber();
+      if (n != null) toggleSelection(n);
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      const visible = filteredSortedPrs().map((p) => p.number);
+      for (const n of visible) toggleSelection(n);
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      if (pendingComments.length > 0) {
+        e.preventDefault();
+        sendPendingComment(pendingComments[0].id);
+      }
+    }
+    if (e.key === "c" && selectedPrs().size >= 2) {
+      openConsolidationFromSelection();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", onKey);
+    const root = projectRoot();
+    if (root) loadPendingComments(root);
+  });
+  onCleanup(() => {
+    window.removeEventListener("keydown", onKey);
+  });
 
   function onLeftResize(e: MouseEvent) {
     e.preventDefault();
@@ -69,11 +144,17 @@ const ReviewWorkspace: Component = () => {
 
   return (
     <div
-      class="flex h-full w-full overflow-hidden"
+      class="flex flex-col h-full w-full overflow-hidden"
       style={{
         background: "var(--bg-base)",
       }}
     >
+      <WorkspaceHeader
+        onOpenPending={() => setPendingOpen(true)}
+        onOpenAudit={() => setAuditOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
+      <div class="flex flex-1 min-h-0 overflow-hidden">
       {/* Left: PR list */}
       <div
         style={{ width: `${reviewLeftWidth()}px` }}
@@ -111,6 +192,22 @@ const ReviewWorkspace: Component = () => {
             <AgentChatPanel />
           </Suspense>
         </div>
+      </Show>
+
+      </div>
+      {/* End flex body */}
+
+      <Show when={auditOpen()}>
+        <AuditLog onClose={() => setAuditOpen(false)} />
+      </Show>
+      <Show when={shortcutsOpen()}>
+        <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />
+      </Show>
+      <Show when={pendingOpen()}>
+        <PendingComments onClose={() => setPendingOpen(false)} />
+      </Show>
+      <Show when={consolidationOpen()}>
+        <ConsolidationView onClose={() => closeConsolidation()} />
       </Show>
     </div>
   );

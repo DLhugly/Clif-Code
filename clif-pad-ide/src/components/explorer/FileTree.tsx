@@ -4,7 +4,7 @@ import { createFile, createDir, renameEntry, pasteFile } from "../../lib/tauri";
 import { showToast } from "../../stores/toastStore";
 import FileTreeItem from "./FileTreeItem";
 
-const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: string) => void; creatingType?: "file" | "folder" | null; onCreateDone?: () => void; searchQuery?: string }> = (props) => {
+const FileTree: Component<{ onOpenFolder?: () => void; onCloneRepo?: () => void; onOpenRecent?: (path: string) => void; creatingType?: "file" | "folder" | null; onCreateDone?: () => void; searchQuery?: string }> = (props) => {
   const [isDragOver, setIsDragOver] = createSignal(false);
 
   // Handle drop on empty area (move to project root)
@@ -96,6 +96,23 @@ const FileTree: Component<{ onOpenFolder?: () => void; onOpenRecent?: (path: str
               onClick={() => props.onOpenFolder?.()}
             >
               Open Folder
+            </button>
+            <button
+              class="w-full px-4 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              style={{
+                background: "var(--bg-base)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-default)",
+                cursor: "pointer",
+              }}
+              onClick={() => props.onCloneRepo?.()}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Clone Repository
             </button>
             <Show when={getRecentFolders().length > 0}>
               <div class="flex flex-col gap-1">

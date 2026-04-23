@@ -8,9 +8,21 @@ import {
   selectedPrNumber,
   setSelectedPrNumber,
   runReview,
+  prDetails,
+  loadingDetail,
+  fetchPrDetail,
+  selectedPrs,
+  toggleSelection,
+  selectRangeTo,
+  filteredSortedPrs,
+  policyResults,
+  fetchRelatedPrs,
+  relatedPrs,
 } from "../../stores/reviewsStore";
+import SimilarityDrawer from "./SimilarityDrawer";
 import { openExternal } from "../../lib/tauri";
 import { setViewMode } from "../../stores/uiStore";
+import { createEffect } from "solid-js";
 
 const CheckGlyph: Component<{ state: "passing" | "failing" | "pending" | "none" }> = (props) => {
   const color = () =>
@@ -39,12 +51,29 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
   const isSelected = () => selectedPrNumber() === props.pr.number;
   const review = createMemo(() => reviewResults[props.pr.number] ?? null);
   const isRunning = () => runningReviews().has(props.pr.number);
+  const detail = createMemo(() => prDetails[props.pr.number] ?? null);
+  const detailLoading = () => loadingDetail().has(props.pr.number);
+  const commitsList = createMemo(() => detail()?.commits ?? props.pr.commits ?? []);
+  const checksList = createMemo(() => detail()?.statusCheckRollup ?? props.pr.statusCheckRollup ?? []);
   const findingCounts = createMemo(() => {
     const r = review();
     if (!r) return null;
     const by: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0, nit: 0 };
     for (const f of r.findings) by[f.severity] = (by[f.severity] || 0) + 1;
     return { total: r.findings.length, by };
+  });
+  const policyViolations = createMemo(() => {
+    const list = policyResults[props.pr.number] ?? [];
+    return list.filter((r) => !r.passed && r.required).length;
+  });
+  const [similarityOpen, setSimilarityOpen] = createSignal(false);
+  const relatedCount = createMemo(() => (relatedPrs[props.pr.number] ?? []).length);
+
+  // Lazy-load detail (commits + checks) the first time the row is expanded
+  createEffect(() => {
+    if (props.expanded && !detail() && !detailLoading()) {
+      fetchPrDetail(props.pr.number);
+    }
   });
   const ciState = (): "passing" | "failing" | "pending" | "none" => {
     const s = ci();
@@ -61,10 +90,20 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
     return null;
   };
 
-  function onRowClick() {
+  function onRowClick(e: MouseEvent) {
+    if (e.shiftKey) {
+      const visible = filteredSortedPrs().map((p) => p.number);
+      selectRangeTo(props.pr.number, visible);
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      toggleSelection(props.pr.number);
+      return;
+    }
     setSelectedPrNumber(props.pr.number);
     setViewMode("review");
   }
+  const isChecked = () => selectedPrs().has(props.pr.number);
 
   return (
     <div
@@ -90,9 +129,25 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
         onMouseLeave={(e) => {
           (e.currentTarget as HTMLElement).style.background = "transparent";
         }}
-        onClick={onRowClick}
+        onClick={(e) => onRowClick(e)}
         onDblClick={props.onToggle}
       >
+        <div
+          class="flex items-center shrink-0"
+          style={{ width: "22px", "padding-top": "3px" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSelection(props.pr.number);
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isChecked()}
+            style={{ cursor: "pointer" }}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => toggleSelection(props.pr.number)}
+          />
+        </div>
         <div class="flex flex-col items-center gap-1 shrink-0" style={{ width: "32px", "padding-top": "2px" }}>
           <span
             style={{
@@ -124,12 +179,26 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
               <span style={{ color: "var(--accent-green)" }}>+{props.pr.additions ?? 0}</span>
               <span style={{ color: "var(--accent-red)" }}>-{props.pr.deletions ?? 0}</span>
             </Show>
-            <Show when={(props.pr.commits?.length ?? 0) > 0}>
+            <Show when={commitsList().length > 0}>
               <span>·</span>
-              <span>{props.pr.commits?.length} commit{(props.pr.commits?.length ?? 0) === 1 ? "" : "s"}</span>
+              <span>{commitsList().length} commit{commitsList().length === 1 ? "" : "s"}</span>
             </Show>
           </div>
           <div class="flex items-center gap-2 flex-wrap" style={{ "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
+            <Show when={policyViolations() > 0}>
+              <span
+                class="flex items-center gap-1 px-1.5 rounded"
+                style={{
+                  background: "color-mix(in srgb, var(--accent-red) 18%, transparent)",
+                  color: "var(--accent-red)",
+                  "font-weight": "500",
+                }}
+                title={`${policyViolations()} required policy violation${policyViolations() === 1 ? "" : "s"}`}
+              >
+                <span style={{ width: "6px", height: "6px", "border-radius": "50%", background: "var(--accent-red)" }} />
+                {policyViolations()} policy fail
+              </span>
+            </Show>
             {/* Review status pill */}
             <Show when={isRunning()}>
               <span class="flex items-center gap-1" style={{ color: "var(--accent-yellow)" }}>
@@ -295,9 +364,41 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
             >
               Polish
             </button>
+            <button
+              class="px-2 py-1 rounded-md transition-colors"
+              style={{
+                background: "var(--bg-surface)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-default)",
+                cursor: "pointer",
+                "font-size": "calc(var(--ui-font-size) - 3px)",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                fetchRelatedPrs(props.pr.number);
+                setSimilarityOpen(true);
+              }}
+              title="Find related PRs"
+            >
+              Related
+              <Show when={relatedCount() > 0}>
+                <span style={{ "margin-left": "4px", color: "var(--accent-primary)", "font-weight": "500" }}>
+                  {relatedCount()}
+                </span>
+              </Show>
+            </button>
           </div>
 
-          <Show when={(props.pr.commits?.length ?? 0) > 0}>
+          <Show when={detailLoading() && commitsList().length === 0 && checksList().length === 0}>
+            <div class="py-2 flex items-center gap-2" style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Loading PR details...
+            </div>
+          </Show>
+
+          <Show when={commitsList().length > 0}>
             <div class="py-1" style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
               <div
                 class="mb-1"
@@ -306,7 +407,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 Commits
               </div>
               <div class="flex flex-col gap-1">
-                <For each={props.pr.commits!.slice(0, 20)}>
+                <For each={commitsList().slice(0, 20)}>
                   {(c) => (
                     <div class="flex items-start gap-2" style={{ color: "var(--text-secondary)" }}>
                       <span
@@ -328,16 +429,16 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                     </div>
                   )}
                 </For>
-                <Show when={(props.pr.commits?.length ?? 0) > 20}>
+                <Show when={commitsList().length > 20}>
                   <div style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
-                    +{(props.pr.commits?.length ?? 0) - 20} more commits
+                    +{commitsList().length - 20} more commits
                   </div>
                 </Show>
               </div>
             </div>
           </Show>
 
-          <Show when={(props.pr.statusCheckRollup?.length ?? 0) > 0}>
+          <Show when={checksList().length > 0}>
             <div class="py-1" style={{ "font-size": "calc(var(--ui-font-size) - 3px)" }}>
               <div
                 class="mb-1"
@@ -346,7 +447,7 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                 Checks
               </div>
               <div class="flex flex-wrap gap-1">
-                <For each={props.pr.statusCheckRollup!.slice(0, 24)}>
+                <For each={checksList().slice(0, 24)}>
                   {(c) => {
                     const conclusion = (c.conclusion ?? "").toLowerCase();
                     const status = (c.status ?? "").toLowerCase();
@@ -373,15 +474,18 @@ const ReviewRow: Component<{ pr: PrSummary; expanded: boolean; onToggle: () => v
                     );
                   }}
                 </For>
-                <Show when={(props.pr.statusCheckRollup?.length ?? 0) > 24}>
+                <Show when={checksList().length > 24}>
                   <span style={{ color: "var(--text-muted)", "font-size": "calc(var(--ui-font-size) - 3.5px)" }}>
-                    +{(props.pr.statusCheckRollup?.length ?? 0) - 24} more
+                    +{checksList().length - 24} more
                   </span>
                 </Show>
               </div>
             </div>
           </Show>
         </div>
+      </Show>
+      <Show when={similarityOpen()}>
+        <SimilarityDrawer prNumber={props.pr.number} onClose={() => setSimilarityOpen(false)} />
       </Show>
     </div>
   );

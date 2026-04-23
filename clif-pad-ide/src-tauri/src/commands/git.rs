@@ -717,3 +717,116 @@ pub fn get_git_context(workspace_dir: &str) -> String {
         context
     }
 }
+
+/// Derive a repo slug (final path component) from a git URL.
+/// Handles `https://github.com/org/repo.git`, `git@github.com:org/repo.git`,
+/// and `https://github.com/org/repo` forms.
+fn derive_repo_slug(url: &str) -> Option<String> {
+    let trimmed = url.trim().trim_end_matches('/');
+    let after_last = trimmed
+        .rsplit(|c: char| c == '/' || c == ':')
+        .next()?
+        .to_string();
+    let slug = after_last.trim_end_matches(".git").to_string();
+    if slug.is_empty() { None } else { Some(slug) }
+}
+
+#[derive(serde::Serialize)]
+pub struct CloneResult {
+    pub target_path: String,
+    pub slug: String,
+}
+
+/// Clone a git repo into `<parent_dir>/<slug>`. Returns the target path so the
+/// frontend can open it as a workspace.
+///
+/// `depth` options:
+///   - "shallow": `--depth 1 --single-branch` (default; fastest, lowest disk)
+///   - "single":  `--single-branch` (default branch history, no other branches)
+///   - "full":    no depth/branch flags (everything)
+#[tauri::command]
+pub async fn git_clone(
+    url: String,
+    parent_dir: String,
+    folder_name: Option<String>,
+    depth: Option<String>,
+) -> Result<CloneResult, String> {
+    let slug = folder_name
+        .and_then(|s| if s.trim().is_empty() { None } else { Some(s.trim().to_string()) })
+        .or_else(|| derive_repo_slug(&url))
+        .ok_or_else(|| "Could not derive a folder name from the URL".to_string())?;
+
+    // Validate parent dir
+    let parent = std::path::Path::new(&parent_dir);
+    if !parent.is_dir() {
+        return Err(format!("Parent directory does not exist: {}", parent_dir));
+    }
+    let target = parent.join(&slug);
+    if target.exists() {
+        return Err(format!(
+            "Target already exists: {}. Pick a different folder name.",
+            target.display()
+        ));
+    }
+
+    let mut flags: Vec<&str> = Vec::new();
+    match depth.as_deref().unwrap_or("shallow") {
+        "full" => {}
+        "single" => {
+            flags.push("--single-branch");
+        }
+        _ => {
+            // shallow (default)
+            flags.push("--depth");
+            flags.push("1");
+            flags.push("--single-branch");
+        }
+    }
+
+    // Use a login shell so PATH finds git even when launched from Finder.
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let flags_str = if flags.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", flags.join(" "))
+    };
+    let cmd = format!(
+        "git clone{} {} {}",
+        flags_str,
+        shell_escape(&url),
+        shell_escape(&target.to_string_lossy())
+    );
+    let output = tokio::process::Command::new(&shell)
+        .arg("-l")
+        .arg("-c")
+        .arg(&cmd)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to spawn git clone: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        return Err(format!(
+            "git clone failed:\n{}\n{}",
+            stderr.trim(),
+            stdout.trim()
+        )
+        .trim()
+        .to_string());
+    }
+
+    Ok(CloneResult {
+        target_path: target.to_string_lossy().to_string(),
+        slug,
+    })
+}
+
+fn shell_escape(s: &str) -> String {
+    if s.chars().all(|c| c.is_ascii_alphanumeric() || "/_.:-@+=".contains(c)) {
+        s.to_string()
+    } else {
+        let escaped = s.replace('\'', "'\\''");
+        format!("'{}'", escaped)
+    }
+}

@@ -224,6 +224,9 @@ pub async fn gh_list_prs(
         .to_string();
     let limit_val = limit.filter(|n| *n > 0 && *n <= 200).unwrap_or(50);
 
+    // Keep the list query lean to stay under GitHub's GraphQL 500k node cost
+    // limit. Expensive fields (commits, statusCheckRollup, reviewRequests) are
+    // fetched on-demand per PR via gh_pr_detail when a row is expanded.
     let fields = [
         "number",
         "title",
@@ -238,10 +241,7 @@ pub async fn gh_list_prs(
         "additions",
         "deletions",
         "changedFiles",
-        "commits",
-        "statusCheckRollup",
         "reviewDecision",
-        "reviewRequests",
     ]
     .join(",");
 
@@ -262,11 +262,21 @@ pub async fn gh_list_prs(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let hint = if stderr.contains("not a git repository") {
+        let lower = stderr.to_lowercase();
+        let hint = if lower.contains("not a git repository") {
             "Open a GitHub repo to list PRs."
-        } else if stderr.to_lowercase().contains("auth") {
+        } else if lower.contains("authentication required")
+            || lower.contains("http 401")
+            || lower.contains("you are not logged")
+            || lower.contains("gh auth login")
+            || lower.contains("could not verify")
+        {
             "`gh` is not authenticated. Run `gh auth login`."
-        } else if stderr.contains("no such host") || stderr.contains("dial tcp") {
+        } else if lower.contains("rate limit") {
+            "GitHub rate limit hit. Try again in a few minutes."
+        } else if lower.contains("exceeds the maximum limit") || lower.contains("graphql:") {
+            "Query too large for GitHub. Reduce the PR limit or filter the list."
+        } else if lower.contains("no such host") || lower.contains("dial tcp") {
             "Network error reaching GitHub."
         } else {
             "`gh pr list` failed."
@@ -278,4 +288,39 @@ pub async fn gh_list_prs(
     let prs: Vec<PrSummary> = serde_json::from_str(&stdout)
         .map_err(|e| format!("Failed to parse `gh pr list` output: {}", e))?;
     Ok(prs)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PrDetail {
+    pub number: i64,
+    pub commits: Vec<PrCommit>,
+    #[serde(rename = "statusCheckRollup")]
+    pub status_check_rollup: Vec<PrCheck>,
+    #[serde(rename = "reviewRequests")]
+    pub review_requests: Vec<PrReviewRequest>,
+}
+
+#[tauri::command]
+pub async fn gh_pr_detail(workspace_dir: String, pr_number: i64) -> Result<PrDetail, String> {
+    let mut cmd = gh_command()?;
+    let output = cmd
+        .arg("pr")
+        .arg("view")
+        .arg(pr_number.to_string())
+        .arg("--json")
+        .arg("number,commits,statusCheckRollup,reviewRequests")
+        .current_dir(&workspace_dir)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to spawn `gh pr view`: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "`gh pr view` failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse `gh pr view` output: {}", e))
 }

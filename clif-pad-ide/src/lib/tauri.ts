@@ -179,6 +179,27 @@ export async function gitInit(path: string): Promise<string> {
   return invoke("git_init", { path });
 }
 
+export interface CloneResult {
+  target_path: string;
+  slug: string;
+}
+
+export type CloneDepth = "shallow" | "single" | "full";
+
+export async function gitClone(
+  url: string,
+  parentDir: string,
+  folderName?: string,
+  depth: CloneDepth = "shallow",
+): Promise<CloneResult> {
+  return invoke("git_clone", {
+    url,
+    parentDir,
+    folderName: folderName ?? null,
+    depth,
+  });
+}
+
 export async function gitFetch(path: string): Promise<string> {
   return invoke("git_fetch", { path });
 }
@@ -444,4 +465,15 @@ export async function ghListPrs(
     state: state ?? null,
     limit: limit ?? null,
   });
+}
+
+export interface PrDetail {
+  number: number;
+  commits: PrCommit[];
+  statusCheckRollup: PrCheck[];
+  reviewRequests: PrReviewRequest[];
+}
+
+export async function ghPrDetail(workspaceDir: string, prNumber: number): Promise<PrDetail> {
+  return invoke("gh_pr_detail", { workspaceDir, prNumber });
 }

@@ -19,6 +19,7 @@ import type { TerminalPanelRef } from "./components/terminal/TerminalPanel";
 const TerminalPanel = lazy(() => import("./components/terminal/TerminalPanel"));
 const AgentChatPanel = lazy(() => import("./components/agent/AgentChatPanel"));
 const ReviewWorkspace = lazy(() => import("./components/reviews/ReviewWorkspace"));
+const CloneRepoModal = lazy(() => import("./components/layout/CloneRepoModal"));
 
 const App: Component = () => {
   let terminalRef: TerminalPanelRef | undefined;
@@ -27,6 +28,7 @@ const App: Component = () => {
   const [isDraggingSidebar, setIsDraggingSidebar] = createSignal(false);
   const [isDraggingAgent, setIsDraggingAgent] = createSignal(false);
   const [showAbout, setShowAbout] = createSignal(false);
+  const [showClone, setShowClone] = createSignal(false);
   const isDraggingAny = () => isDraggingTerminal() || isDraggingSidebar() || isDraggingAgent();
 
   function handleLaunchClaude() {
@@ -39,6 +41,24 @@ const App: Component = () => {
     const root = projectRoot();
     if (terminalRef && root) {
       terminalRef.sendCommand(`clifcode -w ${JSON.stringify(root)}\n`);
+    }
+  }
+
+  function handleCloneRepo() {
+    setShowClone(true);
+  }
+
+  async function handleCloneDone(path: string) {
+    setShowClone(false);
+    try {
+      await openProject(path);
+      if (terminalRef) {
+        terminalRef.sendCommand(`cd ${JSON.stringify(path)}\n`);
+      }
+      await initGit();
+      setAgentVisible(true);
+    } catch (e) {
+      console.error("Failed to open cloned repo:", e);
     }
   }
 
@@ -283,7 +303,7 @@ function handleSidebarResize(e: MouseEvent) {
             style={{ width: `${sidebarWidth()}px` }}
             class="h-full shrink-0"
           >
-            <RightSidebar onOpenFolder={handleOpenFolder} onOpenRecent={async (path) => {
+            <RightSidebar onOpenFolder={handleOpenFolder} onCloneRepo={handleCloneRepo} onOpenRecent={async (path) => {
               await openProject(path);
               if (terminalRef) {
                 terminalRef.sendCommand(`cd ${JSON.stringify(path)}\n`);
@@ -323,6 +343,13 @@ function handleSidebarResize(e: MouseEvent) {
 
       {/* About Modal */}
       <AboutModal open={showAbout()} onClose={() => setShowAbout(false)} />
+
+      {/* Clone repo modal */}
+      <Show when={showClone()}>
+        <Suspense fallback={null}>
+          <CloneRepoModal onClose={() => setShowClone(false)} onDone={handleCloneDone} />
+        </Suspense>
+      </Show>
 
       {/* Toasts */}
       <ToastContainer />
