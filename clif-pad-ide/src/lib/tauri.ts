@@ -318,9 +318,18 @@ export async function agentChat(
   apiKey: string | null,
   provider: string,
   workspaceDir: string,
-  context: string | null
+  context: string | null,
+  conversationId: string | null = null,
 ): Promise<void> {
-  return invoke("agent_chat", { messages, model, apiKey, provider, workspaceDir, context });
+  return invoke("agent_chat", {
+    messages,
+    model,
+    apiKey,
+    provider,
+    workspaceDir,
+    context,
+    conversationId,
+  });
 }
 
 export async function agentStop(sessionId: string): Promise<void> {

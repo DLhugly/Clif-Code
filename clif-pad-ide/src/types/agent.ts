@@ -26,6 +26,14 @@ export interface ToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  /**
+   * Original JSON-encoded argument string as received from the model.
+   * Preserved so a follow-up turn can replay the assistant message with
+   * byte-exact arguments — important when the model emitted args we
+   * could not parse (e.g. trailing-newline edge cases) and the frontend
+   * fell back to `{ raw: argsStr }` on `arguments`.
+   */
+  argsRaw?: string;
   status: "pending" | "running" | "done" | "error";
   result?: string;
 }

@@ -159,6 +159,7 @@ pub fn run() {
             commands::agent::agent_stop,
             commands::agent::agent_approve_command,
             commands::agent::agent_clear_todos,
+            commands::agent::agent_clear_conversation,
             commands::indexer::index_build,
             commands::indexer::index_status,
             commands::indexer::index_find_symbol,

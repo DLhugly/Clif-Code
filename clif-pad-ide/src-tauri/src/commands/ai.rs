@@ -9,6 +9,21 @@ pub struct ChatMessage {
     pub content: String,
     /// Optional base64 data URLs for image attachments (vision models)
     pub images: Option<Vec<String>>,
+    /// OpenAI-format tool calls attached to an assistant turn. When set, the
+    /// agent loop preserves them as `assistant.tool_calls` so the model
+    /// sees its own previous tool invocations on follow-up user turns.
+    /// Each entry is the raw `{ id, type: "function", function: { name,
+    /// arguments } }` object so providers can pass it straight through.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<serde_json::Value>>,
+    /// When `role == "tool"`, the id of the originating assistant tool call.
+    /// Required for OpenAI/Anthropic to match results back to invocations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// Optional tool name on a `role: "tool"` message. Some providers want
+    /// it; harmless for the rest because we skip-serialize when None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 #[derive(serde::Serialize)]

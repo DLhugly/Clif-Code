@@ -6,6 +6,7 @@ import type { AgentMessage, ToolCall, AgentContext } from "../types/agent";
 import { settings } from "./settingsStore";
 import { projectRoot } from "./fileStore";
 import { saveAgentHistory, loadAgentHistory } from "../lib/tauri";
+import { buildBackendMessages } from "../lib/agentMessages";
 
 interface AgentTab {
   id: string;
@@ -91,9 +92,7 @@ function _doSendAgentMessage(
   setAgentStreaming(true);
   scheduleSave();
 
-  const messages = [...agentMessages]
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+  const messages = buildBackendMessages([...agentMessages]);
 
   const s = settings();
   const workspaceDir = projectRoot() || "";
@@ -105,6 +104,7 @@ function _doSendAgentMessage(
     provider: s.aiProvider,
     workspaceDir,
     context: context ? JSON.stringify(context) : null,
+    conversationId: activeAgentTab(),
   })
     .then((sid) => setAgentSessionId(sid as string))
     .catch((e) => {
@@ -252,7 +252,13 @@ async function initAgentListeners() {
       } catch {
         args = { raw: argsStr };
       }
-      const toolCall: ToolCall = { id, name, arguments: args, status: "running" };
+      const toolCall: ToolCall = {
+        id,
+        name,
+        arguments: args,
+        argsRaw: argsStr,
+        status: "running",
+      };
 
       setAgentMessages(
         produce((msgs) => {
@@ -384,9 +390,7 @@ async function initAgentListeners() {
           setAgentStreaming(true);
           setAgentError(null);
 
-          const messages = [...agentMessages]
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+          const messages = buildBackendMessages([...agentMessages]);
 
           const s = settings();
           const workspaceDir = projectRoot() || "";
@@ -398,6 +402,7 @@ async function initAgentListeners() {
             provider: s.aiProvider,
             workspaceDir,
             context: null,
+            conversationId: activeAgentTab(),
           })
             .then((sid) => setAgentSessionId(sid as string))
             .catch((e) => {
@@ -490,10 +495,7 @@ async function sendAgentMessage(content: string, context?: AgentContext, modelOv
   setAgentStreaming(true);
   setAgentError(null);
 
-  // Build messages array for backend — include images for vision-capable models
-  const messages = [...agentMessages]
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+  const messages = buildBackendMessages([...agentMessages]);
 
   const s = settings();
   const workspaceDir = projectRoot() || "";
@@ -506,6 +508,7 @@ async function sendAgentMessage(content: string, context?: AgentContext, modelOv
       provider: s.aiProvider,
       workspaceDir,
       context: context ? JSON.stringify(context) : null,
+      conversationId: activeAgentTab(),
     });
   } catch (e) {
     setAgentStreaming(false);
@@ -563,10 +566,7 @@ async function forcePushAgent(content: string, context?: AgentContext, modelOver
   setAgentStreaming(true);
   setAgentError(null);
 
-  // Build messages array for backend — include images for vision-capable models
-  const messages = [...agentMessages]
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ role: m.role as string, content: m.content, images: m.images }));
+  const messages = buildBackendMessages([...agentMessages]);
 
   const s = settings();
   const workspaceDir = projectRoot() || "";
@@ -579,6 +579,7 @@ async function forcePushAgent(content: string, context?: AgentContext, modelOver
       provider: s.aiProvider,
       workspaceDir,
       context: context ? JSON.stringify(context) : null,
+      conversationId: activeAgentTab(),
     });
   } catch (e) {
     setAgentStreaming(false);
@@ -637,6 +638,11 @@ function switchAgentTab(tabId: string) {
 
 function removeAgentTab(tabId: string) {
   if (agentStreaming()) return;
+
+  // Release backend-side conversation state (read-file set + todos) for
+  // the closing tab so a future tab with the same id starts clean and
+  // the maps don't grow unbounded across long IDE sessions.
+  invoke("agent_clear_conversation", { conversationId: tabId }).catch(() => {});
 
   const isActive = activeAgentTab() === tabId;
 
@@ -747,6 +753,13 @@ function clearAgentState() {
     clearTimeout(saveDebounceTimer);
     saveDebounceTimer = null;
   }
+  // Drop backend-side conversation state for every tab we are abandoning,
+  // including the active one, so a fresh project start cannot inherit
+  // stale read-tracking or todos from the previous workspace.
+  for (const t of agentTabs) {
+    invoke("agent_clear_conversation", { conversationId: t.id }).catch(() => {});
+  }
+  invoke("agent_clear_conversation", { conversationId: activeAgentTab() }).catch(() => {});
   setAgentMessages([]);
   setAgentTabs([]);
   setAgentError(null);

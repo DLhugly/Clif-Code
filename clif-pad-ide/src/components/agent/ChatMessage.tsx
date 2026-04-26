@@ -266,6 +266,11 @@ const ToolCallCard: Component<{
       case "edit_file": return (args.path as string || "").split("/").pop() || "";
       case "search": return `"${args.query || ""}"${args.path ? ` in ${(args.path as string).split("/").pop()}` : ""}`;
       case "find_file": return (args.name as string) || "";
+      case "find_symbol": {
+        const name = (args.name as string) || "";
+        const limit = typeof args.limit === "number" ? args.limit : null;
+        return limit ? `${name} (top ${limit})` : name;
+      }
       case "list_files": {
         const p = (args.path as string) || ".";
         return p.split("/").pop() || p;

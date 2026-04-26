@@ -15,8 +15,17 @@ static AGENT_SESSIONS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync
 static COMMAND_APPROVALS: std::sync::LazyLock<Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-// Files read during an agent session: session_id -> canonical paths
-static SESSION_READ_FILES: std::sync::LazyLock<Arc<Mutex<HashMap<String, HashSet<PathBuf>>>>> =
+// session_id (transient, one per `agent_chat` invocation) -> conversation_id
+// (stable across user turns, e.g. "default", "pr-123"). Populated when
+// `agent_chat` starts and removed when the session ends. Lets the existing
+// session-keyed helpers transparently resolve to the long-lived conversation.
+static SESSION_TO_CONV: std::sync::LazyLock<Arc<Mutex<HashMap<String, String>>>> =
+    std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+// Files read during a conversation: conversation_id -> canonical paths.
+// Lives across user turns so `edit_file` does not lose its read-before-edit
+// invariant when the user sends a follow-up message.
+static CONV_READ_FILES: std::sync::LazyLock<Arc<Mutex<HashMap<String, HashSet<PathBuf>>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,9 +35,61 @@ struct TodoItem {
     status: String,
 }
 
-// Session-scoped todo lists: session_id -> todo items
-static SESSION_TODOS: std::sync::LazyLock<Arc<Mutex<HashMap<String, Vec<TodoItem>>>>> =
+// Conversation-scoped todo lists: conversation_id -> todo items. Persists
+// across user turns within the same chat tab so `todo_read` survives
+// compaction and message-history replay.
+static CONV_TODOS: std::sync::LazyLock<Arc<Mutex<HashMap<String, Vec<TodoItem>>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+/// Resolve a transient session_id to its stable conversation_id. Returns the
+/// conversation_id if mapped, else falls back to the session_id itself for
+/// backward compatibility with any caller that hasn't been migrated yet.
+fn conv_for_session(session_id: &str) -> String {
+    SESSION_TO_CONV
+        .lock()
+        .ok()
+        .and_then(|m| m.get(session_id).cloned())
+        .unwrap_or_else(|| session_id.to_string())
+}
+
+/// Build the effective conversation key by prefixing the user-facing tab
+/// id with the Tauri window label. This isolates state across windows so
+/// two windows passing tab id "default" never collide. The default tab
+/// is normalized to the literal "default" so legacy callers without a
+/// conversation id behave identically (just per-window).
+fn scoped_conversation_id(window_label: &str, conversation_id: Option<&str>) -> String {
+    let tab = conversation_id
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("default");
+    format!("{}::{}", window_label, tab)
+}
+
+/// Soft cap on the number of distinct conversations the backend tracks.
+/// At 256 conversations × ~50 paths × ~100 bytes ≈ 1.3 MB of resident
+/// state, well under any realistic memory budget. If the user opens
+/// more tabs than this without closing them, we drop arbitrary stale
+/// entries to make room rather than letting the maps grow forever.
+const MAX_TRACKED_CONVERSATIONS: usize = 256;
+
+/// Make room in a conversation-keyed map without reaching for an LRU
+/// crate. Picks an arbitrary entry whose key is NOT the one we're about
+/// to insert and removes it. This is "good enough" eviction for state
+/// that's only a soft optimization (read-tracking + todos) — losing one
+/// stale entry just means that conversation gets a fresh start on its
+/// next user turn, which is harmless.
+fn evict_one_if_full<V>(map: &mut HashMap<String, V>, keep: &str) {
+    if map.len() < MAX_TRACKED_CONVERSATIONS {
+        return;
+    }
+    let victim = map
+        .keys()
+        .find(|k| k.as_str() != keep)
+        .cloned();
+    if let Some(k) = victim {
+        map.remove(&k);
+    }
+}
 
 /// Frontend calls this to approve or deny a pending run_command
 #[tauri::command]
@@ -50,41 +111,65 @@ pub fn kill_all_agent_sessions() {
             let _ = tx.send(());
         }
     }
-    if let Ok(mut reads) = SESSION_READ_FILES.lock() {
+    if let Ok(mut map) = SESSION_TO_CONV.lock() {
+        map.clear();
+    }
+    if let Ok(mut reads) = CONV_READ_FILES.lock() {
         reads.clear();
     }
-    if let Ok(mut todos) = SESSION_TODOS.lock() {
+    if let Ok(mut todos) = CONV_TODOS.lock() {
         todos.clear();
     }
 }
 
-/// Wipe the agent's server-side session todo list. Called when the user
-/// hits "Discard" on the task panel in the frontend. After this, any future
-/// `todo_read` tool call from the agent will return an empty list, and the
-/// frontend should also rewrite the most recent `todo_write` tool_result in
-/// the conversation so the agent stops seeing the stale list in history.
+/// Wipe the agent's todo list for the active conversation. Called when the
+/// user hits "Discard" on the task panel. The frontend passes the current
+/// session_id (which we resolve to its conversation_id) so we only clear
+/// the affected conversation, not the whole map.
 #[tauri::command]
 pub fn agent_clear_todos(session_id: Option<String>) -> Result<(), String> {
-    let Ok(mut todos_map) = SESSION_TODOS.lock() else {
-        return Err("SESSION_TODOS lock poisoned".into());
+    let Ok(mut todos_map) = CONV_TODOS.lock() else {
+        return Err("CONV_TODOS lock poisoned".into());
     };
     match session_id {
         Some(sid) => {
-            todos_map.remove(&sid);
+            let conv = conv_for_session(&sid);
+            todos_map.remove(&conv);
         }
         None => {
-            // No session id supplied — clear everything to be safe.
             todos_map.clear();
         }
     }
     Ok(())
 }
 
+/// Drop all conversation-scoped state (read files + todos) for a given
+/// chat tab. Called from the frontend when a tab is closed or the project
+/// is switched, so abandoned conversations don't leak memory and a new
+/// tab with the same id starts fresh. The window label is derived from
+/// the invoking webview so cleanup automatically targets state owned by
+/// THIS window, never another window's state under the same tab id.
+#[tauri::command]
+pub fn agent_clear_conversation(
+    window: tauri::Window,
+    conversation_id: String,
+) -> Result<(), String> {
+    let key = scoped_conversation_id(window.label(), Some(&conversation_id));
+    if let Ok(mut reads) = CONV_READ_FILES.lock() {
+        reads.remove(&key);
+    }
+    if let Ok(mut todos) = CONV_TODOS.lock() {
+        todos.remove(&key);
+    }
+    Ok(())
+}
+
 fn track_file_read(session_id: Option<&str>, path: &Path) {
     let Some(sid) = session_id else { return };
-    if let Ok(mut reads) = SESSION_READ_FILES.lock() {
+    let conv = conv_for_session(sid);
+    if let Ok(mut reads) = CONV_READ_FILES.lock() {
         reads
-            .entry(sid.to_string())
+            .entry(conv)
             .or_insert_with(HashSet::new)
             .insert(path.to_path_buf());
     }
@@ -92,9 +177,10 @@ fn track_file_read(session_id: Option<&str>, path: &Path) {
 
 fn has_read_file(session_id: Option<&str>, path: &Path) -> bool {
     let Some(sid) = session_id else { return true };
-    let Ok(reads) = SESSION_READ_FILES.lock() else { return false };
+    let conv = conv_for_session(sid);
+    let Ok(reads) = CONV_READ_FILES.lock() else { return false };
     reads
-        .get(sid)
+        .get(&conv)
         .map(|files| files.contains(path))
         .unwrap_or(false)
 }
@@ -335,6 +421,8 @@ fn build_system_prompt(workspace_dir: &str) -> String {
          - Use tools to gather information before answering.\n\
          - Read relevant files before editing them.\n\
          - Prefer list_files, find_file, and search for exploration before using run_command.\n\
+         - When you know the name of a function, class, struct, interface, type, enum, or constant, call find_symbol instead of search — it returns ranked file:line definitions from the local index in one hop.\n\
+         - For multi-step or ambiguous tasks, call todo_write to plan the work up front and todo_read to recheck progress; skip it for one-shot edits.\n\
          - Use edit_file for small targeted changes and write_file only for new files or full rewrites.\n\
          - After meaningful code changes, run verification commands when feasible.\n\
          - If a tool returns an error, fix the arguments or approach and retry deliberately.\n\
@@ -985,10 +1073,11 @@ async fn execute_tool(
                 parsed.push(TodoItem { id, content, status });
             }
 
-            let Ok(mut todos_map) = SESSION_TODOS.lock() else {
+            let conv = conv_for_session(sid);
+            let Ok(mut todos_map) = CONV_TODOS.lock() else {
                 return tool_error("STATE_LOCK_FAILED", "Failed to lock todo state.", true);
             };
-            let entry = todos_map.entry(sid.to_string()).or_insert_with(Vec::new);
+            let entry = todos_map.entry(conv).or_insert_with(Vec::new);
 
             if merge {
                 for incoming in parsed {
@@ -1021,10 +1110,11 @@ async fn execute_tool(
             let Some(sid) = session_id else {
                 return tool_error("SESSION_REQUIRED", "todo_read requires an active agent session.", false);
             };
-            let Ok(todos_map) = SESSION_TODOS.lock() else {
+            let conv = conv_for_session(sid);
+            let Ok(todos_map) = CONV_TODOS.lock() else {
                 return tool_error("STATE_LOCK_FAILED", "Failed to lock todo state.", true);
             };
-            let todos = todos_map.get(sid).cloned().unwrap_or_default();
+            let todos = todos_map.get(&conv).cloned().unwrap_or_default();
             tool_success(json!({
                 "todos": todos,
                 "total": todos.len(),
@@ -1340,10 +1430,28 @@ fn compact_conversation(conversation: &mut Vec<serde_json::Value>, target_tokens
         return;
     }
 
-    // Tier 3: Drop old turns, keep system prompt (index 0) + recent KEEP_RECENT
+    // Tier 3: Drop old turns, keep system prompt (index 0) + recent KEEP_RECENT.
+    //
+    // Critical safety: the kept tail must NOT begin with a `role: "tool"`
+    // message whose paired `assistant` (with `tool_calls`) lives in the
+    // dropped range — OpenAI/Anthropic both reject the request with
+    // "tool message without preceding tool_calls" and the agent emits an
+    // empty reply. Walk `keep_end` backward past any leading tool messages
+    // until the kept tail starts on a clean turn boundary (user / assistant
+    // text / assistant-with-tool_calls). If the walk would shrink the tail
+    // below 4 entries, abort tier 3 — tiers 1 and 2 already trimmed enough.
     let keep_start = 1;
-    let keep_end = conversation.len().saturating_sub(KEEP_RECENT);
-    if keep_end <= keep_start {
+    let mut keep_end = conversation.len().saturating_sub(KEEP_RECENT);
+    while keep_end > keep_start
+        && conversation
+            .get(keep_end)
+            .and_then(|m| m.get("role"))
+            .and_then(|v| v.as_str())
+            == Some("tool")
+    {
+        keep_end -= 1;
+    }
+    if keep_end <= keep_start || conversation.len().saturating_sub(keep_end) < 4 {
         return;
     }
 
@@ -1481,10 +1589,17 @@ pub async fn agent_chat(
     provider: String,
     workspace_dir: String,
     context: Option<String>,
+    conversation_id: Option<String>,
 ) -> Result<(), String> {
     let session_id = Uuid::new_v4().to_string();
     let app = window.app_handle().clone();
     let label = window.label().to_string();
+    // Window-scope the conversation key so two ClifPad windows opened on
+    // the same project (both passing tab id "default") never share a
+    // read-set or todo list. The frontend's `agent_clear_conversation`
+    // calls go through the same prefixing helper so cleanup stays
+    // symmetric with creation.
+    let conv_id = scoped_conversation_id(&label, conversation_id.as_deref());
 
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
@@ -1495,16 +1610,28 @@ pub async fn agent_chat(
         sessions.insert(session_id.clone(), cancel_tx);
     }
     {
-        let mut reads = SESSION_READ_FILES
+        let mut map = SESSION_TO_CONV
             .lock()
-            .map_err(|e| format!("Failed to lock session read files: {}", e))?;
-        reads.insert(session_id.clone(), HashSet::new());
+            .map_err(|e| format!("Failed to lock session->conv map: {}", e))?;
+        map.insert(session_id.clone(), conv_id.clone());
+    }
+    // Lazily ensure the conversation slots exist; do NOT clobber existing
+    // state — that is the whole point of fix #2 (read-set + todos persist
+    // across user turns within the same chat tab). Each map enforces a
+    // soft cap so abandoned tabs cannot leak forever.
+    {
+        let mut reads = CONV_READ_FILES
+            .lock()
+            .map_err(|e| format!("Failed to lock conv read files: {}", e))?;
+        evict_one_if_full(&mut reads, &conv_id);
+        reads.entry(conv_id.clone()).or_insert_with(HashSet::new);
     }
     {
-        let mut todos = SESSION_TODOS
+        let mut todos = CONV_TODOS
             .lock()
-            .map_err(|e| format!("Failed to lock session todos: {}", e))?;
-        todos.insert(session_id.clone(), Vec::new());
+            .map_err(|e| format!("Failed to lock conv todos: {}", e))?;
+        evict_one_if_full(&mut todos, &conv_id);
+        todos.entry(conv_id.clone()).or_insert_with(Vec::new);
     }
 
     // Emit session ID to frontend so it can call agent_stop
@@ -1537,11 +1664,12 @@ pub async fn agent_chat(
         if let Ok(mut sessions) = AGENT_SESSIONS.lock() {
             sessions.remove(&sid);
         }
-        if let Ok(mut reads) = SESSION_READ_FILES.lock() {
-            reads.remove(&sid);
-        }
-        if let Ok(mut todos) = SESSION_TODOS.lock() {
-            todos.remove(&sid);
+        // Drop only the per-session mapping. Conversation-scoped state
+        // (CONV_READ_FILES, CONV_TODOS) intentionally lives until the tab
+        // is closed via `agent_clear_conversation`, so the next user turn
+        // still sees what was read and what is on the task list.
+        if let Ok(mut map) = SESSION_TO_CONV.lock() {
+            map.remove(&sid);
         }
     });
 
@@ -1623,6 +1751,55 @@ async fn run_agent_loop(
     }
 
     for msg in &initial_messages {
+        // Branch on role so we can preserve the four wire shapes the
+        // OpenAI-format APIs require:
+        //
+        //   1. role: "tool"      → { role, tool_call_id, content } — must
+        //                          immediately follow an assistant turn that
+        //                          carries the matching tool_calls entry.
+        //   2. role: "assistant" with tool_calls → { role, content, tool_calls }
+        //                          where content may be a string or null.
+        //   3. role: "user" with images → multi-part vision array.
+        //   4. role: "user"/"assistant" plain text → { role, content }.
+        //
+        // Anything else (e.g. stray frontend bookkeeping rows) is skipped
+        // so we never inject malformed messages into the request body.
+        if msg.role == "tool" {
+            let Some(tcid) = msg.tool_call_id.as_deref().filter(|s| !s.is_empty()) else {
+                continue;
+            };
+            let mut entry = json!({
+                "role": "tool",
+                "tool_call_id": tcid,
+                "content": msg.content.clone(),
+            });
+            if let Some(name) = msg.name.as_deref().filter(|s| !s.is_empty()) {
+                if let Some(obj) = entry.as_object_mut() {
+                    obj.insert("name".to_string(), json!(name));
+                }
+            }
+            conversation.push(entry);
+            continue;
+        }
+
+        if msg.role == "assistant" {
+            if let Some(tool_calls) = &msg.tool_calls {
+                if !tool_calls.is_empty() {
+                    let content_value = if msg.content.is_empty() {
+                        serde_json::Value::Null
+                    } else {
+                        serde_json::Value::String(msg.content.clone())
+                    };
+                    conversation.push(json!({
+                        "role": "assistant",
+                        "content": content_value,
+                        "tool_calls": tool_calls,
+                    }));
+                    continue;
+                }
+            }
+        }
+
         // Build content as vision multi-part array when images are present,
         // otherwise use a plain string (cheaper tokens, wider model compat).
         let content_value = if let Some(images) = &msg.images {
@@ -1691,10 +1868,12 @@ async fn run_agent_loop(
         }
 
         // Auto-compact when context grows large. Our estimate runs ~40% below
-        // actual token count (JSON overhead, tokenizer differences), so 80K estimated
-        // maps to roughly 110-130K real tokens — well within 200K model limits.
+        // actual token count (JSON overhead, tokenizer differences), so 100K
+        // estimated maps to roughly 140-160K real tokens — leaves headroom on
+        // 200K-window models for the assistant reply, and the existing overflow
+        // retry path catches anything smaller.
         let estimated_tokens = estimate_conversation_tokens(&conversation);
-        if estimated_tokens > 80_000 {
+        if estimated_tokens > 100_000 {
             let before = estimated_tokens;
             compact_conversation(&mut conversation, 40_000);
             let after = estimate_conversation_tokens(&conversation);
@@ -1707,7 +1886,7 @@ async fn run_agent_loop(
                     "reason": "auto",
                     "tokens_before": before,
                     "tokens_after": after,
-                    "threshold": 80_000,
+                    "threshold": 100_000,
                 }),
             );
         }
@@ -2316,11 +2495,11 @@ pub async fn agent_stop(session_id: String) -> Result<(), String> {
     match cancel_tx {
         Some(tx) => {
             let _ = tx.send(());
-            if let Ok(mut reads) = SESSION_READ_FILES.lock() {
-                reads.remove(&session_id);
-            }
-            if let Ok(mut todos) = SESSION_TODOS.lock() {
-                todos.remove(&session_id);
+            // Drop only the per-session indirection. Conversation-scoped
+            // state stays alive so the next user message in the same tab
+            // still has its read-set + todo list intact.
+            if let Ok(mut map) = SESSION_TO_CONV.lock() {
+                map.remove(&session_id);
             }
             Ok(())
         }
@@ -2572,4 +2751,170 @@ fn repair_json(input: &str) -> String {
     }
     
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a synthetic conversation with one early text turn followed by
+    /// many assistant→tool pairs near the end, sized so tier 3 must run.
+    fn synthetic_conversation_with_tool_tail() -> Vec<serde_json::Value> {
+        let mut conv: Vec<serde_json::Value> = vec![
+            json!({ "role": "system", "content": "system prompt" }),
+            json!({ "role": "user", "content": "early task" }),
+            json!({ "role": "assistant", "content": "ok working on it" }),
+        ];
+        // Push enough text turns to bloat the conversation past tier 3's
+        // KEEP_RECENT cutoff but small enough that the test runs fast.
+        for i in 0..20 {
+            conv.push(json!({
+                "role": "user",
+                "content": format!("turn {} please continue", i),
+            }));
+            conv.push(json!({
+                "role": "assistant",
+                "content": "x".repeat(2000),
+            }));
+        }
+        // Now append the dangerous tail: assistant-with-tool_calls followed
+        // by two tool results. The whole pair must stay together after
+        // compaction.
+        conv.push(json!({
+            "role": "assistant",
+            "content": serde_json::Value::Null,
+            "tool_calls": [
+                { "id": "tc1", "type": "function", "function": { "name": "read_file", "arguments": "{}" } },
+                { "id": "tc2", "type": "function", "function": { "name": "read_file", "arguments": "{}" } }
+            ]
+        }));
+        conv.push(json!({ "role": "tool", "tool_call_id": "tc1", "content": "result one" }));
+        conv.push(json!({ "role": "tool", "tool_call_id": "tc2", "content": "result two" }));
+        conv.push(json!({ "role": "assistant", "content": "all done" }));
+        conv
+    }
+
+    #[test]
+    fn compact_does_not_orphan_tool_messages() {
+        let mut conv = synthetic_conversation_with_tool_tail();
+        compact_conversation(&mut conv, 1_000); // tiny target forces full tier 3
+
+        // Walk the result: every `role: "tool"` message must be preceded
+        // (anywhere earlier in the kept conversation) by an assistant
+        // message whose `tool_calls` array contains the matching id.
+        let mut declared: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for msg in &conv {
+            let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("");
+            if role == "assistant" {
+                if let Some(tcs) = msg.get("tool_calls").and_then(|v| v.as_array()) {
+                    for tc in tcs {
+                        if let Some(id) = tc.get("id").and_then(|v| v.as_str()) {
+                            declared.insert(id.to_string());
+                        }
+                    }
+                }
+            } else if role == "tool" {
+                let tcid = msg
+                    .get("tool_call_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                assert!(
+                    declared.contains(tcid),
+                    "tool message tc_id={} has no preceding assistant.tool_calls in compacted conversation",
+                    tcid
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn compact_preserves_system_prompt_at_index_zero() {
+        let mut conv = synthetic_conversation_with_tool_tail();
+        compact_conversation(&mut conv, 1_000);
+        assert_eq!(
+            conv[0]
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or(""),
+            "system",
+            "tier 3 must keep the system prompt as the first message"
+        );
+    }
+
+    #[test]
+    fn conv_for_session_falls_back_to_session_id() {
+        // Unmapped session id should round-trip as itself for back-compat.
+        let unique = format!("test-session-{}", uuid::Uuid::new_v4());
+        assert_eq!(conv_for_session(&unique), unique);
+    }
+
+    #[test]
+    fn conv_for_session_resolves_mapped_id() {
+        let sid = format!("sess-{}", uuid::Uuid::new_v4());
+        let cid = format!("conv-{}", uuid::Uuid::new_v4());
+        SESSION_TO_CONV
+            .lock()
+            .unwrap()
+            .insert(sid.clone(), cid.clone());
+        assert_eq!(conv_for_session(&sid), cid);
+        SESSION_TO_CONV.lock().unwrap().remove(&sid);
+    }
+
+    #[test]
+    fn scoped_conversation_id_prefixes_window_label() {
+        // Two windows passing the same tab id must produce distinct keys.
+        assert_eq!(
+            scoped_conversation_id("main", Some("default")),
+            "main::default"
+        );
+        assert_eq!(
+            scoped_conversation_id("review", Some("default")),
+            "review::default"
+        );
+        assert_ne!(
+            scoped_conversation_id("main", Some("default")),
+            scoped_conversation_id("review", Some("default"))
+        );
+    }
+
+    #[test]
+    fn scoped_conversation_id_normalizes_missing_and_empty_tab() {
+        // Missing or whitespace-only tab id collapses to "default" so legacy
+        // callers (and pre-fix #2 frontends) end up on the same per-window
+        // bucket as new callers passing the literal "default".
+        assert_eq!(scoped_conversation_id("main", None), "main::default");
+        assert_eq!(scoped_conversation_id("main", Some("")), "main::default");
+        assert_eq!(scoped_conversation_id("main", Some("   ")), "main::default");
+        assert_eq!(
+            scoped_conversation_id("main", Some("pr-123")),
+            "main::pr-123"
+        );
+    }
+
+    #[test]
+    fn evict_one_if_full_is_a_noop_below_cap() {
+        // Below the cap nothing should be removed regardless of which key
+        // is being inserted next.
+        let mut map: HashMap<String, u32> = HashMap::new();
+        for i in 0..10 {
+            map.insert(format!("k{}", i), i);
+        }
+        let before = map.len();
+        evict_one_if_full(&mut map, "k_new");
+        assert_eq!(map.len(), before);
+    }
+
+    #[test]
+    fn evict_one_if_full_drops_some_other_entry_at_cap() {
+        // At the cap, inserting a new key requires evicting one existing
+        // entry — and never the key we're about to insert.
+        let mut map: HashMap<String, u32> = HashMap::new();
+        for i in 0..MAX_TRACKED_CONVERSATIONS {
+            map.insert(format!("k{}", i), i as u32);
+        }
+        let keep = "incoming-key".to_string();
+        evict_one_if_full(&mut map, &keep);
+        assert_eq!(map.len(), MAX_TRACKED_CONVERSATIONS - 1);
+        assert!(!map.contains_key(&keep), "must not evict the incoming key");
+    }
 }
