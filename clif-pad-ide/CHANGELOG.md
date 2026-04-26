@@ -1,3 +1,10 @@
+# [1.71.0](https://github.com/DLhugly/Clif-Code/compare/v1.70.0...v1.71.0) (2026-04-26)
+
+
+### Features
+
+* enhance ChatMessage and agent communication with backend message structure ([e720e25](https://github.com/DLhugly/Clif-Code/commit/e720e25b9429242f1c4a4f1fd62bddf84e30df71))
+
 # [1.70.0](https://github.com/DLhugly/Clif-Code/compare/v1.69.0...v1.70.0) (2026-04-23)
 
 
